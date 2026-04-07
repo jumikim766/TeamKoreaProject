@@ -12,6 +12,15 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        return new DefaultOAuth2UserService().loadUser(userRequest);
+
+        // 로그인 방식 받기 (google / naver)
+        String registrationId = userRequest.getClientRegistration().getRegistrationId();
+        System.out.println("OAuth 로그인 provider: " + registrationId);
+
+        OAuth2User oAuth2User = new DefaultOAuth2UserService().loadUser(userRequest);
+
+        System.out.println("OAuth 사용자 정보: " + oAuth2User.getAttributes());
+
+        return oAuth2User;
     }
 }

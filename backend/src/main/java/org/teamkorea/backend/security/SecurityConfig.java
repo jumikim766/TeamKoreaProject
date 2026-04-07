@@ -6,11 +6,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.teamkorea.backend.service.CustomOAuth2UserService;
 
+// 보안 규칙 정의
 @Configuration
 public class SecurityConfig {
 
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
-    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler; // 로그인 성공 시 실행
+    private final CustomOAuth2UserService customOAuth2UserService; // 유저 정보 가져오기
 
     public SecurityConfig(OAuth2SuccessHandler oAuth2SuccessHandler,
                           CustomOAuth2UserService customOAuth2UserService) {
@@ -25,7 +26,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
-                                "/hello",
+                                "/",
                                 "/oauth2/**",
                                 "/login/**",
                                 "/error"
@@ -36,9 +37,9 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
                         )
-                        .successHandler(oAuth2SuccessHandler)
+                        .successHandler(oAuth2SuccessHandler) // 로그인 성공 시 이동
                 );
 
-        return http.build();
+        return http.build(); 
     }
 }

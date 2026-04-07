@@ -2,7 +2,10 @@ package org.teamkorea.backend.domain;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import lombok.*;
 
+@Builder
+@AllArgsConstructor
 @Entity
 @Table(name = "users")
 public class User {
