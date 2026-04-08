@@ -1,0 +1,128 @@
+.container {
+  font-family: sans-serif;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 헤더 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 2px solid black;
+}
+
+/* ✅ 메뉴바 */
+.nav {
+  display: flex;
+  background: white;
+  color: black;
+  border: 2px solid black;
+  position: relative;   /* ✅ 중요 */
+}
+
+/* 상단 메뉴 */
+.nav-item {
+  flex: 1;
+  padding: 12px;
+  text-align: center;
+  border-right: 1px solid black;
+  cursor: pointer;
+}
+
+.nav-item:last-child {
+  border-right: none;
+}
+
+/* ✅ 전체 펼쳐지는 메가 메뉴 */
+.mega-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: #eee;
+  border-top: 2px solid black;
+  display: none;
+  padding: 20px;
+  justify-content: space-around;
+  z-index: 100;
+}
+
+/* ✅ 핵심: nav 전체 hover 시 표시 */
+.nav:hover .mega-menu {
+  display: flex;
+}
+
+/* 컬럼 */
+.mega-column {
+  width: 150px;
+  text-align: left;
+}
+
+.mega-column h4 {
+  margin-bottom: 10px;
+}
+
+/* ✅ 소메뉴 */
+.mega-column p {
+  margin: 5px 0;
+  padding-left: 15px;
+  position: relative;
+  cursor: pointer;
+}
+
+/* ✅ 네모 박스 */
+.mega-column p::before {
+  content: "□";
+  position: absolute;
+  left: 0;
+}
+
+/* hover 효과 */
+.mega-column p:hover {
+  text-decoration: underline;
+}
+
+/* 메인 */
+.main {
+  display: flex;
+  padding: 40px;
+  gap: 40px;
+  flex: 1;
+}
+
+/* 박스 */
+.left-box,
+.right-box {
+  flex: 1;
+  border: 2px solid black;
+  border-radius: 10px;
+  height: 650px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.left-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.right-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+/* 푸터 */
+.footer {
+  text-align: center;
+  margin-top: auto;
+  padding: 20px;
+}
