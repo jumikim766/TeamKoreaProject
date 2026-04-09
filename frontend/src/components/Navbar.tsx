@@ -1,49 +1,38 @@
+const navItems = [
+  { title: '메일함', links: ['수집 현황', '연동 계정', '필터 정책'] },
+  { title: 'URL 관리', links: ['위험 URL', '검토 대기', '허용 목록'] },
+  { title: '알림함', links: ['실시간 경보', '보고서 예약', 'Webhook 연동'] },
+  { title: '신고하기', links: ['신고 접수', '조치 내역', '대응 가이드'] },
+  { title: '분류 기준', links: ['위험도 모델', '탐지 규칙', '감사 로그'] },
+];
+
 function Navbar() {
   return (
-    <nav className="nav">
-
-      {/* 상단 메뉴 5개 */}
-      <div className="nav-item">메일함</div>
-      <div className="nav-item">URL 관리</div>
-      <div className="nav-item">알림함</div>
-      <div className="nav-item">신고하기</div>
-      <div className="nav-item">분류기준</div>
-
-      {/* ✅ 전체 펼쳐지는 메뉴 */}
-      <div className="mega-menu">
-
-        <div className="mega-column">
-          <h4>메일함</h4>
-          <p>나의 메일함</p>
-          <p>메일 연동</p>
-        </div>
-
-        <div className="mega-column">
-          <h4>URL 관리</h4>
-          <p>나의 URL</p>
-          <p>URL 모음</p>
-        </div>
-
-        <div className="mega-column">
-          <h4>알림함</h4>
-          <p>알림함</p>
-          <p>알림 설정</p>
-        </div>
-
-        <div className="mega-column">
-          <h4>신고하기</h4>
-          <p>신고 안내</p>
-          <p>신고하기</p>
-        </div>
-
-        <div className="mega-column">
-          <h4>분류 기준</h4>
-          <p>분류 방법</p>
-          <p>분류기준</p>
-        </div>
-
+    <nav className="nav-shell" aria-label="주요 메뉴">
+      <div className="nav">
+        {navItems.map((item) => (
+          <button key={item.title} className="nav-item" type="button">
+            <span>{item.title}</span>
+            <span className="nav-badge">{item.links.length}</span>
+          </button>
+        ))}
       </div>
 
+      <div className="mega-menu">
+        {navItems.map((item) => (
+          <section key={item.title} className="mega-column">
+            <p className="mega-label">{item.title}</p>
+            <h4>{item.links[0]}</h4>
+            <div className="mega-links">
+              {item.links.map((link) => (
+                <button key={link} type="button">
+                  {link}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </nav>
   );
 }

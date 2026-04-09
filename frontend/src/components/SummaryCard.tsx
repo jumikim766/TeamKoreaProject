@@ -1,9 +1,19 @@
-function SummaryCard({ title }) {
+interface SummaryCardProps {
+  title: string;
+  value: string;
+  change: string;
+  tone: 'critical' | 'steady' | 'positive';
+}
+
+function SummaryCard({ title, value, change, tone }: SummaryCardProps) {
   return (
-    <div className="section">
-      <p>• {title}</p>
-      <h2>100 개</h2>
-    </div>
+    <article className={`summary-card summary-${tone}`}>
+      <div>
+        <p className="summary-title">{title}</p>
+        <h3>{value}</h3>
+      </div>
+      <span className="summary-change">{change}</span>
+    </article>
   );
 }
 
