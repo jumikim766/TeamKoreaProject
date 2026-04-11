@@ -9,3 +9,19 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+
+  server:
+  port: 8080
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 792177942168-66bk7jeb1vr63emuf7c0if2o3mmbr6h5.apps.googleusercontent.com
+            client-secret: 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
+            scope:
+              - openid
+              - profile
+              - email
