@@ -29,7 +29,8 @@ public class SecurityConfig {
                                 "/",
                                 "/oauth2/**",
                                 "/login/**",
-                                "/error"
+                                "/error",
+                                "/api/email-accounts" // 삭제필수!!
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
