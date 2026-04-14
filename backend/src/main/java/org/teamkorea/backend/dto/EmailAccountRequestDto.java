@@ -1,5 +1,8 @@
 package org.teamkorea.backend.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,14 +10,22 @@ import lombok.Setter;
 @Setter
 public class EmailAccountRequestDto {
 
-    private Long userId;
-
-    private String email;
+    @NotBlank
     private String provider;
 
+    @Email
+    @NotBlank
+    private String email;
+
+    @NotBlank
     private String imapHost;
+
+    @NotNull
     private Integer imapPort;
 
+    @NotBlank
     private String loginId;
-    private String password; // 평문 (나중에 암호화)
+
+    @NotBlank
+    private String password;
 }
