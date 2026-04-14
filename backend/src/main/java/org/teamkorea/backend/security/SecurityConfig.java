@@ -3,6 +3,8 @@ package org.teamkorea.backend.security;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.teamkorea.backend.service.CustomOAuth2UserService;
 
@@ -23,6 +25,12 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+
+                // 나중에 JWT 쓸 거라 세션 안 씀
+                 .sessionManagement(session -> session
+                        .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS)
+                )
+
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
@@ -30,6 +38,14 @@ public class SecurityConfig {
                                 "/oauth2/**",
                                 "/login/**",
                                 "/error",
+                               
+                                // 회원가입 / 로그인 허용
+                                "/api/auth/signup",
+                                "/api/auth/login",
+
+                                // (테스트용)
+                                "/api/hello",
+
                                 "/api/email-accounts" // 삭제필수!!
                         ).permitAll()
                         .anyRequest().authenticated()
@@ -42,5 +58,11 @@ public class SecurityConfig {
                 );
 
         return http.build(); 
+    }
+
+    // 비밀번호 암호화용 (회원가입 필수)
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
