@@ -11,6 +11,7 @@ interface AuthPageProps {
   onGoHome: () => void;
   onGoLogin: () => void;
   onGoSignup: () => void;
+  onGoMyPage: () => void;
 }
 
 const authContent = {
@@ -43,12 +44,6 @@ const authContent = {
   },
 } as const;
 
-const highlights = [
-  { label: 'Google OAuth', value: 'SSO 준비 완료' },
-  { label: '평균 초기 설정', value: '5분 이내' },
-  { label: '위협 URL 탐지', value: '실시간 연동' },
-];
-
 function AuthPage({
   mode,
   theme,
@@ -56,6 +51,7 @@ function AuthPage({
   onGoHome,
   onGoLogin,
   onGoSignup,
+  onGoMyPage,
 }: AuthPageProps) {
   const content = authContent[mode];
 
@@ -67,36 +63,13 @@ function AuthPage({
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
+        onGoMyPage={onGoMyPage}
         onToggleTheme={onToggleTheme}
       />
 
-      <main className="auth-main">
-        <section className="auth-layout">
-          <section className="auth-showcase">
-            <p className="eyebrow">{content.eyebrow}</p>
-            <h1>{content.title}</h1>
-            <p className="hero-text">{content.description}</p>
-
-            <div className="auth-highlights">
-              {highlights.map((item) => (
-                <article key={item.label} className="auth-highlight-card">
-                  <span>{item.label}</span>
-                  <strong>{item.value}</strong>
-                </article>
-              ))}
-            </div>
-
-            <div className="auth-proof">
-              <p className="auth-proof-label">보안 접근 제어</p>
-              <strong>Google Workspace 계정으로 인증 흐름을 단순화합니다.</strong>
-              <p>
-                실제 OAuth 연동 시 백엔드 콜백 URL과 클라이언트 ID만 연결하면 바로 적용할
-                수 있는 화면 구조입니다.
-              </p>
-            </div>
-          </section>
-
-          <section className="auth-card">
+      <main className="auth-main auth-main-centered">
+        <section className="auth-layout auth-layout-centered">
+          <section className="auth-card auth-card-centered">
             <div className="auth-card-head">
               <p className="eyebrow">{mode === 'login' ? 'Welcome back' : 'Join URL GUARD'}</p>
               <h2>{content.primaryLabel}</h2>
