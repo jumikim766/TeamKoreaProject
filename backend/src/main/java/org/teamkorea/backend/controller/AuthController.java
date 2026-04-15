@@ -4,6 +4,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.teamkorea.backend.dto.LoginRequestDto;
+import org.teamkorea.backend.dto.LoginResponseDto;
 import org.teamkorea.backend.dto.SignupRequestDto;
 import org.teamkorea.backend.dto.SignupResponseDto;
 import org.teamkorea.backend.service.AuthService;
@@ -22,5 +24,11 @@ public class AuthController {
     public ResponseEntity<SignupResponseDto> signup(@Valid @RequestBody SignupRequestDto requestDto) {
         SignupResponseDto response = authService.signup(requestDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto requestDto) {
+        LoginResponseDto response = authService.login(requestDto);
+        return ResponseEntity.ok(response);
     }
 }

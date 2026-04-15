@@ -85,8 +85,15 @@ public class EmailAccountService {
 
     @Transactional
     public void syncEmails(Long userId, Long accountId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        // User user = userRepository.findById(userId)
+        //         .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        User user = userRepository.findById(userId).orElse(null);
+
+        if (user == null) {
+            System.out.println("사용자 없음 - syncEmails 실행 중단");
+            return;
+        }
 
         EmailAccount account = emailAccountRepository.findByAccountIdAndUser(accountId, user)
                 .orElseThrow(() -> new IllegalArgumentException("이메일 계정을 찾을 수 없습니다."));
