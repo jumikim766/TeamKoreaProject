@@ -1,12 +1,11 @@
-type ViewMode = 'dashboard' | 'login' | 'signup';
-
 interface HeaderProps {
   theme: 'light' | 'dark';
-  currentView: ViewMode;
+  currentView: string;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
   onGoSignup: () => void;
+  onGoMyPage: () => void;
 }
 
 function Header({
@@ -16,11 +15,11 @@ function Header({
   onGoHome,
   onGoLogin,
   onGoSignup,
+  onGoMyPage,
 }: HeaderProps) {
   return (
     <header className="header">
       <button className="brand-block brand-button" onClick={onGoHome} type="button">
-        <div className="brand-kicker">Enterprise phishing intelligence</div>
         <div className="logo-wrap">
           <div className="logo-mark">UG</div>
           <div>
@@ -42,6 +41,7 @@ function Header({
           <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
           <strong>{theme === 'light' ? 'ON' : 'OFF'}</strong>
         </button>
+
         <button
           className={currentView === 'login' ? 'ghost-button is-active' : 'ghost-button'}
           onClick={onGoLogin}
@@ -49,12 +49,21 @@ function Header({
         >
           로그인
         </button>
+
         <button
-          className={currentView === 'signup' ? 'primary-button is-active' : 'primary-button'}
+          className={currentView === 'signup' ? 'ghost-button is-active' : 'ghost-button'}
           onClick={onGoSignup}
           type="button"
         >
           회원가입
+        </button>
+
+        <button
+          className={currentView === 'mypage' ? 'primary-button is-active' : 'primary-button'}
+          onClick={onGoMyPage}
+          type="button"
+        >
+          마이페이지
         </button>
       </div>
     </header>

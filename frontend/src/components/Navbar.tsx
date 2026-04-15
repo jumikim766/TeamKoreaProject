@@ -1,19 +1,64 @@
-const navItems = [
-  { title: '메일함', links: ['수집 현황', '연동 계정', '필터 정책'] },
-  { title: 'URL 관리', links: ['위험 URL', '검토 대기', '허용 목록'] },
-  { title: '알림함', links: ['실시간 경보', '보고서 예약', 'Webhook 연동'] },
-  { title: '신고하기', links: ['신고 접수', '조치 내역', '대응 가이드'] },
-  { title: '분류 기준', links: ['위험도 모델', '탐지 규칙', '감사 로그'] },
+type NavTarget =
+  | 'my-mailbox'
+  | 'mail-connect'
+  | 'my-url'
+  | 'url-library'
+  | 'notifications'
+  | 'notification-settings'
+  | 'report-guide'
+  | 'report'
+  | 'classification-method'
+  | 'classification-criteria';
+
+interface NavbarProps {
+  onNavigate: (view: NavTarget) => void;
+}
+
+const navItems: { title: string; links: { label: string; view: NavTarget }[] }[] = [
+  {
+    title: '메일함',
+    links: [
+      { label: '나의 메일함', view: 'my-mailbox' },
+      { label: '메일연동', view: 'mail-connect' },
+    ],
+  },
+  {
+    title: 'URL 관리',
+    links: [
+      { label: '나의 URL', view: 'my-url' },
+      { label: 'URL 모음', view: 'url-library' },
+    ],
+  },
+  {
+    title: '알림함',
+    links: [
+      { label: '알림함', view: 'notifications' },
+      { label: '알림 설정', view: 'notification-settings' },
+    ],
+  },
+  {
+    title: '신고하기',
+    links: [
+      { label: '신고 안내', view: 'report-guide' },
+      { label: '신고하기', view: 'report' },
+    ],
+  },
+  {
+    title: '분류기준',
+    links: [
+      { label: '분류 방법', view: 'classification-method' },
+      { label: '분류 기준', view: 'classification-criteria' },
+    ],
+  },
 ];
 
-function Navbar() {
+function Navbar({ onNavigate }: NavbarProps) {
   return (
     <nav className="nav-shell" aria-label="주요 메뉴">
       <div className="nav">
         {navItems.map((item) => (
           <button key={item.title} className="nav-item" type="button">
             <span>{item.title}</span>
-            <span className="nav-badge">{item.links.length}</span>
           </button>
         ))}
       </div>
@@ -21,12 +66,10 @@ function Navbar() {
       <div className="mega-menu">
         {navItems.map((item) => (
           <section key={item.title} className="mega-column">
-            <p className="mega-label">{item.title}</p>
-            <h4>{item.links[0]}</h4>
             <div className="mega-links">
               {item.links.map((link) => (
-                <button key={link} type="button">
-                  {link}
+                <button key={link.label} type="button" onClick={() => onNavigate(link.view)}>
+                  {link.label}
                 </button>
               ))}
             </div>
