@@ -9,6 +9,7 @@ import org.teamkorea.backend.dto.LoginResponseDto;
 import org.teamkorea.backend.dto.SignupRequestDto;
 import org.teamkorea.backend.dto.SignupResponseDto;
 import org.teamkorea.backend.repository.UserRepository;
+import org.teamkorea.backend.security.JwtUtil;
 
 @Service
 @Transactional
@@ -16,10 +17,12 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     public SignupResponseDto signup(SignupRequestDto requestDto) {
@@ -31,8 +34,6 @@ public class AuthService {
         user.setName(requestDto.getName());
         user.setEmail(requestDto.getEmail());
 
-        user.setPhoneEnc(null);
-
         user.setRole("USER");
         user.setStatus("ACTIVE");
         user.setProvider("LOCAL");
@@ -40,11 +41,11 @@ public class AuthService {
         User savedUser = userRepository.save(user);
 
         return new SignupResponseDto(
-            savedUser.getUserId(),
-            savedUser.getUsername(),
-            savedUser.getName(),
-            savedUser.getEmail(),
-            "회원가입이 완료되었습니다."
+                savedUser.getUserId(),
+                savedUser.getUsername(),
+                savedUser.getName(),
+                savedUser.getEmail(),
+                "회원가입이 완료되었습니다."
         );
     }
 
@@ -60,11 +61,14 @@ public class AuthService {
             throw new IllegalArgumentException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
+        String accessToken = jwtUtil.generateAccessToken(user);
+
         return new LoginResponseDto(
                 user.getUserId(),
                 user.getUsername(),
                 user.getName(),
                 user.getEmail(),
+                accessToken,
                 "로그인에 성공했습니다."
         );
     }
