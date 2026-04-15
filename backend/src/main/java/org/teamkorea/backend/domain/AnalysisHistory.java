@@ -3,6 +3,7 @@ package org.teamkorea.backend.domain;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,21 +11,29 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Table(name = "analysis_history")
 public class AnalysisHistory {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "history_id")
+    private Long historyId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "url_analysis_id")
-    private UrlAnalysis urlAnalysis;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    private String userEmail;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "analysis_id", nullable = false)
+    private UrlAnalysis analysis;
 
-    private LocalDateTime viewedAt;
+    @Column(name = "source", nullable = false, length = 20)
+    private String source;
 
-    public AnalysisHistory(UrlAnalysis urlAnalysis, String userEmail) {
-        this.urlAnalysis = urlAnalysis;
-        this.userEmail = userEmail;
-        this.viewedAt = LocalDateTime.now();
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    public AnalysisHistory(User user, UrlAnalysis analysis, String source) {
+        this.user = user;
+        this.analysis = analysis;
+        this.source = source;
     }
 }

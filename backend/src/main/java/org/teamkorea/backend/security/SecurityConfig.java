@@ -3,6 +3,7 @@ package org.teamkorea.backend.security;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -27,26 +28,33 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 // 나중에 JWT 쓸 거라 세션 안 씀
-                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
-                                "/",
                                 "/oauth2/**",
                                 "/login/**",
                                 "/error",
-                               
+
                                 // 회원가입 / 로그인 허용
                                 "/api/auth/signup",
                                 "/api/auth/login",
 
-                                // (테스트용)
+                                // 테스트용 엔드포인트
                                 "/api/hello",
 
-                                "/api/email-accounts" // 삭제필수!!
+                                // 이메일 계정 연동 테스트용 (나중에 삭제)
+                                "/api/email-accounts",
+
+                                // ===== 추가: Analysis 관련 API 테스트 허용 =====
+                                "/api/url-analysis/**",      // 추가
+                                "/api/analysis-history/**",  // 추가
+                                "/api/reports/**",           // 추가
+                                "/api/domain-reputation/**"  // 추가
+                                // ============================================
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -57,7 +65,7 @@ public class SecurityConfig {
                         .successHandler(oAuth2SuccessHandler) // 로그인 성공 시 이동
                 );
 
-        return http.build(); 
+        return http.build();
     }
 
     // 비밀번호 암호화용 (회원가입 필수)
