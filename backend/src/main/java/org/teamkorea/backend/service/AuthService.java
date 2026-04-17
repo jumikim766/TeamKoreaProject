@@ -1,5 +1,7 @@
 package org.teamkorea.backend.service;
 
+import java.nio.charset.StandardCharsets;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +39,11 @@ public class AuthService {
         user.setStatus("ACTIVE");
         user.setProvider("LOCAL");
 
+        // 임시 처리: 실제 암호화가 아니라 byte[] 변환만 수행
+        user.setPhoneEnc(requestDto.getPhone().getBytes(StandardCharsets.UTF_8));
+        //나중에 아래 코드로 수정
+        //user.setPhoneEnc(encryptionUtil.encrypt(requestDto.getPhone()));
+
         User savedUser = userRepository.save(user);
 
         return new SignupResponseDto(
@@ -48,6 +55,7 @@ public class AuthService {
         );
     }
 
+    @Transactional(readOnly = true)
     public LoginResponseDto login(String email, String password) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
