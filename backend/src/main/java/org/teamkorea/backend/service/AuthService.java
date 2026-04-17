@@ -4,7 +4,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.teamkorea.backend.domain.User;
-import org.teamkorea.backend.dto.LoginRequestDto;
 import org.teamkorea.backend.dto.LoginResponseDto;
 import org.teamkorea.backend.dto.SignupRequestDto;
 import org.teamkorea.backend.dto.SignupResponseDto;
@@ -49,16 +48,16 @@ public class AuthService {
         );
     }
 
-    public LoginResponseDto login(LoginRequestDto requestDto) {
-        User user = userRepository.findByUsername(requestDto.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 올바르지 않습니다."));
+    public LoginResponseDto login(String email, String password) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
         if (!"LOCAL".equals(user.getProvider())) {
             throw new IllegalArgumentException("소셜 로그인 계정입니다. 일반 로그인을 사용할 수 없습니다.");
         }
 
-        if (user.getPasswordHash() == null || !passwordEncoder.matches(requestDto.getPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("아이디 또는 비밀번호가 올바르지 않습니다.");
+        if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
         String accessToken = jwtUtil.generateAccessToken(user);

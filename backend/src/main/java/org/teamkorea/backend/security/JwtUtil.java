@@ -36,7 +36,7 @@ public class JwtUtil {
 
         return Jwts.builder()
                 .setSubject(String.valueOf(user.getUserId()))
-                .claim("username", user.getUsername())
+                .claim("email", user.getEmail())
                 .claim("role", user.getRole())
                 .setIssuedAt(now)
                 .setExpiration(expiry)
@@ -49,9 +49,14 @@ public class JwtUtil {
         return Long.parseLong(claims.getSubject());
     }
 
-    public String getUsername(String token) {
+     public String getEmail(String token) {
         Claims claims = parseClaims(token);
-        return claims.get("username", String.class);
+        return claims.get("email", String.class);
+    }
+
+    public String getRole(String token) {
+    Claims claims = parseClaims(token);
+    return claims.get("role", String.class);
     }
 
     public boolean validateToken(String token) {

@@ -1,11 +1,13 @@
 package org.teamkorea.backend.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public class LoginRequestDto {
 
-    @NotBlank(message = "아이디는 필수입니다.")
-    private String username;
+    @NotBlank(message = "이메일은 필수입니다.")
+    @Email(message = "이메일 형식이 올바르지 않습니다.")
+    private String email;
 
     @NotBlank(message = "비밀번호는 필수입니다.")
     private String password;
@@ -13,12 +15,12 @@ public class LoginRequestDto {
     public LoginRequestDto() {
     }
 
-    public String getUsername() {
-        return username;
+    public String getEmail() {
+        return email;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPassword() {
