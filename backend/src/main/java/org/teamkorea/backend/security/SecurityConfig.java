@@ -46,9 +46,12 @@ public class SecurityConfig {
                                 "/login/**",
                                 "/error",
 
-                                // 회원가입 / 로그인 허용
+                                // 회원가입 / 일반 로그인 허용
                                 "/api/auth/signup",
                                 "/api/auth/login",
+
+                                //Access Token 재발급 (Refresh Token 기반)
+                                "/api/auth/reissue",
 
                                 // 테스트용 엔드포인트
                                 "/api/hello",
@@ -56,12 +59,11 @@ public class SecurityConfig {
                                 // 이메일 계정 연동 테스트용 (나중에 삭제)
                                 "/api/email-accounts",
 
-                                // ===== 추가: Analysis 관련 API 테스트 허용 =====
-                                "/api/url-analysis/**",      // 추가
-                                "/api/analysis-history/**",  // 추가
-                                "/api/reports/**",           // 추가
-                                "/api/domain-reputation/**"  // 추가
-                                // ============================================
+                                // ===== 추가: Analysis 관련 API 테스트 허용(나중에 정책 재정리 필요)
+                                "/api/url-analysis/**",
+                                "/api/analysis-history/**",
+                                "/api/reports/**",
+                                "/api/domain-reputation/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

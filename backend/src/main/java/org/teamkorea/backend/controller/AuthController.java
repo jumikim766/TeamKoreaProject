@@ -9,6 +9,8 @@ import org.teamkorea.backend.dto.LoginResponseDto;
 import org.teamkorea.backend.dto.SignupRequestDto;
 import org.teamkorea.backend.dto.SignupResponseDto;
 import org.teamkorea.backend.service.AuthService;
+import org.teamkorea.backend.dto.ReissueRequestDto;
+import org.teamkorea.backend.dto.ReissueResponseDto;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,5 +37,11 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+        //Access Token 재발급
+    @PostMapping("/reissue")
+    public ReissueResponseDto reissue(@RequestBody ReissueRequestDto requestDto) {
+        return authService.reissue(requestDto);
     }
 }

@@ -7,17 +7,30 @@ public class LoginResponseDto {
     private String name;
     private String email;
     private String accessToken;
+    private String refreshToken;
+    private String tokenType;
     private String message;
 
     public LoginResponseDto() {
     }
 
-    public LoginResponseDto(Long userId, String username, String name, String email, String accessToken, String message) {
+    public LoginResponseDto(
+            Long userId,
+            String username,
+            String name,
+            String email,
+            String accessToken,
+            String refreshToken,
+            String tokenType,
+            String message
+    ) {
         this.userId = userId;
         this.username = username;
         this.name = name;
         this.email = email;
         this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.tokenType = tokenType;
         this.message = message;
     }
 
@@ -39,6 +52,14 @@ public class LoginResponseDto {
 
     public String getAccessToken() {
         return accessToken;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public String getTokenType() {
+        return tokenType;
     }
 
     public String getMessage() {
