@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import AuthPage from './pages/AuthPage';
+import ClassificationPage from './pages/ClassificationPage';
 import Dashboard from './pages/Dashboard';
+import MailPage from './pages/MailPage';
+import MyPage from './pages/MyPage';
+import NotificationPage from './pages/NotificationPage';
+import ReportPage from './pages/ReportPage';
 import SimplePage from './pages/SimplePage';
+import UrlPage from './pages/UrlPage';
 import './styles/Dashboard.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -37,53 +43,25 @@ function getInitialTheme(): ThemeMode {
 }
 
 const pageContent: Record<
-  Exclude<ViewMode, 'dashboard' | 'login' | 'signup'>,
+  Exclude<
+    ViewMode,
+    | 'dashboard'
+    | 'login'
+    | 'signup'
+    | 'mypage'
+    | 'my-mailbox'
+    | 'mail-connect'
+    | 'my-url'
+    | 'url-library'
+    | 'notifications'
+    | 'notification-settings'
+    | 'report-guide'
+    | 'report'
+    | 'classification-method'
+    | 'classification-criteria'
+  >,
   { title: string; description: string }
 > = {
-  mypage: {
-    title: '마이페이지',
-    description: '내 계정 정보와 개인 설정을 확인하고 관리할 수 있는 화면입니다.',
-  },
-  'my-mailbox': {
-    title: '나의 메일함',
-    description: '수집된 메일 내역과 메일 기반 위협 흐름을 확인할 수 있는 화면입니다.',
-  },
-  'mail-connect': {
-    title: '메일 연동',
-    description: '외부 메일 계정 연동 상태와 수집 설정을 관리하는 화면입니다.',
-  },
-  'my-url': {
-    title: '나의 URL',
-    description: '내가 관리 중인 URL 목록과 상태를 확인할 수 있는 화면입니다.',
-  },
-  'url-library': {
-    title: 'URL 모음',
-    description: '수집된 URL 데이터를 분류별로 모아볼 수 있는 화면입니다.',
-  },
-  notifications: {
-    title: '알림함',
-    description: '위협 탐지 및 처리 관련 알림을 한곳에서 확인할 수 있는 화면입니다.',
-  },
-  'notification-settings': {
-    title: '알림 설정',
-    description: '알림 수신 기준과 방식, 빈도를 설정할 수 있는 화면입니다.',
-  },
-  'report-guide': {
-    title: '신고 안내',
-    description: '위협 URL 신고 절차와 작성 가이드를 안내하는 화면입니다.',
-  },
-  report: {
-    title: '신고하기',
-    description: '위협 URL이나 의심 링크를 직접 신고할 수 있는 화면입니다.',
-  },
-  'classification-method': {
-    title: '분류 방법',
-    description: 'URL 분류 로직과 처리 흐름을 설명하는 화면입니다.',
-  },
-  'classification-criteria': {
-    title: '분류기준',
-    description: '위험도와 탐지 기준을 확인할 수 있는 화면입니다.',
-  },
   'service-info': {
     title: '서비스 소개',
     description: 'URL GUARD 서비스의 목적과 주요 기능을 소개하는 화면입니다.',
@@ -127,6 +105,30 @@ function App() {
 
   if (view === 'dashboard') {
     return <Dashboard {...sharedProps} onNavigate={setView} />;
+  }
+
+  if (view === 'mypage') {
+    return <MyPage {...sharedProps} onNavigate={setView} />;
+  }
+
+  if (view === 'my-mailbox' || view === 'mail-connect') {
+    return <MailPage {...sharedProps} currentView={view} onNavigate={setView} />;
+  }
+
+  if (view === 'my-url' || view === 'url-library') {
+    return <UrlPage {...sharedProps} currentView={view} onNavigate={setView} />;
+  }
+
+  if (view === 'notifications' || view === 'notification-settings') {
+    return <NotificationPage {...sharedProps} currentView={view} onNavigate={setView} />;
+  }
+
+  if (view === 'report-guide' || view === 'report') {
+    return <ReportPage {...sharedProps} currentView={view} onNavigate={setView} />;
+  }
+
+  if (view === 'classification-method' || view === 'classification-criteria') {
+    return <ClassificationPage {...sharedProps} currentView={view} onNavigate={setView} />;
   }
 
   const currentPage = pageContent[view];
