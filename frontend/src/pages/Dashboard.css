@@ -1,0 +1,135 @@
+.url-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.url-summary-card,
+.url-table-card {
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+}
+
+.url-summary-card {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 22px;
+  align-items: center;
+}
+
+.url-summary-copy h2 {
+  margin-top: 10px;
+  color: var(--text-strong);
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.url-summary-copy strong {
+  display: block;
+  margin-top: 18px;
+  color: var(--text-strong);
+  font-size: 46px;
+  letter-spacing: -0.06em;
+}
+
+.url-summary-chart .chart-card {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.url-summary-chart .chart-content {
+  margin-top: 8px;
+}
+
+.url-table-card {
+  padding: 24px;
+}
+
+.url-table-head h2 {
+  margin-top: 10px;
+  color: var(--text-strong);
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.url-table {
+  display: grid;
+  grid-template-columns: 1fr 2fr 0.9fr 0.8fr;
+  gap: 0;
+}
+
+.url-library-grid {
+  grid-template-columns: 2fr 0.9fr 0.8fr;
+}
+
+.url-table-header {
+  margin-top: 20px;
+  padding: 16px 18px;
+  background: #f8fbff;
+  border-radius: 16px 16px 0 0;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.url-table-header span {
+  display: flex;
+  align-items: center;
+}
+
+.url-table-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.url-table-row {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  color: var(--text-body);
+  background: transparent;
+}
+
+.url-table-row:last-child {
+  border-radius: 0 0 16px 16px;
+}
+
+.url-link-text {
+  word-break: break-all;
+  line-height: 1.7;
+}
+
+:root[data-theme='dark'] .url-summary-card,
+:root[data-theme='dark'] .url-table-card {
+  background: #3a3a3a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .url-table-header {
+  background: #474747;
+}
+
+@media (max-width: 1200px) {
+  .url-summary-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .url-table,
+  .url-library-grid,
+  .url-table-header,
+  .url-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .url-summary-copy strong {
+    font-size: 34px;
+  }
+}
