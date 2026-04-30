@@ -28,7 +28,7 @@ public class Email {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)
-    private EmailAccount emailAccount;
+    private EmailAccount account;
 
     @Column(name = "message_uid", nullable = false, length = 255)
     private String messageUid;

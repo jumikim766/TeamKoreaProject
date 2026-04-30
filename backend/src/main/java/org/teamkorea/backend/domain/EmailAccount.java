@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "email_accounts")
@@ -40,6 +38,7 @@ public class EmailAccount {
     @Column(name = "login_id", nullable = false, length = 100)
     private String loginId;
 
+    @Lob
     @Column(name = "secret_enc", nullable = false)
     private byte[] secretEnc;
 
@@ -52,30 +51,6 @@ public class EmailAccount {
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @OneToMany(mappedBy = "emailAccount", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<Email> emails = new ArrayList<>();
-
-    @PrePersist
-    public void prePersist() {
-        if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
-        }
-        if (this.active == null) {
-            this.active = true;
-        }
-    }
-
-    public void addEmail(Email email) {
-        this.emails.add(email);
-        email.setEmailAccount(this);
-    }
-
-    public void removeEmail(Email email) {
-        this.emails.remove(email);
-        email.setEmailAccount(null);
-    }
 }

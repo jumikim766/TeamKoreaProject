@@ -23,6 +23,7 @@ public class SignupRequestDto {
     @Email(message = "올바른 이메일 형식이 아닙니다.")
     private String email;
 
+    @NotBlank(message = "전화번호는 필수입니다.")
     @Pattern(
         regexp = "^01[0-9]-?\\d{3,4}-?\\d{4}$",
         message = "전화번호 형식이 올바르지 않습니다."

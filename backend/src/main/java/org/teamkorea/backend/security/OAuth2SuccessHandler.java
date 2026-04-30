@@ -110,8 +110,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         userRepository.save(user);
 
         //(추후 React로 변경 예정/response.sendRedirect("http://localhost:5173/login-success");)
-        response.setContentType("text/plain; charset=UTF-8");
-        response.getWriter().write("로그인 성공: " + email + " / provider: " + provider);
+        response.sendRedirect("http://localhost:5173");
     }
 
     private String generateUsername(String email, String providerId) {
