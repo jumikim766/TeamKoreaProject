@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.teamkorea.backend.domain.RefreshToken;
 import org.teamkorea.backend.domain.User;
 import org.teamkorea.backend.dto.LoginResponseDto;
+import org.teamkorea.backend.dto.LoginUserDto;
 import org.teamkorea.backend.dto.ReissueRequestDto;
 import org.teamkorea.backend.dto.ReissueResponseDto;
 import org.teamkorea.backend.dto.SignupRequestDto;
@@ -42,18 +43,20 @@ public class AuthService {
     public SignupResponseDto signup(SignupRequestDto requestDto) {
         validateDuplicate(requestDto);
 
-        User user = new User();
-        user.setUsername(requestDto.getUsername());
-        user.setPasswordHash(passwordEncoder.encode(requestDto.getPassword()));
-        user.setName(requestDto.getName());
-        user.setEmail(requestDto.getEmail());
-
-        user.setRole("USER");
-        user.setStatus("ACTIVE");
-        user.setProvider("LOCAL");
-
+        User user = User.builder()
+        .username(requestDto.getUsername())
+        .email(requestDto.getEmail())
+        .passwordHash(passwordEncoder.encode(requestDto.getPassword()))
+        .name(requestDto.getName())
         // 임시 처리: 실제 암호화가 아니라 byte[] 변환만 수행
-        user.setPhoneEnc(requestDto.getPhone().getBytes(StandardCharsets.UTF_8));
+        .phoneEnc(requestDto.getPhone().getBytes(StandardCharsets.UTF_8))
+        // .gender(requestDto.getGender())
+        // .age(requestDto.getAge())
+        .role("USER")
+        .status("ACTIVE")
+        .provider("LOCAL")
+        .build();
+       
         // 나중에 아래 코드로 수정
         // user.setPhoneEnc(encryptionUtil.encrypt(requestDto.getPhone()));
 
@@ -63,8 +66,7 @@ public class AuthService {
                 savedUser.getUserId(),
                 savedUser.getUsername(),
                 savedUser.getName(),
-                savedUser.getEmail(),
-                "회원가입이 완료되었습니다."
+                savedUser.getEmail()
         );
     }
 
@@ -94,17 +96,18 @@ public class AuthService {
         RefreshToken savedRefreshToken = new RefreshToken(user, refreshTokenHash, expiresAt);
         refreshTokenRepository.save(savedRefreshToken);
 
-        user.setLastLoginAt(LocalDateTime.now()); // 마지막 로그인 시간 업데이트
-
+        user.updateLastLoginAt(); // 마지막 로그인 시간 업데이트
+       
         return new LoginResponseDto(
+        accessToken,
+        refreshToken,
+        "Bearer",
+        new LoginUserDto(
                 user.getUserId(),
-                user.getUsername(),
-                user.getName(),
                 user.getEmail(),
-                accessToken,
-                refreshToken,
-                "Bearer",
-                "로그인에 성공했습니다."
+                user.getName(),
+                user.getRole()
+            )
         );
     }
 
@@ -141,8 +144,7 @@ public class AuthService {
 
         return new ReissueResponseDto(
                 newAccessToken,
-                "Bearer",
-                "토큰이 재발급되었습니다."
+                "Bearer"
         );
     }
 

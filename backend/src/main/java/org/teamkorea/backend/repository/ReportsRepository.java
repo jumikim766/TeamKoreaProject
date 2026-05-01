@@ -7,9 +7,9 @@ import java.util.List;
 
 public interface ReportsRepository extends JpaRepository<Reports, Long> {
 
-    List<Reports> findByUserUserId(Long userId);
+    List<Reports> findByUser_UserId(Long userId);
 
     List<Reports> findByStatus(String status);
 
-    List<Reports> findByUrlUrlId(Long urlId);
+    List<Reports> findByUrl_UrlId(Long urlId);
 }
