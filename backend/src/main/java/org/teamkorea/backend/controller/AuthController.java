@@ -52,4 +52,17 @@ public class AuthController {
                 BaseResponse.success("토큰이 재발급되었습니다.", response)
         );
     }
+
+     @PostMapping("/logout")
+    public ResponseEntity<BaseResponse<Void>> logout(
+            @Valid @RequestBody LogoutRequestDto requestDto
+    ) {
+        // 전달받은 Refresh Token을 DB에서 삭제하여 재사용 불가 처리
+        authService.logout(requestDto.getRefreshToken());
+
+        // API 명세서 기준: 로그아웃 성공 시 data는 null
+        return ResponseEntity.ok(
+                BaseResponse.success("로그아웃되었습니다.")
+        );
+    }
 }
