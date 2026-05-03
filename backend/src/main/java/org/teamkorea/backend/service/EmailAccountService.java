@@ -4,24 +4,18 @@ import jakarta.mail.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.teamkorea.backend.domain.Email;
-import org.teamkorea.backend.domain.EmailAccount;
-import org.teamkorea.backend.domain.EmailUrl;
-import org.teamkorea.backend.domain.Url;
-import org.teamkorea.backend.domain.User;
+import org.teamkorea.backend.domain.*;
 import org.teamkorea.backend.dto.EmailAccountRequestDto;
-import org.teamkorea.backend.dto.EmailAccountResponse;
-import org.teamkorea.backend.repository.EmailAccountRepository;
-import org.teamkorea.backend.repository.EmailRepository;
-import org.teamkorea.backend.repository.EmailUrlRepository;
-import org.teamkorea.backend.repository.UrlRepository;
-import org.teamkorea.backend.repository.UserRepository;
+import org.teamkorea.backend.dto.EmailAccountResponseDto;
+import org.teamkorea.backend.repository.*;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,8 +31,10 @@ public class EmailAccountService {
     private final UrlRepository urlRepository;
     private final EmailUrlRepository emailUrlRepository;
 
+    // 이메일 계정 등록
     @Transactional
-    public EmailAccountResponse createEmailAccount(Long userId, EmailAccountRequestDto request) {
+    public EmailAccountResponseDto createEmailAccount(Long userId, EmailAccountRequestDto request) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
@@ -46,39 +42,45 @@ public class EmailAccountService {
             throw new IllegalStateException("이미 등록된 이메일 계정입니다.");
         }
 
+        EmailProvider provider = parseProvider(request.getProvider());
+
+        ImapConfig imapConfig = resolveImapConfig(provider, request);
+
         EmailAccount emailAccount = EmailAccount.builder()
                 .user(user)
                 .email(request.getEmail())
-                .provider(request.getProvider())
-                .imapHost(request.getImapHost())
-                .imapPort(request.getImapPort())
+                .provider(provider.name())
+                .imapHost(imapConfig.host())
+                .imapPort(imapConfig.port())
                 .loginId(request.getLoginId())
-
-                // TODO: 현재는 임시 byte[] 변환입니다.
-                // 최종적으로는 AES 등 암호화 후 secretEnc에 저장해야 합니다.
-                .secretEnc(request.getPassword().getBytes(StandardCharsets.UTF_8))
-
+                .secretEnc(request.getSecret().getBytes(StandardCharsets.UTF_8))
                 .active(true)
                 .lastSyncStatus(null)
                 .lastSyncedAt(null)
                 .build();
 
         EmailAccount saved = emailAccountRepository.save(emailAccount);
+
         return toResponse(saved);
     }
 
+    // 이메일 계정 목록 조회
     @Transactional(readOnly = true)
-    public List<EmailAccountResponse> getEmailAccounts(Long userId) {
+    public List<EmailAccountResponseDto> getEmailAccounts(Long userId) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        return emailAccountRepository.findAllByUser(user).stream()
+        return emailAccountRepository.findAllByUser(user)
+                .stream()
                 .map(this::toResponse)
                 .toList();
     }
 
+    // 이메일 계정 삭제
     @Transactional
     public void deleteEmailAccount(Long userId, Long accountId) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
@@ -88,8 +90,10 @@ public class EmailAccountService {
         emailAccountRepository.delete(emailAccount);
     }
 
+    // 이메일 동기화
     @Transactional
-    public void syncEmails(Long userId, Long accountId) {
+    public Map<String, Object> syncEmails(Long userId, Long accountId) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
@@ -103,7 +107,20 @@ public class EmailAccountService {
         Store store = null;
         Folder inbox = null;
 
+        int collectedEmailCount = 0;
+        int savedEmailCount = 0;
+        int skippedEmailCount = 0;
+        int extractedUrlCount = 0;
+
         try {
+            System.out.println("========== SYNC START ==========");
+            System.out.println("accountId = " + account.getAccountId());
+            System.out.println("provider = " + account.getProvider());
+            System.out.println("email = " + account.getEmail());
+            System.out.println("loginId = " + account.getLoginId());
+            System.out.println("imapHost = " + account.getImapHost());
+            System.out.println("imapPort = " + account.getImapPort());
+
             Properties props = new Properties();
             props.put("mail.store.protocol", "imap");
             props.put("mail.imap.host", account.getImapHost());
@@ -113,27 +130,31 @@ public class EmailAccountService {
             Session session = Session.getInstance(props);
             store = session.getStore("imap");
 
-            // TODO: secretEnc 복호화 로직 적용 필요
-            // 현재는 임시로 byte[]를 문자열로 되돌려 사용합니다.
-            String password = new String(account.getSecretEnc(), StandardCharsets.UTF_8);
+            String secret = new String(account.getSecretEnc(), StandardCharsets.UTF_8);
 
             store.connect(
                     account.getImapHost(),
                     account.getLoginId(),
-                    password
+                    secret
             );
 
             inbox = store.getFolder("INBOX");
             inbox.open(Folder.READ_ONLY);
 
             Message[] messages = inbox.getMessages();
+            collectedEmailCount = messages.length;
 
-            for (int i = messages.length - 1; i >= Math.max(0, messages.length - 10); i--) {
+            int startIndex = messages.length - 1;
+            int endIndex = Math.max(0, messages.length - 10);
+
+            for (int i = startIndex; i >= endIndex; i--) {
+
                 Message msg = messages[i];
 
                 String messageUid = buildMessageUid(msg);
 
                 if (emailRepository.existsByMessageUid(messageUid)) {
+                    skippedEmailCount++;
                     continue;
                 }
 
@@ -144,22 +165,29 @@ public class EmailAccountService {
                         Email.builder()
                                 .account(account)
                                 .messageUid(messageUid)
+                                .senderName(null)
+                                .senderEmail(extractSenderEmail(msg))
+                                .receiverEmail(account.getEmail())
                                 .subject(subject)
                                 .bodyText(bodyText)
                                 .receivedAt(
                                         msg.getReceivedDate() != null
                                                 ? LocalDateTime.ofInstant(
-                                                        msg.getReceivedDate().toInstant(),
-                                                        ZoneId.systemDefault()
-                                                )
+                                                msg.getReceivedDate().toInstant(),
+                                                ZoneId.systemDefault()
+                                        )
                                                 : LocalDateTime.now()
                                 )
                                 .build()
                 );
 
+                savedEmailCount++;
+
                 List<String> extractedUrls = extractUrls(bodyText);
+                extractedUrlCount += extractedUrls.size();
 
                 for (String rawUrl : extractedUrls) {
+
                     String normalizedUrl = rawUrl.trim();
                     String urlHash = sha256(normalizedUrl);
 
@@ -176,25 +204,38 @@ public class EmailAccountService {
                                             .build()
                             ));
 
-                    // TODO: Url 엔티티에 updateSeen() 같은 메서드가 있다면 여기서 호출 권장
-                    // 기존 URL이 다시 발견된 경우 lastSeenAt, seenCount 갱신 필요
-
                     emailUrlRepository.save(
                             EmailUrl.builder()
                                     .email(savedEmail)
                                     .url(url)
                                     .rawUrl(rawUrl)
+                                    .linkText(null)
                                     .build()
                     );
                 }
             }
 
-            // EmailAccount 엔티티에 updateSyncSuccess() 메서드가 있어야 합니다.
             account.updateSyncSuccess();
 
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("accountId", account.getAccountId());
+            result.put("collectedEmailCount", collectedEmailCount);
+            result.put("savedEmailCount", savedEmailCount);
+            result.put("skippedEmailCount", skippedEmailCount);
+            result.put("extractedUrlCount", extractedUrlCount);
+            result.put("lastSyncedAt", account.getLastSyncedAt());
+
+            System.out.println("========== SYNC SUCCESS ==========");
+
+            return result;
+
         } catch (Exception e) {
-            // EmailAccount 엔티티에 updateSyncFailed() 메서드가 있어야 합니다.
             account.updateSyncFailed();
+
+            System.out.println("========== SYNC ERROR ==========");
+            e.printStackTrace();
+            System.out.println("========== SYNC ERROR END ==========");
+
             throw new RuntimeException("이메일 동기화 중 오류가 발생했습니다.", e);
 
         } finally {
@@ -202,17 +243,59 @@ public class EmailAccountService {
                 if (inbox != null && inbox.isOpen()) {
                     inbox.close(false);
                 }
+
                 if (store != null && store.isConnected()) {
                     store.close();
                 }
             } catch (MessagingException ignored) {
-                // 종료 중 예외는 동기화 본문 예외보다 중요도가 낮아서 무시
             }
         }
     }
 
-    private EmailAccountResponse toResponse(EmailAccount emailAccount) {
-        return EmailAccountResponse.builder()
+    // provider 문자열을 enum으로 변환
+    private EmailProvider parseProvider(String provider) {
+        try {
+            return EmailProvider.valueOf(provider.toUpperCase());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("지원하지 않는 provider입니다.");
+        }
+    }
+
+    // provider별 IMAP 설정 분기
+    private ImapConfig resolveImapConfig(EmailProvider provider, EmailAccountRequestDto request) {
+
+        switch (provider) {
+            case GMAIL:
+                return new ImapConfig("imap.gmail.com", 993);
+
+            case NAVER:
+                return new ImapConfig("imap.naver.com", 993);
+
+            case DAUM:
+                return new ImapConfig("imap.daum.net", 993);
+
+            case OUTLOOK:
+                return new ImapConfig("outlook.office365.com", 993);
+
+            case CUSTOM:
+                if (request.getImapHost() == null || request.getImapHost().isBlank()) {
+                    throw new IllegalArgumentException("CUSTOM provider는 imapHost가 필요합니다.");
+                }
+
+                if (request.getImapPort() == null) {
+                    throw new IllegalArgumentException("CUSTOM provider는 imapPort가 필요합니다.");
+                }
+
+                return new ImapConfig(request.getImapHost(), request.getImapPort());
+
+            default:
+                throw new IllegalArgumentException("지원하지 않는 provider입니다.");
+        }
+    }
+
+    // 응답 DTO 변환
+    private EmailAccountResponseDto toResponse(EmailAccount emailAccount) {
+        return EmailAccountResponseDto.builder()
                 .accountId(emailAccount.getAccountId())
                 .userId(emailAccount.getUser().getUserId())
                 .provider(emailAccount.getProvider())
@@ -224,7 +307,9 @@ public class EmailAccountService {
                 .build();
     }
 
+    // 이메일 본문 추출
     private String getText(Part part) throws Exception {
+
         if (part.isMimeType("text/plain") || part.isMimeType("text/html")) {
             Object content = part.getContent();
             return content != null ? content.toString() : "";
@@ -245,7 +330,9 @@ public class EmailAccountService {
         return "";
     }
 
+    // 본문에서 URL 추출
     private List<String> extractUrls(String text) {
+
         Pattern pattern = Pattern.compile("https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+");
         Matcher matcher = pattern.matcher(text == null ? "" : text);
 
@@ -254,6 +341,23 @@ public class EmailAccountService {
                 .toList();
     }
 
+    // 발신자 이메일 추출
+    private String extractSenderEmail(Message msg) {
+        try {
+            Address[] froms = msg.getFrom();
+
+            if (froms == null || froms.length == 0) {
+                return null;
+            }
+
+            return froms[0].toString();
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // 도메인 추출
     private String extractDomain(String url) {
         try {
             return url.split("/")[2];
@@ -262,6 +366,7 @@ public class EmailAccountService {
         }
     }
 
+    // 프로토콜 추출
     private String extractScheme(String url) {
         try {
             return url.split(":")[0];
@@ -270,7 +375,9 @@ public class EmailAccountService {
         }
     }
 
+    // url 해시 생성
     private String sha256(String input) {
+
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
@@ -288,11 +395,15 @@ public class EmailAccountService {
         }
     }
 
+    // 이메일 중복 방지용 ID 생성
     private String buildMessageUid(Message msg) throws Exception {
+
         String subject = msg.getSubject() != null ? msg.getSubject() : "";
+
         String sentDate = msg.getSentDate() != null
                 ? msg.getSentDate().toInstant().toString()
                 : "";
+
         String from = (msg.getFrom() != null && msg.getFrom().length > 0)
                 ? msg.getFrom()[0].toString()
                 : "";
