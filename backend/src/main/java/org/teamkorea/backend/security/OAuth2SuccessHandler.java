@@ -7,22 +7,38 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.teamkorea.backend.domain.RefreshToken;
 import org.teamkorea.backend.domain.User;
+import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Map;
 
 @Component
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final JwtUtil jwtUtil;
 
-    public OAuth2SuccessHandler(UserRepository userRepository) {
+    public OAuth2SuccessHandler(
+            UserRepository userRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            JwtUtil jwtUtil
+    ) {
         this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @Override
+    @Transactional
     @SuppressWarnings("unchecked")
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
@@ -66,7 +82,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                         .username(generateUsername(email, providerId))
                                         .email(email)
                                         .name(name)
-                                        // 소셜 로그인은 일반 비밀번호가 없으므로 임시값 저장
                                         .passwordHash("SOCIAL_LOGIN")
                                         .role("USER")
                                         .status("ACTIVE")
@@ -78,12 +93,33 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         String username = generateUsername(email, providerId);
 
-        // setter 대신 User 엔티티 내부 메서드 사용
         user.updateOAuthInfo(username, email, name, provider, providerId);
+        user.updateLastLoginAt();
 
-        userRepository.save(user);
-    //(추후 React로 변경 예정/response.sendRedirect("http://localhost:5173/login-success");)
-        response.sendRedirect("http://localhost:5173");
+        User savedUser = userRepository.save(user);
+
+        String accessToken = jwtUtil.generateAccessToken(savedUser);
+        String refreshToken = jwtUtil.generateRefreshToken(savedUser);
+        String refreshTokenHash = jwtUtil.hashToken(refreshToken);
+
+        LocalDateTime expiresAt = LocalDateTime.ofInstant(
+                jwtUtil.getRefreshTokenExpiryInstant(),
+                ZoneId.systemDefault()
+        );
+
+        refreshTokenRepository.deleteAllByUser(savedUser);
+
+        RefreshToken savedRefreshToken =
+                new RefreshToken(savedUser, refreshTokenHash, expiresAt);
+
+        refreshTokenRepository.save(savedRefreshToken);
+
+        String redirectUrl = "http://localhost:5173/oauth/callback"
+                + "?accessToken=" + URLEncoder.encode(accessToken, StandardCharsets.UTF_8)
+                + "&refreshToken=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)
+                + "&tokenType=Bearer";
+
+        response.sendRedirect(redirectUrl);
     }
 
     private String generateUsername(String email, String providerId) {
