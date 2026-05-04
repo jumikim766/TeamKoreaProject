@@ -20,8 +20,8 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<BaseResponse<UserMeResponseDto>> getMyInfo(Authentication authentication) {
 
-        // JwtAuthenticationFilter에서 principal에 userId를 저장했으므로 여기서 userId를 꺼냄
-        Long userId = (Long) authentication.getPrincipal();
+        // JwtAuthenticationFilter에서 principal에는 email, details에는 userId를 저장함
+        Long userId = (Long) authentication.getDetails();
 
         UserMeResponseDto response = userService.getMyInfo(userId);
 
