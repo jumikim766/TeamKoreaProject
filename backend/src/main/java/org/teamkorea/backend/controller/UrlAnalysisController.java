@@ -18,10 +18,25 @@ public class UrlAnalysisController {
     private final AnalysisService analysisService;
 
     /**
-     * 분석 결과 목록 조회
-     * 예:
-     * GET /api/url-analysis
-     * GET /api/url-analysis?riskLevel=CRITICAL
+     * URL 분석 실행 (POST)
+     */
+    @PostMapping("/analyze")
+    public ResponseEntity<Map<String, Object>> analyzeUrl(
+            @RequestParam Long userId,
+            @RequestParam Long urlId
+    ) {
+        UrlAnalysis result = analysisService.analyzeAndSave(userId, urlId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "URL 분석이 완료되었습니다.");
+        response.put("data", result);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 분석 결과 목록 조회 (GET)
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> getAllAnalyses(
@@ -44,8 +59,7 @@ public class UrlAnalysisController {
     }
 
     /**
-     * 분석 결과 상세 조회
-     * GET /api/url-analysis/{analysisId}
+     * 분석 결과 상세 조회 (GET)
      */
     @GetMapping("/{analysisId}")
     public ResponseEntity<Map<String, Object>> getAnalysisById(@PathVariable Long analysisId) {
@@ -63,7 +77,6 @@ public class UrlAnalysisController {
             data.put("featuresJson", analysis.getFeaturesJson());
             data.put("ruleVersion", analysis.getRuleVersion());
             data.put("analyzedAt", analysis.getAnalyzedAt());
-            data.put("createdAt", analysis.getCreatedAt());
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
