@@ -121,6 +121,9 @@ public class EmailAccountService {
             System.out.println("imapHost = " + account.getImapHost());
             System.out.println("imapPort = " + account.getImapPort());
 
+            // 마지막 동기화 시각 조회
+            LocalDateTime lastSyncedAt = account.getLastSyncedAt();
+
             Properties props = new Properties();
             props.put("mail.store.protocol", "imap");
             props.put("mail.imap.host", account.getImapHost());
@@ -151,6 +154,19 @@ public class EmailAccountService {
 
                 Message msg = messages[i];
 
+                LocalDateTime receivedAt = msg.getReceivedDate() != null
+                        ? LocalDateTime.ofInstant(
+                        msg.getReceivedDate().toInstant(),
+                        ZoneId.systemDefault()
+                )
+                        : LocalDateTime.now();
+
+                // 마지막 동기화 이전 메일은 건너뛰기
+                if (lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
+                    skippedEmailCount++;
+                    continue;
+                }
+
                 String messageUid = buildMessageUid(msg);
 
                 if (emailRepository.existsByMessageUid(messageUid)) {
@@ -170,14 +186,7 @@ public class EmailAccountService {
                                 .receiverEmail(account.getEmail())
                                 .subject(subject)
                                 .bodyText(bodyText)
-                                .receivedAt(
-                                        msg.getReceivedDate() != null
-                                                ? LocalDateTime.ofInstant(
-                                                msg.getReceivedDate().toInstant(),
-                                                ZoneId.systemDefault()
-                                        )
-                                                : LocalDateTime.now()
-                                )
+                                .receivedAt(receivedAt)
                                 .build()
                 );
 
@@ -191,18 +200,24 @@ public class EmailAccountService {
                     String normalizedUrl = rawUrl.trim();
                     String urlHash = sha256(normalizedUrl);
 
-                    Url url = urlRepository.findByUrlHash(urlHash)
-                            .orElseGet(() -> urlRepository.save(
-                                    Url.builder()
-                                            .normalizedUrl(normalizedUrl)
-                                            .urlHash(urlHash)
-                                            .domain(extractDomain(normalizedUrl))
-                                            .scheme(extractScheme(normalizedUrl))
-                                            .firstSeenAt(LocalDateTime.now())
-                                            .lastSeenAt(LocalDateTime.now())
-                                            .seenCount(1)
-                                            .build()
-                            ));
+                // URL 중복 처리 (이미 존재하면 seenCount 증가, lastSeenAt 갱신)
+                Url url = urlRepository.findByUrlHash(urlHash)
+                        .map(existingUrl -> {
+                            existingUrl.setLastSeenAt(LocalDateTime.now());
+                            existingUrl.setSeenCount(existingUrl.getSeenCount() + 1);
+                            return existingUrl;
+                        })
+                        .orElseGet(() -> urlRepository.save(
+                            Url.builder()
+                                .normalizedUrl(normalizedUrl)
+                                .urlHash(urlHash)
+                                .domain(extractDomain(normalizedUrl))
+                                .scheme(extractScheme(normalizedUrl))
+                                .firstSeenAt(LocalDateTime.now())
+                                .lastSeenAt(LocalDateTime.now())
+                                .seenCount(1)
+                                .build()
+                        ));
 
                     emailUrlRepository.save(
                             EmailUrl.builder()

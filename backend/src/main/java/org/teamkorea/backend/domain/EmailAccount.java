@@ -46,7 +46,7 @@ public class EmailAccount {
     private Boolean active = true; // 기본값 true
 
     @Column(name = "last_sync_status", length = 20)
-    private String lastSyncStatus; // READY / FAILED / RUNNING 등
+    private String lastSyncStatus; // SUCCESS / FAILED
 
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt; // 마지막 동기화 시각
@@ -67,14 +67,14 @@ public class EmailAccount {
         }
     }
 
-    public void updateSyncSuccess() {
     // 이메일 동기화 성공 시 상태 갱신
-    this.lastSyncStatus = "SUCCESS";
-    this.lastSyncedAt = LocalDateTime.now();
+    public void updateSyncSuccess() {
+        this.lastSyncStatus = "SUCCESS";
+        this.lastSyncedAt = LocalDateTime.now();
     }
 
-public void updateSyncFailed() {
     // 이메일 동기화 실패 시 상태 갱신
-    this.lastSyncStatus = "FAILED";
+    public void updateSyncFailed() {
+        this.lastSyncStatus = "FAILED";
     }
 }
