@@ -1,10 +1,16 @@
 package org.teamkorea.backend.domain;
 
 import jakarta.persistence.*;
+import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA 기본 생성자 보호
+@AllArgsConstructor
+@Builder
 public class User {
 
     @Id
@@ -13,106 +19,115 @@ public class User {
     private Long userId;
 
     @Column(name = "username", nullable = false, length = 20, unique = true)
-    private String username;
+    private String username; // 로그인 아이디 또는 내부 식별자
 
     @Column(name = "email", nullable = false, length = 100, unique = true)
-    private String email;
+    private String email; // 사용자 이메일
 
     @Column(name = "password_hash", length = 255)
-    private String passwordHash;
+    private String passwordHash; // BCrypt 해시 비밀번호
 
     @Column(name = "name", nullable = false, length = 30)
-    private String name;
+    private String name; // 사용자 이름
 
-    @Column(name = "phone_enc")
-    private byte[] phoneEnc;
+    @Column(name = "phone_enc", columnDefinition = "VARBINARY(512)")
+    private byte[] phoneEnc; // 암호화된 전화번호
 
     @Column(name = "gender", length = 10)
-    private String gender;
+    private String gender; // FEMALE / MALE 등
 
     @Column(name = "age")
-    private Integer age;
+    private Integer age; // 나이
 
+    @Builder.Default
     @Column(name = "role", nullable = false, length = 20)
-    private String role;
+    private String role = "USER"; // 기본 권한
 
+    @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private String status = "ACTIVE"; // 기본 계정 상태
 
+    @Builder.Default
     @Column(name = "provider", nullable = false, length = 20)
-    private String provider;
+    private String provider = "LOCAL"; // 기본 로그인 제공자
 
     @Column(name = "provider_id", length = 255)
-    private String providerId;
+    private String providerId; // 소셜 로그인 제공자 ID
 
     @Column(name = "last_login_at")
-    private LocalDateTime lastLoginAt;
+    private LocalDateTime lastLoginAt; // 마지막 로그인 시각
 
-    @Column(name = "created_at", insertable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt; // 계정 생성 시각
 
     @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
+    private LocalDateTime deletedAt; // 탈퇴 처리 시각
 
-    public User() {         }
+    @PrePersist
+    public void prePersist() {
+        // 저장 전 생성 시각 자동 입력
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
 
-    public Long getUserId() {    return userId;     }
+        // builder 또는 생성자에서 값이 빠졌을 때 기본값 보정
+        if (this.role == null) {
+            this.role = "USER";
+        }
+        if (this.status == null) {
+            this.status = "ACTIVE";
+        }
+        if (this.provider == null) {
+            this.provider = "LOCAL";
+        }
+    }
 
-    public void setUserId(Long userId) {    this.userId = userId;   }
+    public void signupLocal(String username, String email, String passwordHash, String name,
+                            byte[] phoneEnc, String gender, Integer age) {
+        // 일반 회원가입 시 필요한 값 설정
+        this.username = username;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.name = name;
+        this.phoneEnc = phoneEnc;
+        this.gender = gender;
+        this.age = age;
+        this.role = "USER";
+        this.status = "ACTIVE";
+        this.provider = "LOCAL";
+    }
 
-    public String getUsername() {   return username;     }
+    public void updateOAuthInfo(String username, String email, String name, String provider, String providerId) {
+        // 소셜 로그인 사용자 정보 설정/갱신
+        if (this.username == null) {
+            this.username = username;
+        }
 
-    public void setUsername(String username) {  this.username = username;    }
+        this.email = email;
+        this.name = name;
+        this.provider = provider;
+        this.providerId = providerId;
+        this.role = "USER";
+        this.status = "ACTIVE";
+        this.lastLoginAt = LocalDateTime.now();
+    }
 
-    public String getEmail() {  return email;   }
+    public void updateLastLoginAt() {
+        // 로그인 성공 시 마지막 로그인 시간 갱신
+        this.lastLoginAt = LocalDateTime.now();
+    }
 
-    public void setEmail(String email) {    this.email = email; }
+    public void updateProfile(byte[] phoneEnc, String name, String gender, Integer age) {
+        // 마이페이지 수정 시 변경 가능한 값만 수정
+        this.phoneEnc = phoneEnc;
+        this.name = name;
+        this.gender = gender;
+        this.age = age;
+    }
 
-    public String getPasswordHash() {   return passwordHash;    }
-
-    public void setPasswordHash(String passwordHash) {  this.passwordHash = passwordHash;   }
-
-    public String getName() {   return name;    }
-
-    public void setName(String name) {  this.name = name;   }
-
-    public byte[] getPhoneEnc() {   return phoneEnc;    }
-
-    public void setPhoneEnc(byte[] phoneEnc) {  this.phoneEnc = phoneEnc;   }
-
-    public String getGender() { return gender;  }
-
-    public void setGender(String gender) {  this.gender = gender;   }
-
-    public Integer getAge() {   return age; }
-
-    public void setAge(Integer age) {   this.age = age; }
-
-    public String getRole() {   return role;    }
-
-    public void setRole(String role) {  this.role = role;   }
-
-    public String getStatus() {     return status;      }
-
-    public void setStatus(String status) {      this.status = status;   }
-
-    public String getProvider() {   return provider;    }
-
-    public void setProvider(String provider) {  this.provider = provider;   }
-
-    public String getProviderId() { return providerId;  }
-
-    public void setProviderId(String providerId) {  this.providerId = providerId;   }
-
-    public LocalDateTime getLastLoginAt() { return lastLoginAt; }
-
-    public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
-
-    public LocalDateTime getCreatedAt() {   return createdAt;   }
-
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getDeletedAt() {   return deletedAt;   }
-
-    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+    public void withdraw() {
+        // 회원 탈퇴 시 소프트 삭제 처리
+        this.status = "DELETED";
+        this.deletedAt = LocalDateTime.now();
+    }
 }
