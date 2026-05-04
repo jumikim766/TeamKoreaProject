@@ -18,7 +18,6 @@ import org.teamkorea.backend.dto.SignupResponseDto;
 import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
 import org.teamkorea.backend.security.JwtUtil;
-import java.time.LocalDateTime;
 
 @Service
 @Transactional
@@ -42,6 +41,10 @@ public class AuthService {
     }
 
     public SignupResponseDto signup(SignupRequestDto requestDto) {
+        // 회원가입 요청값 필수 검증
+        validateSignupRequest(requestDto);
+
+        // 아이디/이메일 중복 검증
         validateDuplicate(requestDto);
 
         User user = User.builder()
@@ -69,6 +72,9 @@ public class AuthService {
     }
 
     public LoginResponseDto login(String email, String password) {
+        // 로그인 요청값 필수 검증
+        validateLoginRequest(email, password);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
@@ -89,7 +95,7 @@ public class AuthService {
                 ZoneId.systemDefault()
         );
 
-        // 한 계정 = 한 기기 로그인 정책 (기존 refresh token 제거 후 새 refresh token 저장)
+        // 한 계정 = 한 기기 로그인 정책
         // 새 로그인 시 기존 Refresh Token을 모두 삭제하여 이전 기기 로그인을 무효화
         refreshTokenRepository.deleteAllByUser(user);
 
@@ -128,8 +134,9 @@ public class AuthService {
 
         RefreshToken savedToken = refreshTokenRepository.findByTokenHash(refreshTokenHash)
                 .orElseThrow(() -> new IllegalArgumentException("저장된 토큰 정보를 찾을 수 없습니다."));
-        
-        // DB 기준 만료 시간까지 한 번 더 확인 -> 만료된 토큰이면 DB에서 삭제 후 재발급 차단
+
+        // DB 기준 만료 시간까지 한 번 더 확인
+        // 만료된 토큰이면 DB에서 삭제 후 재발급 차단
         if (savedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.deleteByTokenHash(refreshTokenHash);
             throw new IllegalArgumentException("유효하지 않거나 만료된 refreshToken입니다.");
@@ -172,6 +179,51 @@ public class AuthService {
     // 스케줄러에서 주기적으로 호출하면 DB에 만료 토큰이 쌓이는 것을 방지
     public void deleteExpiredRefreshTokens() {
         refreshTokenRepository.deleteByExpiresAtBefore(LocalDateTime.now());
+    }
+
+    private void validateSignupRequest(SignupRequestDto requestDto) {
+        // 요청 객체 자체가 없는 경우 방지
+        if (requestDto == null) {
+            throw new IllegalArgumentException("회원가입 요청 정보가 올바르지 않습니다.");
+        }
+
+        // 일반 회원가입은 아이디 필수
+        if (requestDto.getUsername() == null || requestDto.getUsername().isBlank()) {
+            throw new IllegalArgumentException("아이디는 필수입니다.");
+        }
+
+        // 일반 회원가입은 이메일 필수
+        if (requestDto.getEmail() == null || requestDto.getEmail().isBlank()) {
+            throw new IllegalArgumentException("이메일은 필수입니다.");
+        }
+
+        // 일반 회원가입은 비밀번호 필수
+        // DB password_hash는 소셜 로그인 때문에 NULL 가능하지만, LOCAL 회원가입에서는 반드시 입력받아야 함
+        if (requestDto.getPassword() == null || requestDto.getPassword().isBlank()) {
+            throw new IllegalArgumentException("비밀번호는 필수입니다.");
+        }
+
+        // 일반 회원가입은 이름 필수
+        if (requestDto.getName() == null || requestDto.getName().isBlank()) {
+            throw new IllegalArgumentException("이름은 필수입니다.");
+        }
+
+        // 현재 코드에서 phoneEnc 변환 시 getPhone().getBytes()를 사용하므로 phone도 필수 검증
+        if (requestDto.getPhone() == null || requestDto.getPhone().isBlank()) {
+            throw new IllegalArgumentException("전화번호는 필수입니다.");
+        }
+    }
+
+    private void validateLoginRequest(String email, String password) {
+        // 로그인은 이메일 필수
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("이메일은 필수입니다.");
+        }
+
+        // 로그인은 비밀번호 필수
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("비밀번호는 필수입니다.");
+        }
     }
 
     private void validateDuplicate(SignupRequestDto requestDto) {

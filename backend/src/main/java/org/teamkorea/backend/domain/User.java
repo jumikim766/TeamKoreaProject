@@ -24,7 +24,7 @@ public class User {
     @Column(name = "email", nullable = false, length = 100, unique = true)
     private String email; // 사용자 이메일
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", length = 255)
     private String passwordHash; // BCrypt 해시 비밀번호
 
     @Column(name = "name", nullable = false, length = 30)

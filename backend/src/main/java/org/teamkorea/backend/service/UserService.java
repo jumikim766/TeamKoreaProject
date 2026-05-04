@@ -18,13 +18,18 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        return new UserMeResponseDto(
-                user.getUserId(),
-                user.getEmail(),
-                user.getUsername(),
-                user.getName(),
-                user.getRole(),
-                user.getProvider()
-        );
+        return UserMeResponseDto.builder()
+        .userId(user.getUserId())
+        .email(user.getEmail())
+        .username(user.getUsername())
+        .name(user.getName())
+        .role(user.getRole())
+        .provider(user.getProvider())
+        .gender(user.getGender())
+        .age(user.getAge())
+        .status(user.getStatus())
+        .lastLoginAt(user.getLastLoginAt())
+        .createdAt(user.getCreatedAt())
+        .build();
     }
 }
