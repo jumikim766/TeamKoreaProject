@@ -1,17 +1,13 @@
 package org.teamkorea.backend.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class EmailAccountResponse {
+public class EmailAccountResponseDto {
 
     private Long accountId;
     private Long userId;
