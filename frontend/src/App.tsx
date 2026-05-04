@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import MailPage from './pages/MailPage';
 import MyPage from './pages/MyPage';
 import NotificationPage from './pages/NotificationPage';
+import OAuthCallback from './pages/OAuthCallback';
 import ReportPage from './pages/ReportPage';
 import SimplePage from './pages/SimplePage';
 import UrlPage from './pages/UrlPage';
@@ -98,6 +99,10 @@ function App() {
     onGoSignup: () => setView('signup'),
     onGoMyPage: () => setView('mypage'),
   };
+
+  if (window.location.pathname === '/oauth/callback') {
+    return <OAuthCallback onGoHome={() => setView('dashboard')} />;
+  }
 
   if (view === 'login' || view === 'signup') {
     return <AuthPage {...sharedProps} mode={view} />;

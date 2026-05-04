@@ -1689,3 +1689,14 @@
     flex-direction: column;
   }
 }
+.auth-error-message {
+  margin-top: 16px;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+:root[data-theme='dark'] .auth-error-message {
+  color: #fca5a5;
+}
