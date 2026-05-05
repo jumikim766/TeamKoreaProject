@@ -3,9 +3,13 @@ package org.teamkorea.backend.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.teamkorea.backend.domain.UrlAnalysis;
+import org.teamkorea.backend.domain.RiskLevel;
 import org.teamkorea.backend.dto.*;
 import org.teamkorea.backend.service.AnalysisService;
-import org.teamkorea.backend.domain.RiskLevel;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/url-analysis")
@@ -15,37 +19,30 @@ public class UrlAnalysisController {
     private final AnalysisService analysisService;
 
     /**
-<<<<<<< HEAD
-     * URL 분석 실행 (POST)
+     * URL 분석 실행 (서윤님 로직 반영)
      */
     @PostMapping("/analyze")
-    public ResponseEntity<Map<String, Object>> analyzeUrl(
+    public ResponseEntity<BaseResponse<UrlAnalysis>> analyzeUrl(
             @RequestParam Long userId,
             @RequestParam Long urlId
     ) {
         UrlAnalysis result = analysisService.analyzeAndSave(userId, urlId);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "URL 분석이 완료되었습니다.");
-        response.put("data", result);
-
-        return ResponseEntity.ok(response);
+        
+        // 팀원들의 공통 응답 규격인 BaseResponse 사용
+        return ResponseEntity.ok(
+                BaseResponse.success("URL 분석이 완료되었습니다.", result)
+        );
     }
 
     /**
-     * 분석 결과 목록 조회 (GET)
-=======
      * 분석 결과 목록 조회 (페이징 + 필터)
->>>>>>> origin/backend-dev
      */
     @GetMapping
     public ResponseEntity<BaseResponse<AnalysisListPageResponseDto>> getAnalysisList(
-            @RequestParam(required = false) RiskLevel riskLevel, // Enum 적용
+            @RequestParam(required = false) RiskLevel riskLevel,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-
         // Enum → String으로 변환해서 서비스로 전달
         String level = (riskLevel != null) ? riskLevel.name() : null;
 
@@ -58,33 +55,14 @@ public class UrlAnalysisController {
     }
 
     /**
-<<<<<<< HEAD
-     * 분석 결과 상세 조회 (GET)
-=======
      * 분석 결과 상세 조회
->>>>>>> origin/backend-dev
      */
     @GetMapping("/{analysisId}")
     public ResponseEntity<BaseResponse<AnalysisDetailResponseDto>> getAnalysisDetail(
             @PathVariable Long analysisId
     ) {
-
-<<<<<<< HEAD
-            Map<String, Object> data = new HashMap<>();
-            data.put("analysisId", analysis.getAnalysisId());
-            data.put("urlId", analysis.getUrl().getUrlId());
-            data.put("sourceType", analysis.getSourceType());
-            data.put("riskLevel", analysis.getRiskLevel());
-            data.put("riskType", analysis.getRiskType());
-            data.put("score", analysis.getScore());
-            data.put("reasonSummary", analysis.getReasonSummary());
-            data.put("featuresJson", analysis.getFeaturesJson());
-            data.put("ruleVersion", analysis.getRuleVersion());
-            data.put("analyzedAt", analysis.getAnalyzedAt());
-=======
         AnalysisDetailResponseDto detail =
                 analysisService.getDetail(analysisId);
->>>>>>> origin/backend-dev
 
         return ResponseEntity.ok(
                 BaseResponse.success("분석 결과 상세 조회에 성공했습니다.", detail)
