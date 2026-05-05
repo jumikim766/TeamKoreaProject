@@ -1,6 +1,9 @@
 package org.teamkorea.backend.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.teamkorea.backend.domain.Email;
 import org.teamkorea.backend.domain.EmailAccount;
 
@@ -10,17 +13,24 @@ import java.util.Optional;
 
 public interface EmailRepository extends JpaRepository<Email, Long> {
 
-    // 중복 방지 (IMAP UID 기준)
     Optional<Email> findByMessageUid(String messageUid);
 
     boolean existsByMessageUid(String messageUid);
 
-    // 특정 계정 이메일 목록 조회
     List<Email> findAllByAccount(EmailAccount account);
 
-    // 최신 동기화 기준 조회
     List<Email> findAllByAccountAndReceivedAtAfter(
             EmailAccount account,
             LocalDateTime receivedAt
     );
+
+    Page<Email> findByAccount_AccountId(Long accountId, Pageable pageable);
+
+    // 목록 조회용 fetch join
+    @Query("SELECT e FROM Email e JOIN FETCH e.account")
+    Page<Email> findAllWithAccount(Pageable pageable);
+
+    // 상세 조회용 fetch join
+    @Query("SELECT e FROM Email e JOIN FETCH e.account WHERE e.emailId = :emailId")
+    Optional<Email> findByIdWithAccount(Long emailId);
 }

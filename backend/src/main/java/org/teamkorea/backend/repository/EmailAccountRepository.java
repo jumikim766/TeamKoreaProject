@@ -13,6 +13,8 @@ public interface EmailAccountRepository extends JpaRepository<EmailAccount, Long
 
     List<EmailAccount> findAllByUser(User user);
 
-    Optional<EmailAccount> findByAccountIdAndUser(Long accountId, User user);
+    // email_accounts에서 active=true인 계정만 (자동 동기화 대상)
+    List<EmailAccount> findByActiveTrue();
 
+    Optional<EmailAccount> findByAccountIdAndUser(Long accountId, User user);
 }

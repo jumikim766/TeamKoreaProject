@@ -3,12 +3,9 @@ package org.teamkorea.backend.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.teamkorea.backend.domain.UrlAnalysis;
+import org.teamkorea.backend.dto.*;
 import org.teamkorea.backend.service.AnalysisService;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.teamkorea.backend.domain.RiskLevel;
 
 @RestController
 @RequestMapping("/api/url-analysis")
@@ -18,6 +15,7 @@ public class UrlAnalysisController {
     private final AnalysisService analysisService;
 
     /**
+<<<<<<< HEAD
      * URL 분석 실행 (POST)
      */
     @PostMapping("/analyze")
@@ -37,35 +35,41 @@ public class UrlAnalysisController {
 
     /**
      * 분석 결과 목록 조회 (GET)
+=======
+     * 분석 결과 목록 조회 (페이징 + 필터)
+>>>>>>> origin/backend-dev
      */
     @GetMapping
-    public ResponseEntity<Map<String, Object>> getAllAnalyses(
-            @RequestParam(required = false) String riskLevel
+    public ResponseEntity<BaseResponse<AnalysisListPageResponseDto>> getAnalysisList(
+            @RequestParam(required = false) RiskLevel riskLevel, // Enum 적용
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        List<UrlAnalysis> analyses;
 
-        if (riskLevel != null && !riskLevel.isBlank()) {
-            analyses = analysisService.getAnalysesByRiskLevel(riskLevel);
-        } else {
-            analyses = analysisService.getAllAnalyses();
-        }
+        // Enum → String으로 변환해서 서비스로 전달
+        String level = (riskLevel != null) ? riskLevel.name() : null;
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "분석 결과 목록 조회에 성공했습니다.");
-        response.put("data", Map.of("analyses", analyses));
+        AnalysisListPageResponseDto response =
+                analysisService.getAnalysisList(level, page, size);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                BaseResponse.success("분석 결과 목록 조회에 성공했습니다.", response)
+        );
     }
 
     /**
+<<<<<<< HEAD
      * 분석 결과 상세 조회 (GET)
+=======
+     * 분석 결과 상세 조회
+>>>>>>> origin/backend-dev
      */
     @GetMapping("/{analysisId}")
-    public ResponseEntity<Map<String, Object>> getAnalysisById(@PathVariable Long analysisId) {
-        try {
-            UrlAnalysis analysis = analysisService.getAnalysisById(analysisId);
+    public ResponseEntity<BaseResponse<AnalysisDetailResponseDto>> getAnalysisDetail(
+            @PathVariable Long analysisId
+    ) {
 
+<<<<<<< HEAD
             Map<String, Object> data = new HashMap<>();
             data.put("analysisId", analysis.getAnalysisId());
             data.put("urlId", analysis.getUrl().getUrlId());
@@ -77,21 +81,13 @@ public class UrlAnalysisController {
             data.put("featuresJson", analysis.getFeaturesJson());
             data.put("ruleVersion", analysis.getRuleVersion());
             data.put("analyzedAt", analysis.getAnalyzedAt());
+=======
+        AnalysisDetailResponseDto detail =
+                analysisService.getDetail(analysisId);
+>>>>>>> origin/backend-dev
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "분석 결과 상세 조회에 성공했습니다.");
-            response.put("data", data);
-
-            return ResponseEntity.ok(response);
-
-        } catch (IllegalArgumentException e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", e.getMessage());
-            response.put("data", null);
-
-            return ResponseEntity.status(404).body(response);
-        }
+        return ResponseEntity.ok(
+                BaseResponse.success("분석 결과 상세 조회에 성공했습니다.", detail)
+        );
     }
 }

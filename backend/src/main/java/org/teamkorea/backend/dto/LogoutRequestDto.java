@@ -1,17 +1,14 @@
 package org.teamkorea.backend.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
-@Builder
 @NoArgsConstructor
-@AllArgsConstructor
-public class ReissueRequestDto {
+public class LogoutRequestDto {
 
-    @NotBlank(message = "재발급을 위한 Refresh Token은 필수입니다.")
+    // 로그아웃 시 무효화할 Refresh Token
+    @NotBlank(message = "refreshToken은 필수입니다.")
     private String refreshToken;
 }

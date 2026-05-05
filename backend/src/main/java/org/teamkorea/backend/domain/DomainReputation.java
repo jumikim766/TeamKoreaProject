@@ -2,6 +2,7 @@ package org.teamkorea.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+<<<<<<< HEAD
 import java.time.LocalDateTime;
 
 @Entity
@@ -9,7 +10,17 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+=======
+
+import java.time.LocalDateTime;
+
+@Entity
+>>>>>>> origin/backend-dev
 @Table(name = "domain_reputation")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class DomainReputation {
 
     @Id
@@ -22,26 +33,55 @@ public class DomainReputation {
 
     @Builder.Default
     @Column(name = "trust_score", nullable = false)
-    private Integer trustScore = 50;
+    private Integer trustScore = 50; // 기본 신뢰 점수
 
     @Builder.Default
+<<<<<<< HEAD
     @Column(name = "is_whitelisted")
     private Boolean isWhitelisted = false;
 
     @Builder.Default
     @Column(name = "is_blacklisted")
+=======
+    @Column(name = "is_whitelisted", nullable = false) // NULL 방지
+    private Boolean isWhitelisted = false;
+
+    @Builder.Default
+    @Column(name = "is_blacklisted", nullable = false) // NULL 방지
+>>>>>>> origin/backend-dev
     private Boolean isBlacklisted = false;
 
     @Column(name = "last_updated_at", nullable = false)
     private LocalDateTime lastUpdatedAt;
 
+<<<<<<< HEAD
     @PrePersist
     public void onCreate() {
         this.lastUpdatedAt = LocalDateTime.now();
+=======
+    // 기존 코드 호환용 생성자 유지
+    public DomainReputation(String domain, Integer trustScore, Boolean isWhitelisted, Boolean isBlacklisted) {
+        this.domain = domain;
+        this.trustScore = trustScore;
+        this.isWhitelisted = isWhitelisted;
+        this.isBlacklisted = isBlacklisted;
+        this.lastUpdatedAt = LocalDateTime.now(); // 생성 시점 기록
+    }
+
+    @PrePersist
+    public void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // 생성 시 값 보정
+        if (this.lastUpdatedAt == null) this.lastUpdatedAt = now;
+        if (this.trustScore == null) this.trustScore = 50;
+        if (this.isWhitelisted == null) this.isWhitelisted = false;
+        if (this.isBlacklisted == null) this.isBlacklisted = false;
+>>>>>>> origin/backend-dev
     }
 
     @PreUpdate
     public void onUpdate() {
-        this.lastUpdatedAt = LocalDateTime.now();
+        this.lastUpdatedAt = LocalDateTime.now(); // 수정 시 자동 갱신
     }
 }
