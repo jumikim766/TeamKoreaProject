@@ -18,6 +18,7 @@ import org.teamkorea.backend.dto.SignupResponseDto;
 import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
 import org.teamkorea.backend.security.JwtUtil;
+import org.teamkorea.backend.security.CryptoUtil;
 
 @Service
 @Transactional
@@ -27,17 +28,20 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final CryptoUtil cryptoUtil;
 
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil
+            JwtUtil jwtUtil,
+            CryptoUtil cryptoUtil
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.cryptoUtil = cryptoUtil;
     }
 
     public SignupResponseDto signup(SignupRequestDto requestDto) {
@@ -47,15 +51,20 @@ public class AuthService {
         // 아이디/이메일 중복 검증
         validateDuplicate(requestDto);
 
+        byte[] phoneEnc = null;
+        if (requestDto.getPhone() != null && !requestDto.getPhone().isBlank()) {
+            phoneEnc = cryptoUtil.encrypt(requestDto.getPhone());
+        }
+
+        // ===== AES 암호화 적용 완료 =====
         User user = User.builder()
                 .username(requestDto.getUsername())
                 .email(requestDto.getEmail())
                 .passwordHash(passwordEncoder.encode(requestDto.getPassword()))
                 .name(requestDto.getName())
-                // TODO: 현재는 임시 byte[] 변환입니다. 추후 encryptionUtil.encrypt(requestDto.getPhone())로 교체 권장
-                .phoneEnc(requestDto.getPhone().getBytes(StandardCharsets.UTF_8))
-                // .gender(requestDto.getGender())
-                // .age(requestDto.getAge())
+                .phoneEnc(phoneEnc)
+                .gender(requestDto.getGender())
+                .age(requestDto.getAge())
                 .role("USER")
                 .status("ACTIVE")
                 .provider("LOCAL")
@@ -63,11 +72,11 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        return new SignupResponseDto(
+          return new SignupResponseDto(
                 savedUser.getUserId(),
                 savedUser.getUsername(),
-                savedUser.getName(),
-                savedUser.getEmail()
+                savedUser.getEmail(), 
+                savedUser.getName()
         );
     }
 
@@ -84,6 +93,15 @@ public class AuthService {
 
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        // ===== 추가: 탈퇴/비활성화 계정 로그인 차단 =====
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new IllegalArgumentException("탈퇴했거나 비활성화된 계정입니다.");
+        }
+
+        if (!"LOCAL".equals(user.getProvider())) {
+            throw new IllegalArgumentException("소셜 로그인 계정입니다. 일반 로그인을 사용할 수 없습니다.");
         }
 
         String accessToken = jwtUtil.generateAccessToken(user);
@@ -206,11 +224,6 @@ public class AuthService {
         // 일반 회원가입은 이름 필수
         if (requestDto.getName() == null || requestDto.getName().isBlank()) {
             throw new IllegalArgumentException("이름은 필수입니다.");
-        }
-
-        // 현재 코드에서 phoneEnc 변환 시 getPhone().getBytes()를 사용하므로 phone도 필수 검증
-        if (requestDto.getPhone() == null || requestDto.getPhone().isBlank()) {
-            throw new IllegalArgumentException("전화번호는 필수입니다.");
         }
     }
 

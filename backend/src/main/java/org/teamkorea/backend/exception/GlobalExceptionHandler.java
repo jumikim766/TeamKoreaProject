@@ -77,6 +77,26 @@ public class GlobalExceptionHandler {
                 .body(BaseResponse.error("해당 요청에 대한 접근 권한이 없습니다.", ErrorCode.FORBIDDEN.getCode()));
     }
 
+     // ===== 추가: NullPointer 방어 =====
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<BaseResponse<Void>> handleNullPointerException(
+            NullPointerException e
+    ) {
+        return ResponseEntity
+                .status(ErrorCode.INTERNAL_ERROR.getStatus())
+                .body(BaseResponse.error("서버 처리 중 Null 값 오류가 발생했습니다.", ErrorCode.INTERNAL_ERROR.getCode()));
+    }
+
+    // ===== 추가: 인증 객체 문제 (JWT userId 없을 때) =====
+    @ExceptionHandler(ClassCastException.class)
+    public ResponseEntity<BaseResponse<Void>> handleClassCastException(
+            ClassCastException e
+    ) {
+        return ResponseEntity
+                .status(ErrorCode.UNAUTHORIZED.getStatus())
+                .body(BaseResponse.error("인증 정보가 올바르지 않습니다. 다시 로그인해주세요.", ErrorCode.UNAUTHORIZED.getCode()));
+    }
+
     //그 외 서버 오류 처리 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<BaseResponse<Void>> handleException(Exception e) {

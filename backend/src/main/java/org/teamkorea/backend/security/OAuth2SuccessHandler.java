@@ -114,10 +114,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         refreshTokenRepository.save(savedRefreshToken);
 
-        String redirectUrl = "http://localhost:5173/oauth/callback"
-                + "?accessToken=" + URLEncoder.encode(accessToken, StandardCharsets.UTF_8)
-                + "&refreshToken=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)
-                + "&tokenType=Bearer";
+        String redirectUrl = "http://localhost:5176/oauth/callback"
+        + "?accessToken=" + URLEncoder.encode(accessToken, StandardCharsets.UTF_8)
+        + "&refreshToken=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)
+        + "&tokenType=Bearer";
 
         response.sendRedirect(redirectUrl);
     }

@@ -20,4 +20,5 @@ public class UserMeResponseDto {
     private String status;
     private LocalDateTime lastLoginAt;
     private LocalDateTime createdAt;
+    private String phoneMasked;
 }
