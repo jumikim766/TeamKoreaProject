@@ -13,5 +13,4 @@ public class UserUpdateRequestDto {
     private String gender;
     private Integer age;
 
-    // phoneEnc는 나중에 암호화 로직 붙일 예정이라 일단 제외
 }

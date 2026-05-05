@@ -2,14 +2,13 @@ package org.teamkorea.backend.service;
 
 import lombok.RequiredArgsConstructor;
 
-import java.nio.charset.StandardCharsets;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.teamkorea.backend.domain.User;
 import org.teamkorea.backend.dto.*;
 import org.teamkorea.backend.repository.UserRepository;
+import org.teamkorea.backend.security.CryptoUtil;
 
 @Service
 @RequiredArgsConstructor
@@ -20,10 +19,19 @@ public class UserService {
 
     // ===== 추가: 비밀번호 암호화/검증용 =====
     private final PasswordEncoder passwordEncoder;
+    private final CryptoUtil cryptoUtil;
 
     // ===== 기존 유지/수정: ACTIVE 사용자만 조회 =====
     public UserMeResponseDto getMyInfo(Long userId) {
         User user = getActiveUser(userId);
+
+        String phoneMasked = null;
+
+        // ===== 추가: 복호화 후 마스킹 =====
+        if (user.getPhoneEnc() != null) {
+            String phone = cryptoUtil.decrypt(user.getPhoneEnc());
+            phoneMasked = maskPhone(phone);
+        }
 
         return UserMeResponseDto.builder()
                 .userId(user.getUserId())
@@ -37,6 +45,7 @@ public class UserService {
                 .status(user.getStatus())
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
+                .phoneMasked(phoneMasked)
                 .build();
     }
 
@@ -49,8 +58,7 @@ public class UserService {
 
         // ===== 추가: phone이 들어온 경우에만 저장 =====
         if (requestDto.getPhone() != null && !requestDto.getPhone().isBlank()) {
-            // TODO: 최종 구현 시 AES 암호화 유틸로 교체
-            phoneEnc = requestDto.getPhone().getBytes(StandardCharsets.UTF_8);
+            phoneEnc = cryptoUtil.encrypt(requestDto.getPhone());
         }
 
         // ===== 수정: 기존 phoneEnc 포함 updateProfile 사용 =====
@@ -66,7 +74,7 @@ public class UserService {
                 .name(user.getName())
                 .gender(user.getGender())
                 .age(user.getAge())
-                // ===== 추가: 응답에는 원본 phone 대신 마스킹된 전화번호만 반환 =====
+                // ===== 실제 값 기준으로 마스킹 =====
                 .phoneMasked(maskPhone(requestDto.getPhone()))
                 .build();
     }

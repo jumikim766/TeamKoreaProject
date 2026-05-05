@@ -18,6 +18,7 @@ import org.teamkorea.backend.dto.SignupResponseDto;
 import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
 import org.teamkorea.backend.security.JwtUtil;
+import org.teamkorea.backend.security.CryptoUtil;
 
 @Service
 @Transactional
@@ -27,17 +28,20 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final CryptoUtil cryptoUtil;
 
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil
+            JwtUtil jwtUtil,
+            CryptoUtil cryptoUtil
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.cryptoUtil = cryptoUtil;
     }
 
     public SignupResponseDto signup(SignupRequestDto requestDto) {
@@ -49,10 +53,10 @@ public class AuthService {
 
         byte[] phoneEnc = null;
         if (requestDto.getPhone() != null && !requestDto.getPhone().isBlank()) {
-            phoneEnc = requestDto.getPhone().getBytes(StandardCharsets.UTF_8);
+            phoneEnc = cryptoUtil.encrypt(requestDto.getPhone());
         }
 
-        // TODO: 현재는 임시 byte[] 변환입니다. 추후 encryptionUtil.encrypt(requestDto.getPhone())로 교체 권장
+        // ===== AES 암호화 적용 완료 =====
         User user = User.builder()
                 .username(requestDto.getUsername())
                 .email(requestDto.getEmail())
@@ -89,6 +93,15 @@ public class AuthService {
 
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        // ===== 추가: 탈퇴/비활성화 계정 로그인 차단 =====
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new IllegalArgumentException("탈퇴했거나 비활성화된 계정입니다.");
+        }
+
+        if (!"LOCAL".equals(user.getProvider())) {
+            throw new IllegalArgumentException("소셜 로그인 계정입니다. 일반 로그인을 사용할 수 없습니다.");
         }
 
         String accessToken = jwtUtil.generateAccessToken(user);
