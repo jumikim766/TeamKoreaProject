@@ -2,7 +2,6 @@ package org.teamkorea.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,33 +22,31 @@ public class DomainReputation {
 
     @Builder.Default
     @Column(name = "trust_score", nullable = false)
-    private Integer trustScore = 50; // 기본 신뢰 점수
+    private Integer trustScore = 50;
 
     @Builder.Default
-    @Column(name = "is_whitelisted", nullable = false) // NULL 방지
+    @Column(name = "is_whitelisted", nullable = false)
     private Boolean isWhitelisted = false;
 
     @Builder.Default
-    @Column(name = "is_blacklisted", nullable = false) // NULL 방지
+    @Column(name = "is_blacklisted", nullable = false)
     private Boolean isBlacklisted = false;
 
     @Column(name = "last_updated_at", nullable = false)
     private LocalDateTime lastUpdatedAt;
 
-    // 기존 코드 호환용 생성자 유지
+    // 기존 코드 호환용 생성자 (AnalysisService 등에서 사용 가능)
     public DomainReputation(String domain, Integer trustScore, Boolean isWhitelisted, Boolean isBlacklisted) {
         this.domain = domain;
-        this.trustScore = trustScore;
-        this.isWhitelisted = isWhitelisted;
-        this.isBlacklisted = isBlacklisted;
-        this.lastUpdatedAt = LocalDateTime.now(); // 생성 시점 기록
+        this.trustScore = trustScore != null ? trustScore : 50;
+        this.isWhitelisted = isWhitelisted != null ? isWhitelisted : false;
+        this.isBlacklisted = isBlacklisted != null ? isBlacklisted : false;
+        this.lastUpdatedAt = LocalDateTime.now();
     }
 
     @PrePersist
     public void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-
-        // 생성 시 값 보정
         if (this.lastUpdatedAt == null) this.lastUpdatedAt = now;
         if (this.trustScore == null) this.trustScore = 50;
         if (this.isWhitelisted == null) this.isWhitelisted = false;
@@ -58,6 +55,13 @@ public class DomainReputation {
 
     @PreUpdate
     public void onUpdate() {
-        this.lastUpdatedAt = LocalDateTime.now(); // 수정 시 자동 갱신
+        this.lastUpdatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * AnalysisService에서 double 연산을 위해 안전하게 점수를 반환하는 메서드
+     */
+    public double getTrustScoreValue() {
+        return this.trustScore != null ? this.trustScore.doubleValue() : 50.0;
     }
 }
