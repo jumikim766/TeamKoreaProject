@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -145,7 +146,6 @@ public class EmailAccountService {
             inbox.open(Folder.READ_ONLY);
 
             Message[] messages = inbox.getMessages();
-            collectedEmailCount = messages.length;
 
             int startIndex = messages.length - 1;
             int endIndex = Math.max(0, messages.length - 10);
@@ -153,6 +153,8 @@ public class EmailAccountService {
             for (int i = startIndex; i >= endIndex; i--) {
 
                 Message msg = messages[i];
+
+                collectedEmailCount++;
 
                 LocalDateTime receivedAt = msg.getReceivedDate() != null
                         ? LocalDateTime.ofInstant(
@@ -193,7 +195,6 @@ public class EmailAccountService {
                 savedEmailCount++;
 
                 List<String> extractedUrls = extractUrls(bodyText);
-                extractedUrlCount += extractedUrls.size();
 
                 for (String rawUrl : extractedUrls) {
 
@@ -201,32 +202,38 @@ public class EmailAccountService {
                     String urlHash = sha256(normalizedUrl);
 
                 // URL 중복 처리 (이미 존재하면 seenCount 증가, lastSeenAt 갱신)
-                Url url = urlRepository.findByUrlHash(urlHash)
-                        .map(existingUrl -> {
-                            existingUrl.setLastSeenAt(LocalDateTime.now());
-                            existingUrl.setSeenCount(existingUrl.getSeenCount() + 1);
-                            return existingUrl;
-                        })
-                        .orElseGet(() -> urlRepository.save(
-                            Url.builder()
-                                .normalizedUrl(normalizedUrl)
-                                .urlHash(urlHash)
-                                .domain(extractDomain(normalizedUrl))
-                                .scheme(extractScheme(normalizedUrl))
-                                .firstSeenAt(LocalDateTime.now())
-                                .lastSeenAt(LocalDateTime.now())
-                                .seenCount(1)
-                                .build()
-                        ));
+                Url url;
 
-                    emailUrlRepository.save(
-                            EmailUrl.builder()
-                                    .email(savedEmail)
-                                    .url(url)
-                                    .rawUrl(rawUrl)
-                                    .linkText(null)
-                                    .build()
-                    );
+                Optional<Url> existingUrlOpt = urlRepository.findByUrlHash(urlHash);
+
+                if (existingUrlOpt.isPresent()) {
+                    url = existingUrlOpt.get();
+                    url.setLastSeenAt(LocalDateTime.now());
+                    url.setSeenCount(url.getSeenCount() + 1);
+                } else {
+                    url = Url.builder()
+                        .normalizedUrl(normalizedUrl)
+                        .urlHash(urlHash)
+                        .domain(extractDomain(normalizedUrl))
+                        .scheme(extractScheme(normalizedUrl))
+                        .firstSeenAt(LocalDateTime.now())
+                        .lastSeenAt(LocalDateTime.now())
+                        .seenCount(1)
+                        .build();
+                }               
+
+                // 기존 URL이든 신규 URL이든 저장
+                Url savedUrl = urlRepository.save(url);
+
+                emailUrlRepository.save(
+                    EmailUrl.builder()
+                        .email(savedEmail)
+                        .url(savedUrl)
+                        .rawUrl(rawUrl)
+                        .linkText(null)
+                        .build()
+                );
+                extractedUrlCount++;
                 }
             }
 
@@ -413,16 +420,24 @@ public class EmailAccountService {
     // 이메일 중복 방지용 ID 생성
     private String buildMessageUid(Message msg) throws Exception {
 
+        String[] messageIds = msg.getHeader("Message-ID");
+
+        if (messageIds != null && messageIds.length > 0 && messageIds[0] != null && !messageIds[0].isBlank()) {
+            return sha256(messageIds[0]);
+        }
+
         String subject = msg.getSubject() != null ? msg.getSubject() : "";
 
-        String sentDate = msg.getSentDate() != null
-                ? msg.getSentDate().toInstant().toString()
-                : "";
+        String sentDate = msg.getSentDate() != null ? msg.getSentDate().toInstant().toString() : "";
 
         String from = (msg.getFrom() != null && msg.getFrom().length > 0)
                 ? msg.getFrom()[0].toString()
                 : "";
 
-        return sha256(subject + "|" + sentDate + "|" + from);
+        String receivedDate = msg.getReceivedDate() != null
+                ? msg.getReceivedDate().toInstant().toString()
+                : "";
+
+        return sha256(subject + "|" + sentDate + "|" + receivedDate + "|" + from);
     }
 }
