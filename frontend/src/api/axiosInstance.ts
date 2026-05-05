@@ -1,83 +1,53 @@
 import axios from 'axios';
-import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { getAccessToken, getRefreshToken, removeTokens, saveTokens } from '../utils/token';
-
-interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-interface ReissueResponseData {
-  accessToken: string;
-  tokenType: string;
-}
-
-interface RetryableRequestConfig extends InternalAxiosRequestConfig {
-  _retry?: boolean;
-}
-
-const BASE_URL = 'http://localhost:8080';
+import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from '../utils/token';
 
 const apiClient = axios.create({
-  baseURL: BASE_URL,
+  baseURL: 'http://localhost:8080',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// 요청 시 accessToken 자동 추가
 apiClient.interceptors.request.use((config) => {
-  const accessToken = getAccessToken();
-
-  if (accessToken) {
-    config.headers.Authorization = `Bearer ${accessToken}`;
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-
   return config;
 });
 
+// 401 발생 시 토큰 재발급
 apiClient.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as RetryableRequestConfig | undefined;
+  (res) => res,
+  async (error) => {
+    const originalRequest = error.config;
 
-    if (error.response?.status !== 401 || !originalRequest || originalRequest._retry) {
-      return Promise.reject(error);
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = getRefreshToken();
+
+        const response = await axios.post('http://localhost:8080/api/auth/reissue', {
+          refreshToken,
+        });
+
+        const newAccessToken = response.data.data.accessToken;
+        const newRefreshToken = response.data.data.refreshToken;
+
+        saveTokens(newAccessToken, newRefreshToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return apiClient(originalRequest);
+      } catch (err) {
+        clearTokens();
+        window.location.href = '/login';
+      }
     }
 
-    originalRequest._retry = true;
-
-    const refreshToken = getRefreshToken();
-
-    if (!refreshToken) {
-      removeTokens();
-      window.location.href = '/';
-      return Promise.reject(error);
-    }
-
-    try {
-      const reissueResponse = await axios.post<ApiResponse<ReissueResponseData>>(
-        `${BASE_URL}/api/auth/reissue`,
-        { refreshToken },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      const newAccessToken = reissueResponse.data.data.accessToken;
-
-      saveTokens(newAccessToken, refreshToken);
-      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-      return apiClient(originalRequest);
-    } catch (reissueError) {
-      removeTokens();
-      window.location.href = '/';
-      return Promise.reject(reissueError);
-    }
-  },
+    return Promise.reject(error);
+  }
 );
 
 export default apiClient;

@@ -17,22 +17,16 @@ interface AuthPageProps {
   onGoMyPage: () => void;
 }
 
-interface LoginResponseData {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  user: {
-    userId: number;
-    email: string;
-    name: string;
-    role: string;
-  };
-}
-
 interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+}
+
+interface LoginResponseData {
+  accessToken: string;
+  refreshToken: string;
+  tokenType?: string;
 }
 
 function isValidEmail(email: string) {
@@ -93,6 +87,7 @@ function AuthPage({
       });
 
       const { accessToken, refreshToken } = response.data.data;
+
       saveTokens(accessToken, refreshToken);
 
       alert(response.data.message || '로그인에 성공했습니다.');
@@ -112,14 +107,14 @@ function AuthPage({
       setIsSubmitting(true);
       setAuthMessage('');
 
-      const response = await apiClient.post('/api/auth/signup', {
+      await apiClient.post('/api/auth/signup', {
         username: signupUsername,
         email: signupEmail,
         password: signupPassword,
         name: signupName,
       });
 
-      alert(response.data.message || '회원가입이 완료되었습니다.');
+      alert('회원가입이 완료되었습니다. 로그인 화면으로 이동합니다.');
       onGoLogin();
     } catch (error) {
       console.error(error);
@@ -130,10 +125,12 @@ function AuthPage({
   };
 
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell ${theme}`}>
       <Header
         currentView={mode}
         theme={theme}
+        isLoggedIn={false}
+        onLogout={() => {}}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
@@ -145,11 +142,11 @@ function AuthPage({
         <section className="auth-layout auth-layout-centered">
           <section className="auth-card auth-card-centered">
             <div className="auth-card-head">
-              <p className="eyebrow">{mode === 'login' ? 'Welcome back' : 'Join URL GUARD'}</p>
+              <p className="eyebrow">{mode === 'login' ? 'WELCOME BACK' : 'JOIN URL GUARD'}</p>
               <h2>{mode === 'login' ? '로그인' : '회원가입'}</h2>
               <p>
                 {mode === 'login'
-                  ? '이메일과 비밀번호로 로그인하거나 소셜 계정으로 계속할 수 있습니다.'
+                  ? '이메일과 비밀번호를 입력해 로그인할 수 있습니다.'
                   : '아이디, 이메일, 비밀번호, 이름을 입력해 회원가입할 수 있습니다.'}
               </p>
             </div>
@@ -204,9 +201,9 @@ function AuthPage({
 
                 <button
                   className={`primary-button auth-submit ${!isLoginValid ? 'is-disabled' : ''}`}
-                  type="button"
                   disabled={!isLoginValid || isSubmitting}
                   onClick={handleLogin}
+                  type="button"
                 >
                   {isSubmitting ? '로그인 중...' : '로그인'}
                 </button>
@@ -255,9 +252,9 @@ function AuthPage({
 
                 <button
                   className={`primary-button auth-submit ${!isSignupValid ? 'is-disabled' : ''}`}
-                  type="button"
                   disabled={!isSignupValid || isSubmitting}
                   onClick={handleSignup}
+                  type="button"
                 >
                   {isSubmitting ? '회원가입 중...' : '회원가입'}
                 </button>

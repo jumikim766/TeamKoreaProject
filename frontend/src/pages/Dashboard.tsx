@@ -5,7 +5,11 @@ import '../styles/Dashboard.css';
 
 type ThemeMode = 'light' | 'dark';
 
-type DashboardViewTarget =
+type ViewMode =
+  | 'dashboard'
+  | 'login'
+  | 'signup'
+  | 'mypage'
   | 'my-mailbox'
   | 'mail-connect'
   | 'my-url'
@@ -23,12 +27,14 @@ type DashboardViewTarget =
 
 interface DashboardProps {
   theme: ThemeMode;
+  isLoggedIn: boolean;
+  onLogout: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
-  onNavigate: (view: DashboardViewTarget) => void;
+  onNavigate: (view: ViewMode) => void;
 }
 
 const totalCollection = [
@@ -47,6 +53,8 @@ const todayCollection = [
 
 function Dashboard({
   theme,
+  isLoggedIn,
+  onLogout,
   onToggleTheme,
   onGoHome,
   onGoLogin,
@@ -55,10 +63,12 @@ function Dashboard({
   onNavigate,
 }: DashboardProps) {
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell ${theme}`}>
       <Header
         currentView="dashboard"
         theme={theme}
+        isLoggedIn={isLoggedIn}
+        onLogout={onLogout}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
@@ -89,6 +99,7 @@ function Dashboard({
               total="6,797건"
               data={totalCollection}
             />
+
             <ChartBox
               title="오늘 수집 URL"
               caption="금일 00:00 이후"

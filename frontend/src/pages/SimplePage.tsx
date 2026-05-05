@@ -1,10 +1,13 @@
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import '../styles/Dashboard.css';
 
 type ThemeMode = 'light' | 'dark';
 
-type PageViewTarget =
+type ViewMode =
+  | 'dashboard'
+  | 'login'
+  | 'signup'
+  | 'mypage'
   | 'my-mailbox'
   | 'mail-connect'
   | 'my-url'
@@ -20,67 +23,60 @@ type PageViewTarget =
   | 'privacy'
   | 'security-contact';
 
-interface SimplePageProps {
+type SimplePageView = 'service-info' | 'terms' | 'privacy' | 'security-contact';
+
+type SimplePageProps = {
   theme: ThemeMode;
-  currentView: string;
+  currentView: SimplePageView;
   title: string;
   description: string;
+  isLoggedIn: boolean;
+  onLogout: () => void;
+  onNavigate: (view: ViewMode) => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
-  onNavigate: (view: PageViewTarget) => void;
-}
+};
 
 function SimplePage({
   theme,
   currentView,
   title,
   description,
+  isLoggedIn,
+  onLogout,
+  onNavigate,
   onToggleTheme,
   onGoHome,
   onGoLogin,
   onGoSignup,
   onGoMyPage,
-  onNavigate,
 }: SimplePageProps) {
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell ${theme}`}>
       <Header
-        currentView={currentView}
         theme={theme}
+        currentView={currentView}
+        isLoggedIn={isLoggedIn}
+        onLogout={onLogout}
+        onToggleTheme={onToggleTheme}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
         onGoMyPage={onGoMyPage}
-        onToggleTheme={onToggleTheme}
       />
 
       <Navbar onNavigate={onNavigate} />
 
-      <main className="dashboard-main">
+      <main className="simple-page">
         <section className="simple-page-card">
-          <p className="eyebrow">Page view</p>
+          <p className="simple-page-eyebrow">URL GUARD</p>
           <h1>{title}</h1>
-          <p className="hero-text">{description}</p>
+          <p>{description}</p>
         </section>
       </main>
-
-      <footer className="footer">
-        <button type="button" onClick={() => onNavigate('service-info')}>
-          서비스 소개
-        </button>
-        <button type="button" onClick={() => onNavigate('terms')}>
-          이용약관
-        </button>
-        <button type="button" onClick={() => onNavigate('privacy')}>
-          개인정보 처리방침
-        </button>
-        <button type="button" onClick={() => onNavigate('security-contact')}>
-          보안 문의
-        </button>
-      </footer>
     </div>
   );
 }
