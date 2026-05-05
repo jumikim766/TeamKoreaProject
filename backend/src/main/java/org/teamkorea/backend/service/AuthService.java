@@ -47,15 +47,20 @@ public class AuthService {
         // 아이디/이메일 중복 검증
         validateDuplicate(requestDto);
 
+        byte[] phoneEnc = null;
+        if (requestDto.getPhone() != null && !requestDto.getPhone().isBlank()) {
+            phoneEnc = requestDto.getPhone().getBytes(StandardCharsets.UTF_8);
+        }
+
+        // TODO: 현재는 임시 byte[] 변환입니다. 추후 encryptionUtil.encrypt(requestDto.getPhone())로 교체 권장
         User user = User.builder()
                 .username(requestDto.getUsername())
                 .email(requestDto.getEmail())
                 .passwordHash(passwordEncoder.encode(requestDto.getPassword()))
                 .name(requestDto.getName())
-                // TODO: 현재는 임시 byte[] 변환입니다. 추후 encryptionUtil.encrypt(requestDto.getPhone())로 교체 권장
-                .phoneEnc(requestDto.getPhone().getBytes(StandardCharsets.UTF_8))
-                // .gender(requestDto.getGender())
-                // .age(requestDto.getAge())
+                .phoneEnc(phoneEnc)
+                .gender(requestDto.getGender())
+                .age(requestDto.getAge())
                 .role("USER")
                 .status("ACTIVE")
                 .provider("LOCAL")
@@ -63,11 +68,11 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        return new SignupResponseDto(
+          return new SignupResponseDto(
                 savedUser.getUserId(),
                 savedUser.getUsername(),
-                savedUser.getName(),
-                savedUser.getEmail()
+                savedUser.getEmail(), 
+                savedUser.getName()
         );
     }
 
@@ -206,11 +211,6 @@ public class AuthService {
         // 일반 회원가입은 이름 필수
         if (requestDto.getName() == null || requestDto.getName().isBlank()) {
             throw new IllegalArgumentException("이름은 필수입니다.");
-        }
-
-        // 현재 코드에서 phoneEnc 변환 시 getPhone().getBytes()를 사용하므로 phone도 필수 검증
-        if (requestDto.getPhone() == null || requestDto.getPhone().isBlank()) {
-            throw new IllegalArgumentException("전화번호는 필수입니다.");
         }
     }
 

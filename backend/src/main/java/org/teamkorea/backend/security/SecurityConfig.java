@@ -54,18 +54,16 @@ public class SecurityConfig {
                                 "/api/auth/reissue",
 
                                 // 테스트용 엔드포인트(회원가입/로그인/JWT 테스트 끝나면 삭제)
-                                "/api/hello"
+                                "/api/hello",
 
                                 // 이메일 계정 연동 테스트용 (나중에 삭제)
                                 // "/api/email-accounts",
 
-                                // ===== 추가: Analysis 관련 API 테스트 허용(나중에 정책 재정리 필요)
-                                // "/api/url-analysis/**",
-                                // "/api/analysis-history/**",
-                                // "/api/reports/**",
-                                // "/api/domain-reputation/**"
+                                // ===== 추가: 중복 체크는 로그인 없이 허용 =====
+                                "/api/users/check-username",
+                                "/api/users/check-email"
                         ).permitAll()
-                        .anyRequest().authenticated()// 위에서 허용하지 않은 모든 요청은 JWT 인증 필요
+                        .anyRequest().authenticated()// 나머지 users API는 JWT 필요
                 )
                  .oauth2Login(oauth -> oauth
                         .userInfoEndpoint(userInfo -> userInfo
@@ -74,14 +72,18 @@ public class SecurityConfig {
                         .successHandler(oAuth2SuccessHandler)
                 )
 
-                // 인증 안 된 요청은 401 JSON 응답
+                // ===== 수정: BaseResponse 형태로 통일 =====
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"error\": \"Unauthorized\"}");
+
+                            response.getWriter().write(
+                                    "{\"success\": false, \"message\": \"로그인이 필요합니다.\", \"data\": null}"
+                            );
                         })
                 )
+
                 // Spring Security 기본 인증 필터 전에 JWT 필터 실행
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
