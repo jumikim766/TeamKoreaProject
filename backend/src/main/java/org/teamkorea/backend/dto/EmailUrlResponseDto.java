@@ -1,5 +1,7 @@
 package org.teamkorea.backend.dto;
 
+import java.math.BigDecimal;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,4 +16,6 @@ public class EmailUrlResponseDto {
     private String normalizedUrl;
     private String domain;
     private String riskLevel;
+    private String reasonSummary;
+private BigDecimal score;
 }

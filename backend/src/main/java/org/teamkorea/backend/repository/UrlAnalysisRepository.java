@@ -9,6 +9,8 @@ import org.teamkorea.backend.domain.UrlAnalysis;
 import java.util.List;
 import java.util.Optional;
 
+
+
 public interface UrlAnalysisRepository extends JpaRepository<UrlAnalysis, Long> {
 
     // 특정 URL에 대한 분석 결과 목록 조회
@@ -19,4 +21,6 @@ public interface UrlAnalysisRepository extends JpaRepository<UrlAnalysis, Long> 
 
     // 특정 URL의 가장 최근 분석 결과 조회
     Optional<UrlAnalysis> findTopByUrl_UrlIdOrderByAnalyzedAtDesc(Long urlId);
+
+    
 }
