@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.teamkorea.backend.domain.RefreshToken;
 import org.teamkorea.backend.domain.User;
 import org.teamkorea.backend.dto.LoginResponseDto;
+import org.teamkorea.backend.dto.LoginUserDto;
 import org.teamkorea.backend.dto.ReissueRequestDto;
 import org.teamkorea.backend.dto.ReissueResponseDto;
 import org.teamkorea.backend.dto.SignupRequestDto;
@@ -17,6 +18,7 @@ import org.teamkorea.backend.dto.SignupResponseDto;
 import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
 import org.teamkorea.backend.security.JwtUtil;
+import org.teamkorea.backend.security.CryptoUtil;
 
 @Service
 @Transactional
@@ -26,49 +28,62 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final CryptoUtil cryptoUtil;
 
     public AuthService(
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
-            JwtUtil jwtUtil
+            JwtUtil jwtUtil,
+            CryptoUtil cryptoUtil
     ) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.cryptoUtil = cryptoUtil;
     }
 
     public SignupResponseDto signup(SignupRequestDto requestDto) {
+        // 회원가입 요청값 필수 검증
+        validateSignupRequest(requestDto);
+
+        // 아이디/이메일 중복 검증
         validateDuplicate(requestDto);
 
-        User user = new User();
-        user.setUsername(requestDto.getUsername());
-        user.setPasswordHash(passwordEncoder.encode(requestDto.getPassword()));
-        user.setName(requestDto.getName());
-        user.setEmail(requestDto.getEmail());
+        byte[] phoneEnc = null;
+        if (requestDto.getPhone() != null && !requestDto.getPhone().isBlank()) {
+            phoneEnc = cryptoUtil.encrypt(requestDto.getPhone());
+        }
 
-        user.setRole("USER");
-        user.setStatus("ACTIVE");
-        user.setProvider("LOCAL");
-
-        // 임시 처리: 실제 암호화가 아니라 byte[] 변환만 수행
-        user.setPhoneEnc(requestDto.getPhone().getBytes(StandardCharsets.UTF_8));
-        // 나중에 아래 코드로 수정
-        // user.setPhoneEnc(encryptionUtil.encrypt(requestDto.getPhone()));
+        // ===== AES 암호화 적용 완료 =====
+        User user = User.builder()
+                .username(requestDto.getUsername())
+                .email(requestDto.getEmail())
+                .passwordHash(passwordEncoder.encode(requestDto.getPassword()))
+                .name(requestDto.getName())
+                .phoneEnc(phoneEnc)
+                .gender(requestDto.getGender())
+                .age(requestDto.getAge())
+                .role("USER")
+                .status("ACTIVE")
+                .provider("LOCAL")
+                .build();
 
         User savedUser = userRepository.save(user);
 
-        return new SignupResponseDto(
+          return new SignupResponseDto(
                 savedUser.getUserId(),
                 savedUser.getUsername(),
-                savedUser.getName(),
-                savedUser.getEmail(),
-                "회원가입이 완료되었습니다."
+                savedUser.getEmail(), 
+                savedUser.getName()
         );
     }
 
     public LoginResponseDto login(String email, String password) {
+        // 로그인 요청값 필수 검증
+        validateLoginRequest(email, password);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
 
@@ -80,6 +95,15 @@ public class AuthService {
             throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
         }
 
+        // ===== 추가: 탈퇴/비활성화 계정 로그인 차단 =====
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw new IllegalArgumentException("탈퇴했거나 비활성화된 계정입니다.");
+        }
+
+        if (!"LOCAL".equals(user.getProvider())) {
+            throw new IllegalArgumentException("소셜 로그인 계정입니다. 일반 로그인을 사용할 수 없습니다.");
+        }
+
         String accessToken = jwtUtil.generateAccessToken(user);
         String refreshToken = jwtUtil.generateRefreshToken(user);
         String refreshTokenHash = jwtUtil.hashToken(refreshToken);
@@ -89,61 +113,130 @@ public class AuthService {
                 ZoneId.systemDefault()
         );
 
+        // 한 계정 = 한 기기 로그인 정책
+        // 새 로그인 시 기존 Refresh Token을 모두 삭제하여 이전 기기 로그인을 무효화
         refreshTokenRepository.deleteAllByUser(user);
 
         RefreshToken savedRefreshToken = new RefreshToken(user, refreshTokenHash, expiresAt);
         refreshTokenRepository.save(savedRefreshToken);
 
-        user.setLastLoginAt(LocalDateTime.now()); // 마지막 로그인 시간 업데이트
+        // 로그인 성공 시 마지막 로그인 시간 갱신
+        user.updateLastLoginAt();
 
         return new LoginResponseDto(
-                user.getUserId(),
-                user.getUsername(),
-                user.getName(),
-                user.getEmail(),
                 accessToken,
                 refreshToken,
                 "Bearer",
-                "로그인에 성공했습니다."
+                new LoginUserDto(
+                        user.getUserId(),
+                        user.getEmail(),
+                        user.getName(),
+                        user.getRole()
+                )
         );
     }
 
-    //Access Token 재발급
     @Transactional(readOnly = true)
     public ReissueResponseDto reissue(ReissueRequestDto requestDto) {
-
-        //refreshToken null/blank 체크
         if (requestDto == null || requestDto.getRefreshToken() == null || requestDto.getRefreshToken().isBlank()) {
             throw new IllegalArgumentException("refreshToken이 누락되었습니다.");
         }
 
         String refreshToken = requestDto.getRefreshToken();
 
-        //refreshToken 자체 유효성 검증
         if (!jwtUtil.validateToken(refreshToken)) {
             throw new IllegalArgumentException("유효하지 않거나 만료된 refreshToken입니다.");
         }
 
-        //DB 조회용 hash 생성
         String refreshTokenHash = jwtUtil.hashToken(refreshToken);
 
-        //DB에 저장된 refresh token 조회
         RefreshToken savedToken = refreshTokenRepository.findByTokenHash(refreshTokenHash)
                 .orElseThrow(() -> new IllegalArgumentException("저장된 토큰 정보를 찾을 수 없습니다."));
 
-        //DB expires_at 재확인
+        // DB 기준 만료 시간까지 한 번 더 확인
+        // 만료된 토큰이면 DB에서 삭제 후 재발급 차단
         if (savedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.deleteByTokenHash(refreshTokenHash);
             throw new IllegalArgumentException("유효하지 않거나 만료된 refreshToken입니다.");
         }
 
-        //새 access token 발급
         String newAccessToken = jwtUtil.generateAccessToken(savedToken.getUser());
 
         return new ReissueResponseDto(
                 newAccessToken,
-                "Bearer",
-                "토큰이 재발급되었습니다."
+                "Bearer"
         );
+    }
+
+    // 현재 기기 로그아웃
+    // 전달받은 Refresh Token만 DB에서 삭제하여 해당 토큰 재사용을 차단
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new IllegalArgumentException("로그아웃 요청 정보가 올바르지 않습니다.");
+        }
+
+        String tokenHash = jwtUtil.hashToken(refreshToken);
+
+        refreshTokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new IllegalArgumentException("인증 정보가 유효하지 않습니다."));
+
+        refreshTokenRepository.deleteByTokenHash(tokenHash);
+    }
+
+    // 전체 로그아웃
+    // 해당 사용자의 모든 Refresh Token을 삭제
+    public void logoutAll(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("사용자 정보가 올바르지 않습니다.");
+        }
+
+        refreshTokenRepository.deleteAllByUser(user);
+    }
+
+    // 만료된 Refresh Token 정리
+    // 스케줄러에서 주기적으로 호출하면 DB에 만료 토큰이 쌓이는 것을 방지
+    public void deleteExpiredRefreshTokens() {
+        refreshTokenRepository.deleteByExpiresAtBefore(LocalDateTime.now());
+    }
+
+    private void validateSignupRequest(SignupRequestDto requestDto) {
+        // 요청 객체 자체가 없는 경우 방지
+        if (requestDto == null) {
+            throw new IllegalArgumentException("회원가입 요청 정보가 올바르지 않습니다.");
+        }
+
+        // 일반 회원가입은 아이디 필수
+        if (requestDto.getUsername() == null || requestDto.getUsername().isBlank()) {
+            throw new IllegalArgumentException("아이디는 필수입니다.");
+        }
+
+        // 일반 회원가입은 이메일 필수
+        if (requestDto.getEmail() == null || requestDto.getEmail().isBlank()) {
+            throw new IllegalArgumentException("이메일은 필수입니다.");
+        }
+
+        // 일반 회원가입은 비밀번호 필수
+        // DB password_hash는 소셜 로그인 때문에 NULL 가능하지만, LOCAL 회원가입에서는 반드시 입력받아야 함
+        if (requestDto.getPassword() == null || requestDto.getPassword().isBlank()) {
+            throw new IllegalArgumentException("비밀번호는 필수입니다.");
+        }
+
+        // 일반 회원가입은 이름 필수
+        if (requestDto.getName() == null || requestDto.getName().isBlank()) {
+            throw new IllegalArgumentException("이름은 필수입니다.");
+        }
+    }
+
+    private void validateLoginRequest(String email, String password) {
+        // 로그인은 이메일 필수
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("이메일은 필수입니다.");
+        }
+
+        // 로그인은 비밀번호 필수
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("비밀번호는 필수입니다.");
+        }
     }
 
     private void validateDuplicate(SignupRequestDto requestDto) {

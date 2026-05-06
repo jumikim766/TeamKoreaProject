@@ -29,14 +29,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String authorizationHeader = request.getHeader("Authorization");
 
+        // Authorization 헤더 확인
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             String token = authorizationHeader.substring(7);
 
+            // 토큰 유효성 검증
             if (jwtUtil.validateToken(token)) {
+
+                // 토큰에서 사용자 정보 추출
                 Long userId = jwtUtil.getUserId(token);
                 String email = jwtUtil.getEmail(token);
                 String role = jwtUtil.getRole(token);
 
+                // principal = email / details = userId 구조
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 email,
@@ -44,7 +49,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 List.of(new SimpleGrantedAuthority("ROLE_" + role))
                         );
 
+                // userId는 details에 저장
                 authentication.setDetails(userId);
+
+                // SecurityContext에 인증 정보 저장
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
