@@ -1,6 +1,5 @@
 package org.teamkorea.backend.service;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
@@ -72,13 +71,13 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-          return new SignupResponseDto(
-                savedUser.getUserId(),
-                savedUser.getUsername(),
-                savedUser.getEmail(), 
-                savedUser.getName()
-        );
-    }
+          return SignupResponseDto.builder()
+                .userId(savedUser.getUserId())
+                .username(savedUser.getUsername())
+                .name(savedUser.getName())
+                .email(savedUser.getEmail())
+                .build();
+            }
 
     public LoginResponseDto login(String email, String password) {
         // 로그인 요청값 필수 검증
@@ -100,10 +99,6 @@ public class AuthService {
             throw new IllegalArgumentException("탈퇴했거나 비활성화된 계정입니다.");
         }
 
-        if (!"LOCAL".equals(user.getProvider())) {
-            throw new IllegalArgumentException("소셜 로그인 계정입니다. 일반 로그인을 사용할 수 없습니다.");
-        }
-
         String accessToken = jwtUtil.generateAccessToken(user);
         String refreshToken = jwtUtil.generateRefreshToken(user);
         String refreshTokenHash = jwtUtil.hashToken(refreshToken);
@@ -123,17 +118,19 @@ public class AuthService {
         // 로그인 성공 시 마지막 로그인 시간 갱신
         user.updateLastLoginAt();
 
-        return new LoginResponseDto(
-                accessToken,
-                refreshToken,
-                "Bearer",
-                new LoginUserDto(
-                        user.getUserId(),
-                        user.getEmail(),
-                        user.getName(),
-                        user.getRole()
-                )
-        );
+        return LoginResponseDto.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .user(
+                    LoginUserDto.builder()
+                        .userId(user.getUserId())
+                        .email(user.getEmail())
+                        .name(user.getName())
+                        .role(user.getRole())
+                        .build()
+                    )
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -162,11 +159,11 @@ public class AuthService {
 
         String newAccessToken = jwtUtil.generateAccessToken(savedToken.getUser());
 
-        return new ReissueResponseDto(
-                newAccessToken,
-                "Bearer"
-        );
-    }
+        return ReissueResponseDto.builder()
+            .accessToken(newAccessToken)
+            .tokenType("Bearer")
+            .build();
+        }
 
     // 현재 기기 로그아웃
     // 전달받은 Refresh Token만 DB에서 삭제하여 해당 토큰 재사용을 차단
