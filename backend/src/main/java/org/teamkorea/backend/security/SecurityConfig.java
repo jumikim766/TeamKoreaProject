@@ -69,7 +69,7 @@ public class SecurityConfig {
                                 "/api/users/check-username",
                                 "/api/users/check-email"
                         ).permitAll()
-                        .anyRequest().authenticated()// 나머지 users API는 JWT 필요
+                        .anyRequest().authenticated()// 나머지 API는 JWT 필요
                 )
                  .oauth2Login(oauth -> oauth
                         .userInfoEndpoint(userInfo -> userInfo
@@ -106,8 +106,7 @@ public class SecurityConfig {
                 CorsConfiguration configuration = new CorsConfiguration();
 
                 configuration.setAllowedOrigins(List.of(
-                        "http://localhost:5173",
-                        "http://localhost:5176"
+                        "http://localhost:5173"
                 ));
                 configuration.setAllowedMethods(List.of(
                         "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
