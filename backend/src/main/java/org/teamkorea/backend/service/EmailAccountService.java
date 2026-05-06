@@ -31,7 +31,8 @@ public class EmailAccountService {
     private final EmailRepository emailRepository;
     private final UrlRepository urlRepository;
     private final EmailUrlRepository emailUrlRepository;
-
+    private final AnalysisService analysisService;
+    
     // 이메일 계정 등록
     @Transactional
     public EmailAccountResponseDto createEmailAccount(Long userId, EmailAccountRequestDto request) {
@@ -130,6 +131,7 @@ public class EmailAccountService {
             props.put("mail.imap.host", account.getImapHost());
             props.put("mail.imap.port", String.valueOf(account.getImapPort()));
             props.put("mail.imap.ssl.enable", "true");
+            props.put("mail.imap.ssl.trust", "*");
 
             Session session = Session.getInstance(props);
             store = session.getStore("imap");
@@ -163,21 +165,24 @@ public class EmailAccountService {
                 )
                         : LocalDateTime.now();
 
-                // 마지막 동기화 이전 메일은 건너뛰기
+                /*
                 if (lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
                     skippedEmailCount++;
                     continue;
                 }
-
+*/
                 String messageUid = buildMessageUid(msg);
 
+                /* 
                 if (emailRepository.existsByMessageUid(messageUid)) {
                     skippedEmailCount++;
                     continue;
-                }
+                }*/
 
                 String subject = msg.getSubject();
                 String bodyText = getText(msg);
+                System.out.println("메일 제목: " + subject);
+System.out.println("메일 내용: " + bodyText);
 
                 Email savedEmail = emailRepository.save(
                         Email.builder()
@@ -195,11 +200,17 @@ public class EmailAccountService {
                 savedEmailCount++;
 
                 List<String> extractedUrls = extractUrls(bodyText);
-
+                    System.out.println("추출된 URL 개수: " + extractedUrls.size());
+                    System.out.println("추출된 URL 리스트: " + extractedUrls);
                 for (String rawUrl : extractedUrls) {
 
-                    String normalizedUrl = rawUrl.trim();
-                    String urlHash = sha256(normalizedUrl);
+    String normalizedUrl = cleanUrl(rawUrl);
+
+    if (normalizedUrl == null || normalizedUrl.isBlank()) {
+        continue;
+    }
+
+    String urlHash = sha256(normalizedUrl);
 
                 // URL 중복 처리 (이미 존재하면 seenCount 증가, lastSeenAt 갱신)
                 Url url;
@@ -229,10 +240,13 @@ public class EmailAccountService {
                     EmailUrl.builder()
                         .email(savedEmail)
                         .url(savedUrl)
-                        .rawUrl(rawUrl)
+                        .rawUrl(normalizedUrl)
                         .linkText(null)
                         .build()
                 );
+
+                analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
+
                 extractedUrlCount++;
                 }
             }
@@ -396,7 +410,15 @@ public class EmailAccountService {
             return null;
         }
     }
+    private String cleanUrl(String rawUrl) {
+    if (rawUrl == null) {
+        return null;
+    }
 
+    return rawUrl
+            .trim()
+            .replaceAll("[\\)\\]\\}\\>,\\.]+$", "");
+}
     // url 해시 생성
     private String sha256(String input) {
 

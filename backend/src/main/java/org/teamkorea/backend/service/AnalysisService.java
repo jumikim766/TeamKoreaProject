@@ -144,4 +144,5 @@ public class AnalysisService {
 
     return generateSummary(riskLevel, reputation);
 }
+
 }
