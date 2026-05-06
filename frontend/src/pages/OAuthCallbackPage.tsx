@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { saveTokens } from '../utils/token';
 
 type OAuthCallbackPageProps = {
@@ -7,7 +7,12 @@ type OAuthCallbackPageProps = {
 };
 
 function OAuthCallbackPage({ onSuccess, onFail }: OAuthCallbackPageProps) {
+  const handledRef = useRef(false);
+
   useEffect(() => {
+    if (handledRef.current) return;
+    handledRef.current = true;
+
     const params = new URLSearchParams(window.location.search);
 
     const accessToken = params.get('accessToken');
@@ -16,23 +21,18 @@ function OAuthCallbackPage({ onSuccess, onFail }: OAuthCallbackPageProps) {
     if (accessToken && refreshToken) {
       saveTokens(accessToken, refreshToken);
       onSuccess();
-      return;
-    }
 
-    onFail();
+      alert('로그인이 성공되었습니다.');
+      window.location.replace('/');
+    } else {
+      onFail();
+
+      alert('로그인에 실패했습니다.');
+      window.location.replace('/');
+    }
   }, [onSuccess, onFail]);
 
-  return (
-    <div className="dashboard-shell">
-      <main className="auth-main auth-main-centered">
-        <section className="auth-card auth-card-centered">
-          <p className="eyebrow">OAUTH CALLBACK</p>
-          <h2>로그인 처리 중...</h2>
-          <p>소셜 로그인 정보를 확인하고 있습니다.</p>
-        </section>
-      </main>
-    </div>
-  );
+  return <div>로그인 처리 중...</div>;
 }
 
 export default OAuthCallbackPage;

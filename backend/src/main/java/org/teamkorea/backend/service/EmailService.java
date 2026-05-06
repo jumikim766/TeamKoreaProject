@@ -14,7 +14,10 @@ import org.teamkorea.backend.dto.EmailListResponseDto;
 import org.teamkorea.backend.dto.EmailUrlResponseDto;
 import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
+import org.teamkorea.backend.domain.UrlAnalysis;
+import org.teamkorea.backend.repository.UrlAnalysisRepository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -24,6 +27,7 @@ public class EmailService {
 
     private final EmailRepository emailRepository;
     private final EmailUrlRepository emailUrlRepository;
+    private final UrlAnalysisRepository urlAnalysisRepository;
 
     // 이메일 목록 조회
     public Page<EmailListResponseDto> getEmails(Long accountId, int page, int size) {
@@ -92,19 +96,24 @@ public class EmailService {
                 .build();
     }
 
-    // 이메일 URL DTO 변환
     private EmailUrlResponseDto toEmailUrlResponse(EmailUrl emailUrl) {
 
-        Url url = emailUrl.getUrl();
+    Url url = emailUrl.getUrl();
 
-        return EmailUrlResponseDto.builder()
-                .urlId(url.getUrlId())
-                .originalUrl(emailUrl.getRawUrl())
-                .normalizedUrl(url.getNormalizedUrl())
-                .domain(url.getDomain())
-                .riskLevel(null)
-                .build();
-    }
+    UrlAnalysis latestAnalysis = urlAnalysisRepository
+            .findTopByUrl_UrlIdOrderByAnalyzedAtDesc(url.getUrlId())
+            .orElse(null);
+
+    return EmailUrlResponseDto.builder()
+            .urlId(url.getUrlId())
+            .originalUrl(emailUrl.getRawUrl())
+            .normalizedUrl(url.getNormalizedUrl())
+            .domain(url.getDomain())
+            .riskLevel(latestAnalysis != null ? latestAnalysis.getRiskLevel().name() : null)
+            .reasonSummary(latestAnalysis != null ? latestAnalysis.getReasonSummary() : null)
+            .score(latestAnalysis != null ? latestAnalysis.getScore() : null)
+            .build();
+}
 
     // 메일 목록 미리보기 생성
     private String makePreviewText(String bodyText) {
