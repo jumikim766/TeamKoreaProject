@@ -9,7 +9,8 @@ import org.teamkorea.backend.dto.AnalysisDetailResponseDto;
 import org.teamkorea.backend.dto.AnalysisListPageResponseDto;
 import org.teamkorea.backend.dto.AnalysisListResponseDto;
 import org.teamkorea.backend.repository.*;
-
+import org.teamkorea.backend.ai.LlmAnalysisService;
+import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +25,7 @@ public class AnalysisService {
     private final AnalysisHistoryRepository analysisHistoryRepository;
     private final UserRepository userRepository;
     private final DomainReputationRepository reputationRepository;
+    private final LlmAnalysisService llmAnalysisService;
 
     public UrlAnalysis analyzeAndSave(Long userId, Long urlId) {
         User user = userRepository.findById(userId)
@@ -56,7 +58,8 @@ public class AnalysisService {
                 .sslVerified(false)
                 .redirectionDepth(0)
                 .containsFormInput(false)
-                .reasonSummary(generateSummary(riskLevel, reputation))
+                .reasonSummary(
+                        generateLlmSummary(url, riskLevel, finalScore, reputation))
                 .ruleVersion("v1.1")
                 .analyzedAt(LocalDateTime.now())
                 .build();
@@ -121,4 +124,24 @@ public class AnalysisService {
         if (Boolean.TRUE.equals(rep.getIsBlacklisted())) return "블랙리스트에 등록된 위험 도메인입니다.";
         return "종합 분석 결과 " + riskLevel.name() + " 등급으로 판정되었습니다.";
     }
+    private String generateLlmSummary(Url url, RiskLevel riskLevel, double finalScore, DomainReputation reputation) {
+    try {
+        LlmAnalysisResponse llmResponse = llmAnalysisService.analyze(
+                url.getNormalizedUrl(),
+                url.getDomain(),
+                riskLevel.name(),
+                finalScore,
+                Boolean.TRUE.equals(reputation.getIsBlacklisted()),
+                Boolean.TRUE.equals(reputation.getIsWhitelisted())
+        );
+
+        if (llmResponse != null && llmResponse.getReasonSummary() != null && !llmResponse.getReasonSummary().isBlank()) {
+            return llmResponse.getReasonSummary();
+        }
+    } catch (Exception e) {
+        return generateSummary(riskLevel, reputation);
+    }
+
+    return generateSummary(riskLevel, reputation);
+}
 }
