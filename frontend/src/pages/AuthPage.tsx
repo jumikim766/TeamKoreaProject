@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
+import apiClient from '../api/axiosInstance';
 import Header from '../components/Header';
 import '../styles/Dashboard.css';
+import { saveTokens } from '../utils/token';
 
 type ThemeMode = 'light' | 'dark';
 type AuthMode = 'login' | 'signup';
@@ -13,6 +15,18 @@ interface AuthPageProps {
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+interface LoginResponseData {
+  accessToken: string;
+  refreshToken: string;
+  tokenType?: string;
 }
 
 function isValidEmail(email: string) {
@@ -31,10 +45,13 @@ function AuthPage({
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  const [signupName, setSignupName] = useState('');
+  const [signupUsername, setSignupUsername] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupName, setSignupName] = useState('');
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -44,26 +61,69 @@ function AuthPage({
 
   const isSignupValid = useMemo(() => {
     return (
-      signupName.trim().length >= 2 &&
+      signupUsername.trim().length >= 3 &&
       isValidEmail(signupEmail) &&
-      emailVerified &&
-      agreedPrivacy
+      signupPassword.trim().length >= 8 &&
+      signupName.trim().length >= 2
     );
-  }, [signupName, signupEmail, emailVerified, agreedPrivacy]);
+  }, [signupUsername, signupEmail, signupPassword, signupName]);
 
-  const handleSignupEmailChange = (value: string) => {
-    setSignupEmail(value);
-    setEmailVerified(false);
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:8080/oauth2/authorization/google';
   };
 
-  const handleVerifyEmail = () => {
-    if (!isValidEmail(signupEmail)) {
-      alert('올바른 이메일 형식으로 입력해주세요.');
-      return;
-    }
+  const handleNaverLogin = () => {
+    window.location.href = 'http://localhost:8080/oauth2/authorization/naver';
+  };
 
-    setEmailVerified(true);
-    alert('이메일 인증이 완료되었습니다.');
+  const handleLogin = async () => {
+    if (!isLoginValid || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      setAuthMessage('');
+
+      const response = await apiClient.post<ApiResponse<LoginResponseData>>('/api/auth/login', {
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      const { accessToken, refreshToken } = response.data.data;
+
+      saveTokens(accessToken, refreshToken);
+
+      alert(response.data.message || '로그인에 성공했습니다.');
+      onGoHome();
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignup = async () => {
+    if (!isSignupValid || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      setAuthMessage('');
+
+      await apiClient.post('/api/auth/signup', {
+        username: signupUsername,
+        email: signupEmail,
+        password: signupPassword,
+        name: signupName,
+      });
+
+      alert('회원가입이 완료되었습니다. 로그인 화면으로 이동합니다.');
+      onGoLogin();
+    } catch (error) {
+      console.error(error);
+      setAuthMessage('회원가입에 실패했습니다. 입력값 또는 중복 여부를 확인해주세요.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleGoogleSocialAuth = () => {
@@ -75,10 +135,12 @@ function AuthPage({
   };
 
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell ${theme}`}>
       <Header
         currentView={mode}
         theme={theme}
+        isLoggedIn={false}
+        onLogout={() => {}}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
@@ -90,12 +152,12 @@ function AuthPage({
         <section className="auth-layout auth-layout-centered">
           <section className="auth-card auth-card-centered">
             <div className="auth-card-head">
-              <p className="eyebrow">{mode === 'login' ? 'Welcome back' : 'Join URL GUARD'}</p>
+              <p className="eyebrow">{mode === 'login' ? 'WELCOME BACK' : 'JOIN URL GUARD'}</p>
               <h2>{mode === 'login' ? '로그인' : '회원가입'}</h2>
               <p>
                 {mode === 'login'
-                  ? '이메일과 비밀번호로 로그인하거나 소셜 계정으로 계속할 수 있습니다.'
-                  : '간단한 정보 입력 후 이메일 인증을 완료하면 회원가입할 수 있습니다.'}
+                  ? '이메일과 비밀번호를 입력해 로그인할 수 있습니다.'
+                  : '아이디, 이메일, 비밀번호, 이름을 입력해 회원가입할 수 있습니다.'}
               </p>
             </div>
 
@@ -124,7 +186,7 @@ function AuthPage({
                 <label className="auth-field">
                   <span>이메일</span>
                   <input
-                    placeholder="example@email.com"
+                    placeholder="minseo@example.com"
                     type="email"
                     value={loginEmail}
                     onChange={(event) => setLoginEmail(event.target.value)}
@@ -149,61 +211,67 @@ function AuthPage({
 
                 <button
                   className={`primary-button auth-submit ${!isLoginValid ? 'is-disabled' : ''}`}
+                  disabled={!isLoginValid || isSubmitting}
+                  onClick={handleLogin}
                   type="button"
-                  disabled={!isLoginValid}
                 >
-                  로그인
+                  {isSubmitting ? '로그인 중...' : '로그인'}
                 </button>
               </form>
             ) : (
               <form className="auth-form">
                 <label className="auth-field">
-                  <span>사용자 이름</span>
+                  <span>아이디</span>
                   <input
-                    placeholder="이름을 입력하세요"
+                    placeholder="minseo"
                     type="text"
-                    value={signupName}
-                    onChange={(event) => setSignupName(event.target.value)}
+                    value={signupUsername}
+                    onChange={(event) => setSignupUsername(event.target.value)}
                   />
                 </label>
 
                 <label className="auth-field">
                   <span>이메일</span>
                   <input
-                    placeholder="example@email.com"
+                    placeholder="minseo@example.com"
                     type="email"
                     value={signupEmail}
-                    onChange={(event) => handleSignupEmailChange(event.target.value)}
+                    onChange={(event) => setSignupEmail(event.target.value)}
                   />
                 </label>
 
-                <div className="auth-verify-row">
-                  <div className="auth-verify-status">
-                    <span>{emailVerified ? '이메일 인증 완료' : '이메일 인증이 필요합니다.'}</span>
-                  </div>
-                  <button className="secondary-button auth-verify-button" type="button" onClick={handleVerifyEmail}>
-                    이메일 인증
-                  </button>
-                </div>
-
-                <label className="auth-check">
+                <label className="auth-field">
+                  <span>비밀번호</span>
                   <input
-                    type="checkbox"
-                    checked={agreedPrivacy}
-                    onChange={(event) => setAgreedPrivacy(event.target.checked)}
+                    placeholder="1234qwer!"
+                    type="password"
+                    value={signupPassword}
+                    onChange={(event) => setSignupPassword(event.target.value)}
                   />
-                  <span>개인정보 수집 및 이용에 동의합니다.</span>
+                </label>
+
+                <label className="auth-field">
+                  <span>이름</span>
+                  <input
+                    placeholder="송민서"
+                    type="text"
+                    value={signupName}
+                    onChange={(event) => setSignupName(event.target.value)}
+                  />
                 </label>
 
                 <button
                   className={`primary-button auth-submit ${!isSignupValid ? 'is-disabled' : ''}`}
+                  disabled={!isSignupValid || isSubmitting}
+                  onClick={handleSignup}
                   type="button"
-                  disabled={!isSignupValid}
                 >
-                  회원가입
+                  {isSubmitting ? '회원가입 중...' : '회원가입'}
                 </button>
               </form>
             )}
+
+            {authMessage ? <p className="auth-error-message">{authMessage}</p> : null}
 
             <div className="auth-footer">
               <span>{mode === 'login' ? '아직 계정이 없나요?' : '이미 계정이 있나요?'}</span>
