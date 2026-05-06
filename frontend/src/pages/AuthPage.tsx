@@ -53,6 +53,8 @@ function AuthPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authMessage, setAuthMessage] = useState('');
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
   const isLoginValid = useMemo(() => {
     return isValidEmail(loginEmail) && loginPassword.trim().length >= 1;
   }, [loginEmail, loginPassword]);
@@ -124,6 +126,14 @@ function AuthPage({
     }
   };
 
+  const handleGoogleSocialAuth = () => {
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+  };
+
+  const handleNaverSocialAuth = () => {
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/naver`;
+  };
+
   return (
     <div className={`dashboard-shell ${theme}`}>
       <Header
@@ -152,14 +162,14 @@ function AuthPage({
             </div>
 
             <div className="social-button-group">
-              <button className="google-button" onClick={handleGoogleLogin} type="button">
+              <button className="google-button" type="button" onClick={handleGoogleSocialAuth}>
                 <span className="google-mark" aria-hidden="true">
                   G
                 </span>
                 Google로 {mode === 'login' ? '로그인' : '회원가입'} 계속하기
               </button>
 
-              <button className="naver-button" onClick={handleNaverLogin} type="button">
+              <button className="naver-button" type="button" onClick={handleNaverSocialAuth}>
                 <span className="naver-mark" aria-hidden="true">
                   N
                 </span>
