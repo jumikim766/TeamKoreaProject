@@ -10,7 +10,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 24px;
-  padding: 28px 40px 20px;
+  padding: 28px 0px 20px;
 }
 
 .brand-block {
@@ -85,12 +85,64 @@
   line-height: 1.6;
 }
 
-.header-actions,
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
+/* 로그인 버튼 */
+.header-actions .ghost-button {
+  min-width: 138px;
+  height: 78px;
+
+  padding: 0 34px;
+
+  background: #ffffff;
+  color: #111111;
+
+  border: 2px solid #d9d9d9;
+  border-radius: 26px;
+
+  font-size: 18px;
+  font-weight: 800;
+
+  box-shadow: none;
+
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+/* 회원가입 버튼 */
+.header-actions .primary-button {
+  min-width: 168px;
+  height: 78px;
+
+  padding: 0 38px;
+
+  background: #005bac;
+  color: #ffffff;
+
+  border: 2px solid #005bac;
+  border-radius: 26px;
+
+  font-size: 18px;
+  font-weight: 800;
+
+  box-shadow: none;
+
+  transition:
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+/* hover */
+.header-actions .ghost-button:hover {
+  background: #f5f5f5;
+  border-color: #cfcfcf;
+  transform: translateY(-1px);
+}
+
+.header-actions .primary-button:hover {
+  background: #004b8c;
+  border-color: #004b8c;
+  transform: translateY(-1px);
 }
 
 .ghost-button,
@@ -174,7 +226,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  padding: 0 40px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(8px);
@@ -267,7 +319,7 @@
 }
 
 .dashboard-main {
-  padding: 28px 40px 48px;
+  padding: 28px 0px 48px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -322,6 +374,7 @@
   grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
   gap: 24px;
   align-items: stretch;
+  width: 100%;
 }
 
 .simple-hero-panel {
@@ -1699,4 +1752,666 @@
 
 :root[data-theme='dark'] .auth-error-message {
   color: #fca5a5;
+}
+
+:root {
+  --portal-blue: #005bac;
+  --portal-navy: #003f7d;
+  --portal-light-blue: #eef6ff;
+  --portal-line: #d9e6f5;
+}
+
+.dashboard-shell {
+  background: #ffffff;
+}
+
+/* 헤더 */
+.header {
+  padding: 22px 40px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--portal-line);
+}
+
+/* 로고 */
+.logo-mark {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.logo {
+  color: #111827;
+  font-weight: 900;
+}
+
+.brand-kicker {
+  color: var(--portal-blue);
+}
+
+.brand-copy {
+  color: #4b5563;
+}
+
+/* 로그인 / 회원가입 / 테마 버튼 */
+.host-button,
+.primary-button,
+.secondary-button,
+.theme-toggle {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  box-shadow: none;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.ghost-button:hover,
+.primary-button:hover,
+.secondary-button:hover,
+.theme-toggle:hover {
+  background: #f3f4f6;
+  color: var(--portal-navy);
+  border-color: var(--portal-navy);
+  transform: translateY(-1px);
+}
+
+.theme-toggle strong {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* 네비게이션 */
+.nav-shell {
+  top: 0;
+  background: #ffffff;
+  border-bottom: 1px solid var(--portal-line);
+}
+
+.nav {
+  border-radius: 0;
+  background: #ffffff;
+  border: 0;
+  box-shadow: none;
+}
+
+.nav-item {
+  position: relative;
+  color: #111827;
+  font-weight: 800;
+  border-radius: 0;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+/* 메뉴 글자 hover 시 남색 */
+.nav-item:hover,
+.nav-shell:hover .nav-item:hover {
+  background: transparent;
+  color: var(--portal-navy);
+}
+
+/* 아래 파란 줄 애니메이션 */
+.nav-item::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 0;
+  height: 3px;
+  background: var(--portal-navy);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+.nav-item:hover::after {
+  transform: scaleX(1);
+}
+
+/* 보호나라처럼 전체 세부 메뉴창 */
+.mega-menu {
+  top: 100%;
+  left: 40px;
+  right: 40px;
+  width: auto;
+  padding: 24px;
+  border-radius: 0 0 22px 22px;
+  background: #ffffff;
+  border: 1px solid var(--portal-line);
+  border-top: 2px solid var(--portal-navy);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.1);
+}
+
+/* nav 전체에 마우스 올리면 모든 세부메뉴 보이기 */
+.nav-shell:hover .mega-menu,
+.nav-shell:focus-within .mega-menu,
+.mega-menu:hover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.mega-column {
+  background: #ffffff;
+  border-radius: 0;
+  border-right: 1px solid #edf2f7;
+}
+
+.mega-column:last-child {
+  border-right: 0;
+}
+
+.mega-label {
+  color: #111827;
+  font-weight: 900;
+}
+
+.mega-links button {
+  color: #374151;
+  border-radius: 8px;
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease,
+    padding-left 0.18s ease;
+}
+
+/* 세부 메뉴 글자 hover 남색 */
+.mega-links button:hover {
+  background: var(--portal-light-blue);
+  color: var(--portal-navy);
+  padding-left: 16px;
+}
+
+/* 홈페이지 상품 소개 영역: 무늬 없는 파란 배경 */
+.simple-hero-panel {
+  background: var(--portal-blue);
+  color: #ffffff;
+  border: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+/* 기존 무늬 제거 */
+.simple-hero-panel::before,
+.simple-hero-panel::after {
+  display: none;
+}
+
+.simple-hero-copy h1,
+.simple-hero-copy .eyebrow,
+.simple-hero-copy .hero-text {
+  color: #ffffff;
+}
+
+/* 카드들은 흰색 */
+.simple-chart-panel,
+.chart-card,
+.auth-card,
+.auth-showcase,
+.page-side-card,
+.page-content-card,
+.mail-list-card,
+.mail-detail-card,
+.notification-summary-card,
+.notification-list-card,
+.notification-detail-card,
+.notification-settings-card,
+.placeholder-card,
+.placeholder-wide-card,
+.form-placeholder-card {
+  background: #ffffff;
+  border: 1px solid var(--portal-line);
+  box-shadow: none;
+}
+
+/* 다크모드 유지 */
+:root[data-theme='dark'] .dashboard-shell {
+  background: #111111;
+}
+
+:root[data-theme='dark'] .header,
+:root[data-theme='dark'] .nav-shell,
+:root[data-theme='dark'] .nav {
+  background: #252525;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .logo-mark,
+:root[data-theme='dark'] .ghost-button,
+:root[data-theme='dark'] .primary-button,
+:root[data-theme='dark'] .secondary-button,
+:root[data-theme='dark'] .theme-toggle {
+  background: #ffffff;
+  color: #111827;
+  border-color: #d1d5db;
+}
+
+:root[data-theme='dark'] .logo,
+:root[data-theme='dark'] .nav-item,
+:root[data-theme='dark'] .mega-label {
+  color: #ffffff;
+}
+
+:root[data-theme='dark'] .nav-item:hover,
+:root[data-theme='dark'] .nav-shell:hover .nav-item:hover {
+  color: #93c5fd;
+}
+
+:root[data-theme='dark'] .nav-item::after {
+  background: #93c5fd;
+}
+
+:root[data-theme='dark'] .mega-menu {
+  background: #2a2a2a;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-top-color: #93c5fd;
+}
+
+:root[data-theme='dark'] .mega-column {
+  background: #2a2a2a;
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .mega-links button {
+  color: #d1d5db;
+}
+
+:root[data-theme='dark'] .mega-links button:hover {
+  background: #3a3a3a;
+  color: #93c5fd;
+}
+
+:root[data-theme='dark'] .simple-hero-panel {
+  background: #1e3a8a;
+}
+
+:root[data-theme='dark'] .simple-chart-panel,
+:root[data-theme='dark'] .chart-card,
+:root[data-theme='dark'] .auth-card,
+:root[data-theme='dark'] .auth-showcase,
+:root[data-theme='dark'] .page-side-card,
+:root[data-theme='dark'] .page-content-card,
+:root[data-theme='dark'] .mail-list-card,
+:root[data-theme='dark'] .mail-detail-card,
+:root[data-theme='dark'] .notification-summary-card,
+:root[data-theme='dark'] .notification-list-card,
+:root[data-theme='dark'] .notification-detail-card,
+:root[data-theme='dark'] .notification-settings-card,
+:root[data-theme='dark'] .placeholder-card,
+:root[data-theme='dark'] .placeholder-wide-card,
+:root[data-theme='dark'] .form-placeholder-card {
+  background: #303030;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dark 버튼 */
+.header-actions .theme-toggle {
+  height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+  font-weight: 700 !important;
+}
+
+/* 로그인 버튼 */
+.header-actions .ghost-button,
+.header-actions button:nth-of-type(2) {
+  height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+
+/* 회원가입 버튼 */
+.header-actions .primary-button,
+.header-actions button:nth-of-type(3) {
+  height: 40px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  background: #005bac !important;
+  color: #ffffff !important;
+  border: 1px solid #005bac !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+
+/* hover */
+.header-actions .ghost-button:hover,
+.header-actions button:nth-of-type(2):hover {
+  background: #f3f4f6 !important;
+  color: #003f7d !important;
+  border-color: #003f7d !important;
+}
+
+.header-actions .primary-button:hover,
+.header-actions button:nth-of-type(3):hover {
+  background: #003f7d !important;
+  border-color: #003f7d !important;
+}
+
+.dashboard-shell,
+.dashboard-main,
+.simple-dashboard-main,
+.simple-main-board {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* =========================
+   메인 소개 박스 / 원형 그래프 크기 축소
+   반드시 Dashboard.css 맨 아래에 추가
+========================= */
+
+/* 메인 콘텐츠 전체 폭 조정 */
+.simple-dashboard-main {
+  padding-top: 24px !important;
+  padding-bottom: 40px !important;
+}
+
+/* 왼쪽 소개 박스 + 오른쪽 차트 영역 전체 */
+.simple-main-board {
+  width: 88% !important;
+  max-width: 1280px !important;
+  margin: 0 auto !important;
+
+  display: grid !important;
+  grid-template-columns: minmax(0, 0.95fr) minmax(380px, 0.8fr) !important;
+  gap: 20px !important;
+  align-items: stretch !important;
+}
+
+/* 파란색 기업 소개 네모칸 */
+.simple-hero-panel {
+  min-height: 520px !important;
+  padding: 44px 42px !important;
+  border-radius: 24px !important;
+
+  background: #005bac !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* 소개 영역 안의 무늬 제거 */
+.simple-hero-panel::before,
+.simple-hero-panel::after {
+  display: none !important;
+}
+
+/* 소개 문구 영역 */
+.simple-hero-copy {
+  max-width: 650px !important;
+}
+
+/* 작은 영어 문구 */
+.simple-hero-copy .eyebrow {
+  font-size: 11px !important;
+  letter-spacing: 0.18em !important;
+  color: #ffffff !important;
+}
+
+/* 큰 제목 */
+.simple-hero-copy h1 {
+  font-size: 34px !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.04em !important;
+  color: #ffffff !important;
+}
+
+/* 설명 글 */
+.simple-hero-copy .hero-text {
+  max-width: 580px !important;
+  font-size: 15px !important;
+  line-height: 1.75 !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* 오른쪽 차트 전체 패널 */
+.simple-chart-panel {
+  padding: 20px !important;
+  gap: 16px !important;
+  border-radius: 24px !important;
+}
+
+/* 각각의 원형 그래프 카드 */
+.chart-card {
+  padding: 18px 20px !important;
+  border-radius: 20px !important;
+}
+
+/* 차트 제목 */
+.chart-card-head h3 {
+  font-size: 24px !important;
+  margin-top: 8px !important;
+}
+
+/* 차트 설명 */
+.chart-caption {
+  font-size: 13px !important;
+}
+
+/* 차트 + 범례 배치 */
+.chart-content {
+  grid-template-columns: 180px minmax(180px, 1fr) !important;
+  gap: 18px !important;
+  margin-top: 14px !important;
+}
+
+/* 원형 그래프 보이는 영역 */
+.chart-visual {
+  height: 180px !important;
+}
+
+/* 범례 줄 */
+.chart-legend {
+  gap: 8px !important;
+}
+
+.legend-row {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+}
+
+/* 다크모드에서도 같은 크기 유지 */
+:root[data-theme='dark'] .simple-main-board {
+  width: 88% !important;
+  max-width: 1280px !important;
+}
+
+:root[data-theme='dark'] .simple-hero-panel {
+  background: #1e3a8a !important;
+  color: #ffffff !important;
+}
+
+/* 반응형 */
+@media (max-width: 1200px) {
+  .simple-main-board {
+    width: 92% !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .simple-hero-panel {
+    min-height: 360px !important;
+  }
+
+  .chart-content {
+    grid-template-columns: minmax(160px, 0.8fr) minmax(180px, 1fr) !important;
+  }
+}
+
+@media (max-width: 820px) {
+  .simple-main-board {
+    width: calc(100% - 28px) !important;
+  }
+
+  .simple-hero-panel {
+    min-height: 320px !important;
+    padding: 28px 24px !important;
+  }
+
+  .simple-hero-copy h1 {
+    font-size: 28px !important;
+  }
+
+  .chart-content {
+    grid-template-columns: 1fr !important;
+  }
+
+  .chart-visual {
+    height: 170px !important;
+  }
+}
+
+/* 로그인 / 회원가입 입력 폼 */
+
+.auth-field input {
+  color: var(--text-strong);
+}
+
+.auth-field input::placeholder {
+  color: transparent;
+}
+
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 48px !important;
+}
+
+.password-eye-button {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 30px;
+  height: 30px;
+
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.auth-check-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 10px;
+  align-items: center;
+}
+
+.check-button {
+  height: 52px;
+  border: 0;
+  border-radius: 14px;
+  background: #005bac;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.check-button:hover {
+  background: #003f7d;
+}
+
+.field-error {
+  margin-top: 6px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field-success {
+  margin-top: 6px;
+  color: #005bac;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.password-rule-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+
+  display: grid;
+  gap: 6px;
+}
+
+.password-rule-list li {
+  color: #8a99aa;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.password-rule-list li.is-valid {
+  color: #005bac;
+}
+
+.auth-error-message {
+  margin: 4px 0 0;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.auth-submit:disabled {
+  background: #c7cfdb !important;
+  color: #ffffff !important;
+  cursor: not-allowed;
+}
+
+:root[data-theme='dark'] .password-eye-button {
+  color: #ffffff;
+}
+
+:root[data-theme='dark'] .field-success,
+:root[data-theme='dark'] .password-rule-list li.is-valid {
+  color: #93c5fd;
+}
+
+:root[data-theme='dark'] .field-error,
+:root[data-theme='dark'] .auth-error-message {
+  color: #fca5a5;
+}
+
+@media (max-width: 520px) {
+  .auth-check-row {
+    grid-template-columns: 1fr;
+  }
+
+  .check-button {
+    width: 100%;
+  }
 }
