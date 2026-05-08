@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.teamkorea.backend.dto.BaseResponse;
 import org.teamkorea.backend.dto.EmailDetailResponseDto;
 import org.teamkorea.backend.dto.EmailListResponseDto;
 import org.teamkorea.backend.dto.EmailUrlResponseDto;
@@ -22,7 +23,7 @@ public class EmailController {
 
     // 이메일 목록 조회
     @GetMapping
-    public ResponseEntity<?> getEmails(
+    public ResponseEntity<BaseResponse<Map<String, Object>>> getEmails(
             @RequestParam(required = false) Long accountId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
@@ -36,43 +37,36 @@ public class EmailController {
         data.put("totalElements", emailPage.getTotalElements());
         data.put("totalPages", emailPage.getTotalPages());
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("success", true);
-        response.put("message", "이메일 목록 조회에 성공했습니다.");
-        response.put("data", data);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                BaseResponse.success("이메일 목록 조회에 성공했습니다.", data)
+        );
     }
 
     // 이메일 상세 조회
     @GetMapping("/{emailId}")
-    public ResponseEntity<?> getEmailDetail(@PathVariable Long emailId) {
-
+    public ResponseEntity<BaseResponse<EmailDetailResponseDto>> getEmailDetail(
+            @PathVariable Long emailId
+    ) {
         EmailDetailResponseDto data = emailService.getEmailDetail(emailId);
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("success", true);
-        response.put("message", "이메일 상세 조회에 성공했습니다.");
-        response.put("data", data);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                BaseResponse.success("이메일 상세 조회에 성공했습니다.", data)
+        );
     }
 
     // 특정 이메일의 추출 URL 목록 조회
     @GetMapping("/{emailId}/urls")
-    public ResponseEntity<?> getEmailUrls(@PathVariable Long emailId) {
-
+    public ResponseEntity<BaseResponse<Map<String, Object>>> getEmailUrls(
+            @PathVariable Long emailId
+    ) {
         List<EmailUrlResponseDto> urls = emailService.getEmailUrls(emailId);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("emailId", emailId);
         data.put("urls", urls);
 
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("success", true);
-        response.put("message", "이메일 URL 목록 조회에 성공했습니다.");
-        response.put("data", data);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                BaseResponse.success("이메일 URL 목록 조회에 성공했습니다.", data)
+        );
     }
 }
