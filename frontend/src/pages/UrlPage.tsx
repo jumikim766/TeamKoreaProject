@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import ChartBox from '../components/ChartBox';
 import Header from '../components/Header';
+import Navbar from '../components/Navbar';
 import '../styles/Dashboard.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -29,6 +30,7 @@ interface UrlItem {
   date: string;
   time: string;
   risk: '매우 위험' | '위험' | '주의' | '안전';
+  reason: string[];
 }
 
 interface UrlPageProps {
@@ -53,6 +55,12 @@ const myUrlItems: UrlItem[] = [
     date: '03.25',
     time: '12:34',
     risk: '매우 위험',
+    reason: [
+      '해당 URL은 피싱 위험이 높은 주소 패턴으로 분석되었습니다.',
+      '비정상적으로 긴 특수문자 조합이 포함되어 있습니다.',
+      '사용자 정보 입력을 유도할 가능성이 있습니다.',
+      '접속 전 링크 출처를 반드시 확인해야 합니다.',
+    ],
   },
   {
     id: 2,
@@ -61,6 +69,11 @@ const myUrlItems: UrlItem[] = [
     date: '03.25',
     time: '10:20',
     risk: '안전',
+    reason: [
+      '정상적인 HTTPS 연결을 사용하는 URL입니다.',
+      '현재까지 악성코드 유포 이력이나 피싱 신고 이력이 발견되지 않았습니다.',
+      '다만 외부 링크 접속 시에는 항상 도메인을 확인하는 것이 좋습니다.',
+    ],
   },
 ];
 
@@ -71,6 +84,11 @@ const urlLibraryItems: UrlItem[] = [
     date: '03.25',
     time: '12:34',
     risk: '매우 위험',
+    reason: [
+      '여러 사용자에게 반복적으로 탐지된 고위험 URL입니다.',
+      '피싱 사이트와 유사한 도메인 패턴을 사용하고 있습니다.',
+      '개인정보 탈취 시도 가능성이 있어 접속을 피하는 것이 좋습니다.',
+    ],
   },
   {
     id: 2,
@@ -78,6 +96,11 @@ const urlLibraryItems: UrlItem[] = [
     date: '03.24',
     time: '09:21',
     risk: '주의',
+    reason: [
+      'URL 자체는 접속 가능하지만 출처 신뢰도가 낮습니다.',
+      '이벤트, 쿠폰, 로그인 유도 문구가 포함된 페이지로 연결될 수 있습니다.',
+      '접속 전 발신자와 도메인을 확인하는 것이 필요합니다.',
+    ],
   },
 ];
 
@@ -102,12 +125,19 @@ function UrlPage({
   onNavigate,
 }: UrlPageProps) {
   const [selectedAccount, setSelectedAccount] = useState('1234@5678.com');
+  const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
 
   const isMyUrl = currentView === 'my-url';
 
   const urlItems = useMemo(() => {
-    return isMyUrl ? myUrlItems : urlLibraryItems;
+    const items = isMyUrl ? myUrlItems : urlLibraryItems;
+
+    return [...items].sort((a, b) => b.id - a.id);
   }, [isMyUrl]);
+
+  const handleToggleReason = (id: number) => {
+    setOpenedUrlId((prevId) => (prevId === id ? null : id));
+  };
 
   return (
     <div className="dashboard-shell">
@@ -123,6 +153,8 @@ function UrlPage({
         onGoMyPage={onGoMyPage}
         onToggleTheme={onToggleTheme}
       />
+
+      <Navbar onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -143,9 +175,7 @@ function UrlPage({
               </button>
 
               <button
-                className={
-                  currentView === 'url-library' ? 'side-menu-button is-active' : 'side-menu-button'
-                }
+                className={currentView === 'url-library' ? 'side-menu-button is-active' : 'side-menu-button'}
                 onClick={() => onNavigate('url-library')}
                 type="button"
               >
@@ -172,10 +202,9 @@ function UrlPage({
 
               <section className="url-overview-card">
                 <div className="url-overview-copy">
-                  <p className="eyebrow">
-                  </p>
+                  <p className="eyebrow">{isMyUrl ? 'My URL history' : 'URL library'}</p>
                   <h1>{isMyUrl ? '내가 받은 URL' : '전체 탐지 URL'}</h1>
-                  <strong>1,234,567 개</strong>
+                  <strong>{urlItems.length.toLocaleString()} 개</strong>
                 </div>
 
                 <div className="url-overview-chart">
@@ -189,9 +218,16 @@ function UrlPage({
               </section>
 
               <section className="mail-list-card url-list-card">
-                <h2 className="url-list-title">
-                  {isMyUrl ? '내가 받은 URL 목록' : '전체 탐지 URL 목록'}
-                </h2>
+                <div className="url-list-head">
+                  <div>
+                    <h2 className="url-list-title">
+                      {isMyUrl ? '나의 URL' : 'URL 모음'}
+                    </h2>
+                    <p className="url-list-count">
+                      총 <strong>{urlItems.length}</strong>건 · 최신 링크가 위에 표시됩니다.
+                    </p>
+                  </div>
+                </div>
 
                 <div
                   className={
@@ -200,39 +236,68 @@ function UrlPage({
                       : 'url-table-grid url-library-table-grid url-table-header-row'
                   }
                 >
+                  <span>번호</span>
                   {isMyUrl && <span>보낸 사람</span>}
-                  <span>URL 링크</span>
-                  <span>날짜 / 시간</span>
+                  <span>URL</span>
+                  <span>검사일시</span>
                   <span>위험도</span>
+                  <span>설명</span>
                 </div>
 
                 <div className="mail-table-body">
-                  {urlItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className={
-                        isMyUrl
-                          ? 'url-table-grid url-table-data-row'
-                          : 'url-table-grid url-library-table-grid url-table-data-row'
-                      }
-                    >
-                      {isMyUrl && (
-                        <span>
-                          <strong>{item.sender}</strong>
-                        </span>
-                      )}
+                  {urlItems.map((item, index) => {
+                    const isOpened = openedUrlId === item.id;
+                    const displayNumber = urlItems.length - index;
 
-                      <span className="url-link-text">{item.link}</span>
+                    return (
+                      <div className="url-row-block" key={item.id}>
+                        <div
+                          className={
+                            isMyUrl
+                              ? 'url-table-grid url-table-data-row'
+                              : 'url-table-grid url-library-table-grid url-table-data-row'
+                          }
+                        >
+                          <span className="url-number-text">{displayNumber}</span>
 
-                      <span>
-                        {item.date} {item.time}
-                      </span>
+                          {isMyUrl && (
+                            <span>
+                              <strong>{item.sender}</strong>
+                            </span>
+                          )}
 
-                      <span className={`risk-badge risk-${item.risk}`}>
-                        {item.risk}
-                      </span>
-                    </div>
-                  ))}
+                          <span className="url-link-text">{item.link}</span>
+
+                          <span>
+                            {item.date} {item.time}
+                          </span>
+
+                          <span>
+                            <span className={`risk-badge risk-${item.risk}`}>
+                              {item.risk}
+                            </span>
+                          </span>
+
+                          <button
+                            className="url-detail-toggle"
+                            onClick={() => handleToggleReason(item.id)}
+                            type="button"
+                            aria-label={isOpened ? 'URL 설명 닫기' : 'URL 설명 열기'}
+                          >
+                            {isOpened ? '−' : '+'}
+                          </button>
+                        </div>
+
+                        {isOpened && (
+                          <div className="url-risk-reason-box">
+                            {item.reason.map((reason) => (
+                              <p key={reason}>· {reason}</p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             </div>

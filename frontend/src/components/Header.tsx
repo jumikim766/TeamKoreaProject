@@ -1,7 +1,9 @@
 import type { ViewMode } from '../App';
 
-type HeaderProps = {
-  theme: 'light' | 'dark';
+type ThemeMode = 'light' | 'dark';
+
+interface HeaderProps {
+  theme: ThemeMode;
   currentView: ViewMode;
   isLoggedIn?: boolean;
   userName?: string;
@@ -10,14 +12,14 @@ type HeaderProps = {
   onGoHome: () => void;
   onGoLogin: () => void;
   onGoSignup: () => void;
-  onGoMyPage: () => void;
-};
+  onGoMyPage?: () => void;
+}
 
 function Header({
   theme,
   currentView,
   isLoggedIn = false,
-  userName = '팀코',
+  userName = '사용자',
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -25,53 +27,68 @@ function Header({
   onGoSignup,
   onGoMyPage,
 }: HeaderProps) {
+  const themeLabel = theme === 'light' ? 'DARK' : 'LIGHT';
+
   return (
-    <header className="header">
-      <button className="brand" type="button" onClick={onGoHome}>
+    <header className="site-header">
+      <button className="brand-button" onClick={onGoHome} type="button">
         <span className="brand-mark">UG</span>
-        <span>
+        <span className="brand-text">
           <strong>URL GUARD</strong>
-          <small>피싱 URL 보안 관리</small>
+          <small>Enterprise phishing intelligence</small>
         </span>
       </button>
 
-      <div className="header-actions">
-        <button type="button" className="theme-toggle" onClick={onToggleTheme}>
-          {theme === 'light' ? 'DARK' : 'LIGHT'}
-        </button>
-
+      <div className="header-actions header-link-actions">
         {isLoggedIn ? (
           <>
-            {userName && <span className="user-name">{userName} 님</span>}
+            <span className="header-user-name">{userName} 님</span>
+            <span className="header-divider" />
 
             <button
-              type="button"
-              className={currentView === 'mypage' ? 'active' : ''}
+              className={currentView === 'mypage' ? 'header-text-button is-active' : 'header-text-button'}
               onClick={onGoMyPage}
+              type="button"
             >
               마이페이지
             </button>
 
-            <button type="button" onClick={onLogout}>
+            <span className="header-divider" />
+
+            <button className="header-text-button" onClick={onLogout} type="button">
               로그아웃
+            </button>
+
+            <span className="header-divider" />
+
+            <button className="theme-toggle header-theme-button" onClick={onToggleTheme} type="button">
+              {themeLabel}
             </button>
           </>
         ) : (
           <>
             <button
+              className={currentView === 'signup' ? 'header-text-button is-active' : 'header-text-button'}
+              onClick={onGoSignup}
               type="button"
-              className={currentView === 'login' ? 'active' : ''}
+            >
+              회원가입
+            </button>
+
+            <span className="header-divider" />
+
+            <button
+              className={currentView === 'login' ? 'header-text-button is-active' : 'header-text-button'}
               onClick={onGoLogin}
+              type="button"
             >
               로그인
             </button>
 
-            <button
-              type="button"
-              className={currentView === 'signup' ? 'active' : ''}
-              onClick={onGoSignup}
-            >
-              회원가입
+            <span className="header-divider" />
+
+            <button className="theme-toggle header-theme-button" onClick={onToggleTheme} type="button">
+              {themeLabel}
             </button>
           </>
         )}

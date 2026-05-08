@@ -1,4 +1,5 @@
 import Header from '../components/Header';
+import Navbar from '../components/Navbar';
 import '../styles/Dashboard.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -134,6 +135,8 @@ function ClassificationPage({
         onGoMyPage={onGoMyPage}
         onToggleTheme={onToggleTheme}
       />
+
+       <Navbar onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">
