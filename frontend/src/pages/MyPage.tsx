@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Header from '../components/Header';
+import Navbar from '../components/Navbar';
 import '../styles/Dashboard.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -24,6 +25,9 @@ type PageViewTarget =
 
 interface MyPageProps {
   theme: ThemeMode;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
@@ -34,6 +38,9 @@ interface MyPageProps {
 
 function MyPage({
   theme,
+  isLoggedIn = false,
+  userName = '사용자',
+  onLogout,
   onToggleTheme,
   onGoHome,
   onGoLogin,
@@ -43,7 +50,7 @@ function MyPage({
 }: MyPageProps) {
   const [tab, setTab] = useState<MyPageTab>('profile');
 
-  const [name, setName] = useState('XXX');
+  const [name, setName] = useState(userName);
   const [userId, setUserId] = useState('abcd1234');
   const [phone, setPhone] = useState('010-****-****');
   const [email, setEmail] = useState('1234@5678.com');
@@ -69,12 +76,17 @@ function MyPage({
       <Header
         currentView="mypage"
         theme={theme}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
         onGoMyPage={onGoMyPage}
         onToggleTheme={onToggleTheme}
       />
+
+      <Navbar onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">

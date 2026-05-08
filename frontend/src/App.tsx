@@ -44,6 +44,15 @@ function getInitialTheme(): ThemeMode {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function getSavedUserName() {
+  return (
+    window.localStorage.getItem('userName') ||
+    window.localStorage.getItem('name') ||
+    window.localStorage.getItem('nickname') ||
+    '사용자'
+  );
+}
+
 const pageContent: Record<
   'service-info' | 'terms' | 'privacy' | 'security-contact',
   { title: string; description: string }
@@ -70,6 +79,7 @@ function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
   const [view, setView] = useState<ViewMode>('dashboard');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(Boolean(getAccessToken()));
+  const [userName, setUserName] = useState<string>(getSavedUserName);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -77,7 +87,10 @@ function App() {
   }, [theme]);
 
   const refreshLoginState = () => {
-    setIsLoggedIn(Boolean(getAccessToken()));
+    const hasToken = Boolean(getAccessToken());
+
+    setIsLoggedIn(hasToken);
+    setUserName(hasToken ? getSavedUserName() : '사용자');
   };
 
   const handleNavigate = (nextView: ViewMode) => {
@@ -108,6 +121,7 @@ function App() {
   const handleLogout = () => {
     clearTokens();
     setIsLoggedIn(false);
+    setUserName('사용자');
     setView('dashboard');
   };
 
@@ -122,6 +136,7 @@ function App() {
 
   const authProps = {
     isLoggedIn,
+    userName,
     onLogout: handleLogout,
     onNavigate: handleNavigate,
   };
@@ -136,25 +151,26 @@ function App() {
         onFail={() => {
           clearTokens();
           setIsLoggedIn(false);
+          setUserName('사용자');
           setView('login');
         }}
       />
     );
   }
 
- if (view === 'login' || view === 'signup') {
-  return (
-    <AuthPage
-      {...sharedProps}
-      {...authProps}
-      mode={view}
-      onLoginSuccess={() => {
-        refreshLoginState();
-        setView('dashboard');
-      }}
-    />
-  );
-}
+  if (view === 'login' || view === 'signup') {
+    return (
+      <AuthPage
+        {...sharedProps}
+        {...authProps}
+        mode={view}
+        onLoginSuccess={() => {
+          refreshLoginState();
+          setView('dashboard');
+        }}
+      />
+    );
+  }
 
   if (view === 'dashboard') {
     return <Dashboard {...sharedProps} {...authProps} />;
