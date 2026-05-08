@@ -12,7 +12,7 @@ interface ChartBoxProps {
   data: ChartDatum[];
 }
 
-const COLORS = ['#ff6b57', '#ffb347', '#35c38f', '#4d8dff'];
+const COLORS = ['#ef4444', '#f97316', '#facc15', '#3b82f6'];
 
 function ChartBox({ title, caption, total, data }: ChartBoxProps) {
   return (
@@ -38,6 +38,7 @@ function ChartBox({ title, caption, total, data }: ChartBoxProps) {
                 paddingAngle={3}
                 dataKey="value"
                 stroke="transparent"
+                isAnimationActive={false}
               >
                 {data.map((entry, index) => (
                   <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />

@@ -82,7 +82,7 @@ function Dashboard({
         <section className="simple-main-board">
           <section className="simple-hero-panel">
             <div className="simple-hero-copy">
-              <p className="eyebrow">Security operations overview</p>
+              <p className="eyebrow"></p>
               <h1>메일 기반 악성 URL을 빠르게 식별하고 즉시 대응하는 운영 대시보드</h1>
               <p className="hero-text">
                 수집된 URL을 한눈에 확인할 수 있도록 핵심 정보만 단순하게 정리했습니다.

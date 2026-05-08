@@ -108,7 +108,7 @@ function MyPage({
             {tab === 'profile' ? (
               <div className="mypage-section">
                 <div className="mypage-head">
-                  <p className="eyebrow">My page</p>
+                  <p className="eyebrow"></p>
                   <h1>회원 정보 수정</h1>
                 </div>
 
@@ -164,7 +164,7 @@ function MyPage({
             ) : (
               <div className="mypage-section">
                 <div className="mypage-head">
-                  <p className="eyebrow">My page</p>
+                  <p className="eyebrow"></p>
                   <h1>비밀번호 변경</h1>
                 </div>
 

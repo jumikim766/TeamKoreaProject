@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Header from '../components/Header';
 import '../styles/Dashboard.css';
 
@@ -23,6 +24,9 @@ type PageViewTarget =
 interface ReportPageProps {
   theme: ThemeMode;
   currentView: ReportViewMode;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
@@ -34,6 +38,9 @@ interface ReportPageProps {
 function ReportPage({
   theme,
   currentView,
+  isLoggedIn = false,
+  userName = '팀코',
+  onLogout,
   onToggleTheme,
   onGoHome,
   onGoLogin,
@@ -41,11 +48,17 @@ function ReportPage({
   onGoMyPage,
   onNavigate,
 }: ReportPageProps) {
+  const [reportUrl, setReportUrl] = useState('');
+  const [reportReason, setReportReason] = useState('');
+
   return (
     <div className="dashboard-shell">
       <Header
         currentView={currentView}
         theme={theme}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
@@ -85,61 +98,133 @@ function ReportPage({
 
           <section className="page-content-card">
             {currentView === 'report-guide' ? (
-              <div className="placeholder-section">
-                <div className="placeholder-head">
-                  <p className="eyebrow">Report guide</p>
+              <div className="mail-section">
+                <div className="mypage-head">
+                  <p className="eyebrow"></p>
                   <h1>신고 안내</h1>
                 </div>
 
-                <div className="placeholder-card-grid">
-                  <section className="placeholder-card">
-                    <h2>신고 절차 안내</h2>
-                    <p>내용 채우기</p>
+                <div className="mail-content-grid">
+                  <section className="mail-list-card">
+                    <div className="mail-table mail-table-header">
+                      <span>단계</span>
+                      <span>내용</span>
+                      <span>설명</span>
+                      <span>상태</span>
+                    </div>
+
+                    <div className="mail-table-body">
+                      <button className="mail-table-row is-active" type="button">
+                        <span>
+                          <strong>1단계</strong>
+                          <small>URL 확인</small>
+                        </span>
+                        <span>의심 URL 복사</span>
+                        <span>메일, 문자, 웹사이트에서 의심되는 URL을 확인합니다.</span>
+                        <span>필수</span>
+                      </button>
+
+                      <button className="mail-table-row" type="button">
+                        <span>
+                          <strong>2단계</strong>
+                          <small>내용 작성</small>
+                        </span>
+                        <span>신고 정보 입력</span>
+                        <span>URL, 발견 위치, 의심 사유를 입력합니다.</span>
+                        <span>필수</span>
+                      </button>
+
+                      <button className="mail-table-row" type="button">
+                        <span>
+                          <strong>3단계</strong>
+                          <small>검토 반영</small>
+                        </span>
+                        <span>위험도 분류</span>
+                        <span>신고된 URL은 검토 후 분류 기준에 반영됩니다.</span>
+                        <span>진행</span>
+                      </button>
+                    </div>
                   </section>
 
-                  <section className="placeholder-card">
-                    <h2>신고 대상 기준</h2>
-                    <p>내용 채우기</p>
+                  <section className="mail-detail-card">
+                    <div className="mail-detail-head">
+                      <h2>신고 접수 안내</h2>
+                      <span className="risk-badge risk-주의">주의</span>
+                    </div>
+
+                    <div className="mail-meta">
+                      <p>
+                        <strong>신고 대상 :</strong> 피싱, 악성코드, 계정 탈취 의심 URL
+                      </p>
+                      <p>
+                        <strong>필수 정보 :</strong> URL 주소, 발견 위치, 신고 사유
+                      </p>
+                      <p>
+                        <strong>처리 방식 :</strong> 접수 후 위험도 분석
+                      </p>
+                    </div>
+
+                    <div className="mail-divider" />
+
+                    <div className="mail-body">
+                      <p>
+                        신고된 URL은 내부 기준에 따라 검토되며, 위험도에 따라 안전, 주의, 위험,
+                        매우 위험으로 분류됩니다.
+                      </p>
+                    </div>
                   </section>
                 </div>
-
-                <section className="placeholder-wide-card">
-                  <h2>추가 안내 사항</h2>
-                  <p>내용 채우기</p>
-                </section>
               </div>
             ) : (
-              <div className="placeholder-section">
-                <div className="placeholder-head">
-                  <p className="eyebrow">Report form</p>
+              <div className="mail-section">
+                <div className="mypage-head">
+                  <p className="eyebrow"></p>
                   <h1>신고하기</h1>
                 </div>
 
-                <section className="form-placeholder-card">
-                  <div className="form-placeholder-row">
-                    <span>신고 제목</span>
-                    <div>내용 채우기</div>
-                  </div>
+                <div className="mail-connect-box">
+                  <input
+                    className="mail-connect-input"
+                    placeholder="신고할 URL을 입력하세요."
+                    type="text"
+                    value={reportUrl}
+                    onChange={(event) => setReportUrl(event.target.value)}
+                  />
 
-                  <div className="form-placeholder-row">
-                    <span>URL / 대상</span>
-                    <div>내용 채우기</div>
-                  </div>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={() => alert('신고가 접수되었습니다.')}
+                  >
+                    신고 접수
+                  </button>
+                </div>
 
-                  <div className="form-placeholder-row">
-                    <span>상세 내용</span>
-                    <div className="textarea-placeholder">내용 채우기</div>
-                  </div>
+                <div className="mail-connect-divider" />
 
-                  <div className="placeholder-actions">
-                    <button className="primary-button" type="button">
-                      제출하기
-                    </button>
-                    <button className="secondary-button" type="button">
-                      취소
-                    </button>
+                <div className="connected-mail-section">
+                  <h2>신고 사유</h2>
+
+                  <textarea
+                    className="mail-connect-input"
+                    style={{ minHeight: '160px', resize: 'vertical' }}
+                    placeholder="의심되는 이유를 입력해주세요."
+                    value={reportReason}
+                    onChange={(event) => setReportReason(event.target.value)}
+                  />
+
+                  <div className="connected-mail-list">
+                    <div className="connected-mail-row">
+                      <span>피싱 사이트로 의심됩니다.</span>
+                    </div>
+                    <div className="connected-mail-row">
+                      <span>로그인 정보를 요구합니다.</span>
+                    </div>
+                    <div className="connected-mail-row">
+                      <span>알 수 없는 파일 다운로드를 유도합니다.</span>
+                    </div>
                   </div>
-                </section>
+                </div>
               </div>
             )}
           </section>

@@ -11,7 +11,7 @@ type NavTarget =
   | 'classification-criteria';
 
 interface NavbarProps {
-  onNavigate: (view: NavTarget) => void;
+  onNavigate: (view: any) => void;
 }
 
 const navItems: { title: string; links: { label: string; view: NavTarget }[] }[] = [

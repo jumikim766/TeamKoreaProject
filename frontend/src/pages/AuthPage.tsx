@@ -3,6 +3,22 @@ import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/Dashboard.css";
 
+type PageViewTarget =
+  | "my-mailbox"
+  | "mail-connect"
+  | "my-url"
+  | "url-library"
+  | "notifications"
+  | "notification-settings"
+  | "report-guide"
+  | "report"
+  | "classification-method"
+  | "classification-criteria"
+  | "service-info"
+  | "terms"
+  | "privacy"
+  | "security-contact";
+
 type AuthPagesProps = {
   mode: "login" | "signup";
   theme: "light" | "dark";
@@ -10,6 +26,9 @@ type AuthPagesProps = {
   onGoHome: () => void;
   onGoLogin: () => void;
   onGoSignup: () => void;
+  onGoMyPage: () => void;
+  onNavigate: (view: PageViewTarget) => void;
+  onLoginSuccess: (name?: string) => void;
 };
 
 function AuthPages({
@@ -19,6 +38,9 @@ function AuthPages({
   onGoHome,
   onGoLogin,
   onGoSignup,
+  onGoMyPage,
+  onNavigate,
+  onLoginSuccess,
 }: AuthPagesProps) {
   const isLogin = mode === "login";
 
@@ -96,8 +118,11 @@ function AuthPages({
       return;
     }
 
-    // 실제 API 연결 전 임시 실패 문구
-    setLoginError("이메일 또는 비밀번호를 잘못 입력하셨습니다.");
+    localStorage.setItem("accessToken", "test-access-token");
+    localStorage.setItem("refreshToken", "test-refresh-token");
+    localStorage.setItem("userName", "팀코");
+    setLoginError("");
+    onLoginSuccess("팀코");
   };
 
   const handleCheckId = () => {
@@ -107,7 +132,6 @@ function AuthPages({
       return;
     }
 
-    // 백엔드 API 연결 전 임시 중복 예시
     if (signupId.trim().toLowerCase() === "minseo") {
       setIsIdAvailable(false);
       setIdCheckMessage("이미 사용 중인 아이디입니다.");
@@ -125,7 +149,6 @@ function AuthPages({
       return;
     }
 
-    // 백엔드 API 연결 전 임시 중복 예시
     if (signupEmail.trim().toLowerCase() === "minseo@example.com") {
       setIsEmailAvailable(false);
       setEmailCheckMessage("이미 사용 중인 이메일입니다.");
@@ -147,22 +170,28 @@ function AuthPages({
       email: signupEmail,
       password: signupPassword,
     });
+
+    localStorage.setItem("accessToken", "test-access-token");
+    localStorage.setItem("refreshToken", "test-refresh-token");
+    localStorage.setItem("userName", signupName || "팀코");
+    onLoginSuccess(signupName || "팀코");
   };
 
   return (
     <div className="dashboard-shell">
       <Header
-  theme={theme}
-  currentView={mode}
-  isLoggedIn={false}
-  onToggleTheme={onToggleTheme}
-  onGoHome={onGoHome}
-  onGoLogin={onGoLogin}
-  onGoSignup={onGoSignup}
-  onGoMyPage={onGoHome}
-  onLogout={() => {}}
-/>
-      <Navbar onNavigate={onGoHome} />
+        theme={theme}
+        currentView={mode}
+        isLoggedIn={false}
+        onToggleTheme={onToggleTheme}
+        onGoHome={onGoHome}
+        onGoLogin={onGoLogin}
+        onGoSignup={onGoSignup}
+        onGoMyPage={onGoMyPage}
+        onLogout={() => {}}
+      />
+
+      <Navbar onNavigate={onNavigate} />
 
       <main className="auth-main auth-main-centered">
         <section className="auth-layout auth-layout-centered">
@@ -179,31 +208,31 @@ function AuthPages({
               </p>
             </div>
 
-      <div className="social-button-group">
-  <button
-    type="button"
-    className="google-button"
-    onClick={() => {
-      window.location.href =
-        "http://localhost:8080/oauth2/authorization/google";
-    }}
-  >
-    <span className="google-mark">G</span>
-    Google로 {isLogin ? "로그인" : "회원가입"} 계속하기
-  </button>
+            <div className="social-button-group">
+              <button
+                type="button"
+                className="google-button"
+                onClick={() => {
+                  window.location.href =
+                    "http://localhost:8080/oauth2/authorization/google";
+                }}
+              >
+                <span className="google-mark">G</span>
+                Google로 {isLogin ? "로그인" : "회원가입"} 계속하기
+              </button>
 
-  <button
-    type="button"
-    className="naver-button"
-    onClick={() => {
-      window.location.href =
-        "http://localhost:8080/oauth2/authorization/naver";
-    }}
-  >
-    <span className="naver-mark">N</span>
-    naver로 {isLogin ? "로그인" : "회원가입"} 계속하기
-  </button>
-</div>
+              <button
+                type="button"
+                className="naver-button"
+                onClick={() => {
+                  window.location.href =
+                    "http://localhost:8080/oauth2/authorization/naver";
+                }}
+              >
+                <span className="naver-mark">N</span>
+                naver로 {isLogin ? "로그인" : "회원가입"} 계속하기
+              </button>
+            </div>
 
             <div className="auth-divider">
               <span>또는 이메일로 계속</span>
@@ -254,7 +283,9 @@ function AuthPages({
                   </button>
                 </div>
 
-                {loginError && <p className="auth-error-message">{loginError}</p>}
+                {loginError && (
+                  <p className="auth-error-message">{loginError}</p>
+                )}
 
                 <button
                   type="submit"

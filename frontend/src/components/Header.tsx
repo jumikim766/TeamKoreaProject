@@ -1,18 +1,11 @@
-type ViewMode =
-  | "dashboard"
-  | "login"
-  | "signup"
-  | "mypage"
-  | "service-info"
-  | "terms"
-  | "privacy"
-  | "security-contact";
+import type { ViewMode } from '../App';
 
 type HeaderProps = {
-  theme: "light" | "dark";
+  theme: 'light' | 'dark';
   currentView: ViewMode;
-  isLoggedIn: boolean;
-  onLogout: () => void;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
@@ -23,7 +16,8 @@ type HeaderProps = {
 function Header({
   theme,
   currentView,
-  isLoggedIn,
+  isLoggedIn = false,
+  userName = '팀코',
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -37,20 +31,22 @@ function Header({
         <span className="brand-mark">UG</span>
         <span>
           <strong>URL GUARD</strong>
-          <small>Enterprise phishing intelligence</small>
+          <small>피싱 URL 보안 관리</small>
         </span>
       </button>
 
       <div className="header-actions">
         <button type="button" className="theme-toggle" onClick={onToggleTheme}>
-          {theme === "light" ? "Dark" : "Light"}
+          {theme === 'light' ? 'DARK' : 'LIGHT'}
         </button>
 
         {isLoggedIn ? (
           <>
+            {userName && <span className="user-name">{userName} 님</span>}
+
             <button
               type="button"
-              className={currentView === "mypage" ? "active" : ""}
+              className={currentView === 'mypage' ? 'active' : ''}
               onClick={onGoMyPage}
             >
               마이페이지
@@ -64,7 +60,7 @@ function Header({
           <>
             <button
               type="button"
-              className={currentView === "login" ? "active" : ""}
+              className={currentView === 'login' ? 'active' : ''}
               onClick={onGoLogin}
             >
               로그인
@@ -72,7 +68,7 @@ function Header({
 
             <button
               type="button"
-              className={currentView === "signup" ? "active" : ""}
+              className={currentView === 'signup' ? 'active' : ''}
               onClick={onGoSignup}
             >
               회원가입

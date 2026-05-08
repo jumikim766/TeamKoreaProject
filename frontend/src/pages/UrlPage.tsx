@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import ChartBox from '../components/ChartBox';
 import Header from '../components/Header';
 import '../styles/Dashboard.css';
@@ -21,18 +22,21 @@ type PageViewTarget =
   | 'privacy'
   | 'security-contact';
 
-interface UrlRow {
+interface UrlItem {
   id: number;
-  account?: string;
-  sender: string;
-  url: string;
+  sender?: string;
+  link: string;
   date: string;
+  time: string;
   risk: '매우 위험' | '위험' | '주의' | '안전';
 }
 
 interface UrlPageProps {
   theme: ThemeMode;
   currentView: UrlViewMode;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
@@ -41,69 +45,55 @@ interface UrlPageProps {
   onNavigate: (view: PageViewTarget) => void;
 }
 
-const accounts = ['1234@5678.com', '8765@4321.com', 'abcd@efgh.com'];
-
-const collectionData = [
-  { name: '매우 위험', value: 742 },
-  { name: '위험', value: 416 },
-  { name: '주의', value: 2018 },
-  { name: '안전', value: 3621 },
-];
-
-const myUrlRows: UrlRow[] = [
+const myUrlItems: UrlItem[] = [
   {
     id: 1,
-    account: '1234@5678.com',
     sender: 'XXX',
-    url: 'http://www.xxxyyyzzz.com/@@@##$$$%%',
-    date: '03.25 12:34',
+    link: 'http://www.xxxyyyzzz.com/@@@###$$$%%%',
+    date: '03.25',
+    time: '12:34',
     risk: '매우 위험',
   },
   {
     id: 2,
-    account: '1234@5678.com',
     sender: '보안팀',
-    url: 'https://alert-security-check.net/login',
-    date: '03.25 10:20',
-    risk: '위험',
-  },
-  {
-    id: 3,
-    account: '8765@4321.com',
-    sender: '관리자',
-    url: 'https://safe-company-link.com/report',
-    date: '03.24 16:02',
+    link: 'https://safe-example.com/document',
+    date: '03.25',
+    time: '10:20',
     risk: '안전',
   },
 ];
 
-const allUrlRows: UrlRow[] = [
+const urlLibraryItems: UrlItem[] = [
   {
-    id: 11,
-    sender: '-',
-    url: 'http://www.xxxyyyzzz.com/@@@##$$$%%',
-    date: '03.25 12:34',
+    id: 1,
+    link: 'http://www.xxxyyyzzz.com/@@@###$$$%%%',
+    date: '03.25',
+    time: '12:34',
     risk: '매우 위험',
   },
   {
-    id: 12,
-    sender: '-',
-    url: 'https://danger-login-check.site/reset',
-    date: '03.25 11:08',
-    risk: '위험',
-  },
-  {
-    id: 13,
-    sender: '-',
-    url: 'https://notice-verify.company-mail.help',
-    date: '03.25 09:40',
+    id: 2,
+    link: 'https://warning-example.com/event',
+    date: '03.24',
+    time: '09:21',
     risk: '주의',
   },
+];
+
+const chartData = [
+  { name: '매우 위험', value: 1234 },
+  { name: '위험', value: 1234 },
+  { name: '주의', value: 1234 },
+  { name: '안전', value: 1234 },
 ];
 
 function UrlPage({
   theme,
   currentView,
+  isLoggedIn = false,
+  userName = '팀코',
+  onLogout,
   onToggleTheme,
   onGoHome,
   onGoLogin,
@@ -111,14 +101,22 @@ function UrlPage({
   onGoMyPage,
   onNavigate,
 }: UrlPageProps) {
-  const selectedAccount = accounts[0];
-  const filteredMyRows = myUrlRows.filter((row) => row.account === selectedAccount);
+  const [selectedAccount, setSelectedAccount] = useState('1234@5678.com');
+
+  const isMyUrl = currentView === 'my-url';
+
+  const urlItems = useMemo(() => {
+    return isMyUrl ? myUrlItems : urlLibraryItems;
+  }, [isMyUrl]);
 
   return (
     <div className="dashboard-shell">
       <Header
         currentView={currentView}
         theme={theme}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
@@ -157,108 +155,86 @@ function UrlPage({
           </aside>
 
           <section className="page-content-card">
-            <div className="url-section">
-              {currentView === 'my-url' ? (
-                <>
-                  <div className="mail-top-bar">
-<select className="mail-account-select" value={selectedAccount} onChange={() => {}}>
-                      {accounts.map((email) => (
-                        <option key={email} value={email}>
-                          {email}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <section className="url-summary-card">
-                    <div className="url-summary-copy">
-                      <p className="eyebrow">My collected URLs</p>
-                      <h2>내가 받은 URL</h2>
-                      <strong>1,234,567개</strong>
-                    </div>
-
-                    <div className="url-summary-chart">
-                      <ChartBox
-                        title="나의 URL"
-                        caption="받은 URL 기준"
-                        total="1,234,567개"
-                        data={collectionData}
-                      />
-                    </div>
-                  </section>
-
-                  <section className="url-table-card">
-                    <div className="url-table-head">
-                      <p className="eyebrow">Received URL list</p>
-                      <h2>내가 받은 URL 목록</h2>
-                    </div>
-
-                    <div className="url-table url-table-header">
-                      <span>보낸 사람</span>
-                      <span>URL 링크</span>
-                      <span>날짜 / 시간</span>
-                      <span>위험도</span>
-                    </div>
-
-                    <div className="url-table-body">
-                      {filteredMyRows.map((row) => (
-                        <div key={row.id} className="url-table-row">
-                          <span>{row.sender}</span>
-                          <span className="url-link-text">{row.url}</span>
-                          <span>{row.date}</span>
-                          <span>
-                            <strong className={`risk-badge risk-${row.risk}`}>{row.risk}</strong>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </>
-              ) : (
-                <>
-                  <section className="url-summary-card">
-                    <div className="url-summary-copy">
-                      <p className="eyebrow">All detected URLs</p>
-                      <h2>전체 탐지 URL</h2>
-                      <strong>1,234,567개</strong>
-                    </div>
-
-                    <div className="url-summary-chart">
-                      <ChartBox
-                        title="전체 탐지 URL"
-                        caption="누적 탐지 기준"
-                        total="1,234,567개"
-                        data={collectionData}
-                      />
-                    </div>
-                  </section>
-
-                  <section className="url-table-card">
-                    <div className="url-table-head">
-                      <p className="eyebrow">Detected URL list</p>
-                      <h2>전체 탐지 URL 목록</h2>
-                    </div>
-
-                    <div className="url-table url-table-header url-library-grid">
-                      <span>URL 링크</span>
-                      <span>날짜 / 시간</span>
-                      <span>위험도</span>
-                    </div>
-
-                    <div className="url-table-body">
-                      {allUrlRows.map((row) => (
-                        <div key={row.id} className="url-table-row url-library-grid">
-                          <span className="url-link-text">{row.url}</span>
-                          <span>{row.date}</span>
-                          <span>
-                            <strong className={`risk-badge risk-${row.risk}`}>{row.risk}</strong>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </>
+            <div className="mail-section">
+              {isMyUrl && (
+                <div className="mail-top-bar">
+                  <select
+                    className="mail-account-select"
+                    value={selectedAccount}
+                    onChange={(event) => setSelectedAccount(event.target.value)}
+                  >
+                    <option value="1234@5678.com">1234@5678.com</option>
+                    <option value="8765@4321.com">8765@4321.com</option>
+                    <option value="abcd@efgh.com">abcd@efgh.com</option>
+                  </select>
+                </div>
               )}
+
+              <section className="url-overview-card">
+                <div className="url-overview-copy">
+                  <p className="eyebrow">
+                  </p>
+                  <h1>{isMyUrl ? '내가 받은 URL' : '전체 탐지 URL'}</h1>
+                  <strong>1,234,567 개</strong>
+                </div>
+
+                <div className="url-overview-chart">
+                  <ChartBox
+                    title="URL 위험도"
+                    caption="현재 분류 기준"
+                    total="1,234,567개"
+                    data={chartData}
+                  />
+                </div>
+              </section>
+
+              <section className="mail-list-card url-list-card">
+                <h2 className="url-list-title">
+                  {isMyUrl ? '내가 받은 URL 목록' : '전체 탐지 URL 목록'}
+                </h2>
+
+                <div
+                  className={
+                    isMyUrl
+                      ? 'url-table-grid url-table-header-row'
+                      : 'url-table-grid url-library-table-grid url-table-header-row'
+                  }
+                >
+                  {isMyUrl && <span>보낸 사람</span>}
+                  <span>URL 링크</span>
+                  <span>날짜 / 시간</span>
+                  <span>위험도</span>
+                </div>
+
+                <div className="mail-table-body">
+                  {urlItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className={
+                        isMyUrl
+                          ? 'url-table-grid url-table-data-row'
+                          : 'url-table-grid url-library-table-grid url-table-data-row'
+                      }
+                    >
+                      {isMyUrl && (
+                        <span>
+                          <strong>{item.sender}</strong>
+                        </span>
+                      )}
+
+                      <span className="url-link-text">{item.link}</span>
+
+                      <span>
+                        {item.date} {item.time}
+                      </span>
+
+                      <span className={`risk-badge risk-${item.risk}`}>
+                        {item.risk}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
           </section>
         </div>
