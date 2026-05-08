@@ -14,7 +14,7 @@ import { clearTokens, getAccessToken } from './utils/token';
 
 type ThemeMode = 'light' | 'dark';
 
-type ViewMode =
+export type ViewMode =
   | 'dashboard'
   | 'login'
   | 'signup'
@@ -142,9 +142,19 @@ function App() {
     );
   }
 
-  if (view === 'login' || view === 'signup') {
-    return <AuthPage {...sharedProps} mode={view} />;
-  }
+ if (view === 'login' || view === 'signup') {
+  return (
+    <AuthPage
+      {...sharedProps}
+      {...authProps}
+      mode={view}
+      onLoginSuccess={() => {
+        refreshLoginState();
+        setView('dashboard');
+      }}
+    />
+  );
+}
 
   if (view === 'dashboard') {
     return <Dashboard {...sharedProps} {...authProps} />;

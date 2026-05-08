@@ -34,6 +34,9 @@ interface NotificationItem {
 interface NotificationPageProps {
   theme: ThemeMode;
   currentView: NotificationViewMode;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
@@ -78,6 +81,9 @@ const notificationSeed: NotificationItem[] = [
 function NotificationPage({
   theme,
   currentView,
+  isLoggedIn = false,
+  userName = '팀코',
+  onLogout,
   onToggleTheme,
   onGoHome,
   onGoLogin,
@@ -105,6 +111,14 @@ function NotificationPage({
     );
   };
 
+  const handleSaveNotificationSettings = () => {
+    const confirmed = window.confirm('저장하시겠습니까?');
+
+    if (confirmed) {
+      alert('저장 완료했습니다.');
+    }
+  };
+
   const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   return (
@@ -112,6 +126,9 @@ function NotificationPage({
       <Header
         currentView={currentView}
         theme={theme}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
@@ -158,7 +175,7 @@ function NotificationPage({
               <div className="notification-section">
                 <div className="notification-summary-card">
                   <div>
-                    <p className="eyebrow">Notification overview</p>
+                    <p className="eyebrow"></p>
                     <h2>알림함</h2>
                   </div>
                   <div className="notification-summary-badge">
@@ -205,7 +222,7 @@ function NotificationPage({
                   <section className="notification-detail-card">
                     <div className="notification-detail-head">
                       <div>
-                        <p className="eyebrow">Notification detail</p>
+                        <p className="eyebrow"></p>
                         <h2>{selectedNotification.title}</h2>
                       </div>
                       <span className="notification-type-pill">{selectedNotification.type}</span>
@@ -226,7 +243,7 @@ function NotificationPage({
             ) : (
               <div className="notification-section">
                 <div className="mypage-head">
-                  <p className="eyebrow">Notification settings</p>
+                  <p className="eyebrow"></p>
                   <h1>알림 설정</h1>
                 </div>
 
@@ -293,7 +310,11 @@ function NotificationPage({
                 </div>
 
                 <div className="notification-actions">
-                  <button className="primary-button" type="button">
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={handleSaveNotificationSettings}
+                  >
                     저장하기
                   </button>
                   <button className="secondary-button" type="button">

@@ -37,6 +37,9 @@ interface MailMessage {
 interface MailPageProps {
   theme: ThemeMode;
   currentView: MailViewMode;
+  isLoggedIn?: boolean;
+  userName?: string;
+  onLogout?: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
   onGoLogin: () => void;
@@ -90,6 +93,9 @@ const mailMessages: MailMessage[] = [
 function MailPage({
   theme,
   currentView,
+  isLoggedIn = false,
+  userName = '팀코',
+  onLogout,
   onToggleTheme,
   onGoHome,
   onGoLogin,
@@ -100,6 +106,7 @@ function MailPage({
   const [selectedAccount, setSelectedAccount] = useState(mailboxAccounts[0]);
   const [selectedMailId, setSelectedMailId] = useState<number | null>(null);
   const [connectEmail, setConnectEmail] = useState('');
+  const [connectEmailError, setConnectEmailError] = useState('');
   const [connectedEmails, setConnectedEmails] = useState(mailboxAccounts);
 
   const filteredMessages = useMemo(
@@ -115,37 +122,61 @@ function MailPage({
 
   const handleDuplicateCheck = () => {
     if (!connectEmail.trim()) {
-      alert('이메일을 입력해주세요.');
+      setConnectEmailError('이메일 주소를 정확하게 입력해 주세요.');
+      return;
+    }
+
+    if (!isValidEmail) {
+      setConnectEmailError('이메일 주소를 정확하게 입력해 주세요.');
       return;
     }
 
     if (connectedEmails.includes(connectEmail)) {
+      setConnectEmailError('');
       alert('이미 연동된 이메일입니다.');
       return;
     }
 
+    setConnectEmailError('');
     alert('연동 가능한 이메일입니다.');
   };
 
   const handleConnectEmail = () => {
-    if (!canConnect) {
-      alert('올바른 이메일을 입력하거나 이미 연동된 이메일인지 확인해주세요.');
+    if (!isValidEmail) {
+      setConnectEmailError('이메일 주소를 정확하게 입력해 주세요.');
+      return;
+    }
+
+    if (connectedEmails.includes(connectEmail)) {
+      setConnectEmailError('');
+      alert('이미 연동된 이메일입니다.');
       return;
     }
 
     setConnectedEmails((prev) => [...prev, connectEmail]);
     setConnectEmail('');
+    setConnectEmailError('');
     alert('이메일이 연동되었습니다.');
   };
 
   const handleDisconnectEmail = (email: string) => {
-    setConnectedEmails((prev) => prev.filter((item) => item !== email));
+    const confirmed = window.confirm('이메일을 해제하시겠습니까?');
+
+    if (!confirmed) {
+      return;
+    }
+
+    const nextConnectedEmails = connectedEmails.filter((item) => item !== email);
+
+    setConnectedEmails(nextConnectedEmails);
 
     if (selectedAccount === email) {
-      const nextAccount = connectedEmails.filter((item) => item !== email)[0] ?? mailboxAccounts[0];
+      const nextAccount = nextConnectedEmails[0] ?? mailboxAccounts[0];
       setSelectedAccount(nextAccount);
       setSelectedMailId(null);
     }
+
+    alert('연동 해제했습니다.');
   };
 
   return (
@@ -153,6 +184,9 @@ function MailPage({
       <Header
         currentView={currentView}
         theme={theme}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
@@ -286,7 +320,7 @@ function MailPage({
             ) : (
               <div className="mail-section">
                 <div className="mypage-head">
-                  <p className="eyebrow">Mail connection</p>
+                  <p className="eyebrow"></p>
                   <h1>이메일 연동하기</h1>
                 </div>
 
@@ -296,7 +330,10 @@ function MailPage({
                     placeholder="연동하실 이메일을 입력하세요."
                     type="email"
                     value={connectEmail}
-                    onChange={(event) => setConnectEmail(event.target.value)}
+                    onChange={(event) => {
+                      setConnectEmail(event.target.value);
+                      setConnectEmailError('');
+                    }}
                   />
 
                   <button className="secondary-button" onClick={handleDuplicateCheck} type="button">
@@ -312,6 +349,8 @@ function MailPage({
                     연동하기
                   </button>
                 </div>
+
+                {connectEmailError && <p className="field-error">{connectEmailError}</p>}
 
                 <div className="mail-connect-divider" />
 
