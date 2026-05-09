@@ -12,6 +12,7 @@ import org.teamkorea.backend.service.CustomOAuth2UserService;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.http.HttpMethod;
 
 import java.util.List;
 
@@ -46,6 +47,7 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/",
                                 "/oauth2/**",
@@ -87,6 +89,15 @@ public class SecurityConfig {
                             response.getWriter().write(
                                     "{\"success\": false, \"message\": \"로그인이 필요합니다.\", \"data\": null}"
                             );
+                        })
+
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                response.setContentType("application/json;charset=UTF-8");
+
+                                response.getWriter().write(
+                                        "{\"success\": false, \"message\": \"접근 권한이 없습니다.\", \"data\": null}"
+                                );
                         })
                 )
 

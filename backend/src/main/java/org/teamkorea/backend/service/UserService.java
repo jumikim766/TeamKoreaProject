@@ -51,31 +51,97 @@ public class UserService {
 
     // ===== 추가: 회원정보 수정 =====
     @Transactional
-     public UserUpdateResponseDto updateMyInfo(Long userId, UserUpdateRequestDto requestDto) {
+    public UserUpdateResponseDto updateMyInfo(Long userId, UserUpdateRequestDto requestDto) {
+
+        if (
+            (requestDto.getUsername() == null || requestDto.getUsername().isBlank()) &&
+            (requestDto.getEmail() == null || requestDto.getEmail().isBlank()) &&
+            (requestDto.getName() == null || requestDto.getName().isBlank()) &&
+            (requestDto.getPhone() == null || requestDto.getPhone().isBlank()) &&
+            (requestDto.getGender() == null || requestDto.getGender().isBlank()) &&
+            requestDto.getAge() == null
+        ) {
+            throw new IllegalArgumentException("수정할 정보가 없습니다.");
+        }
+
         User user = getActiveUser(userId);
+        // ===== username/email 수정 검증 =====
+        if (
+            (requestDto.getUsername() != null && !requestDto.getUsername().isBlank()) ||
+            (requestDto.getEmail() != null && !requestDto.getEmail().isBlank())
+        ) {
 
-        byte[] phoneEnc = null;
+        // 소셜 로그인 계정은 수정 불가
+        if (!"LOCAL".equals(user.getProvider())) {
+            throw new IllegalArgumentException(
+                    "소셜 로그인 계정은 아이디 또는 이메일을 수정할 수 없습니다."
+            );
+        }
 
-        // ===== 추가: phone이 들어온 경우에만 저장 =====
+        // username 중복 체크
+        if (
+            requestDto.getUsername() != null &&
+            !requestDto.getUsername().isBlank() &&
+            !requestDto.getUsername().equals(user.getUsername()) &&
+            userRepository.existsByUsername(requestDto.getUsername())
+        ) {
+            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+        }
+
+        // email 중복 체크
+        if (
+            requestDto.getEmail() != null &&
+            !requestDto.getEmail().isBlank() &&
+            !requestDto.getEmail().equals(user.getEmail()) &&
+            userRepository.existsByEmail(requestDto.getEmail())
+        ) {
+            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+        }
+
+        user.updateAccountInfo(
+            requestDto.getUsername(),
+            requestDto.getEmail()
+        );
+        }
+
+        // 기존 전화번호 유지
+        byte[] phoneEnc = user.getPhoneEnc();
+
+        // phone 수정 요청이 있을 때만 변경
         if (requestDto.getPhone() != null && !requestDto.getPhone().isBlank()) {
             phoneEnc = cryptoUtil.encrypt(requestDto.getPhone());
         }
 
-        // ===== 수정: 기존 phoneEnc 포함 updateProfile 사용 =====
         user.updateProfile(
                 phoneEnc,
-                requestDto.getName(),
-                requestDto.getGender(),
-                requestDto.getAge()
+
+                requestDto.getName() != null && !requestDto.getName().isBlank()
+                        ? requestDto.getName()
+                        : user.getName(),
+
+                requestDto.getGender() != null && !requestDto.getGender().isBlank()
+                        ? requestDto.getGender()
+                        : user.getGender(),
+
+                requestDto.getAge() != null
+                        ? requestDto.getAge()
+                        : user.getAge()
         );
+
+        String phoneMasked = null;
+
+        if (phoneEnc != null) {
+            phoneMasked = maskPhone(cryptoUtil.decrypt(phoneEnc));
+        }
 
         return UserUpdateResponseDto.builder()
                 .userId(user.getUserId())
+                .username(user.getUsername())
+                .email(user.getEmail())
                 .name(user.getName())
                 .gender(user.getGender())
                 .age(user.getAge())
-                // ===== 실제 값 기준으로 마스킹 =====
-                .phoneMasked(maskPhone(requestDto.getPhone()))
+                .phoneMasked(phoneMasked)
                 .build();
     }
 

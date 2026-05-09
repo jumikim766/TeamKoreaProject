@@ -76,6 +76,9 @@ public class AuthService {
                 .username(savedUser.getUsername())
                 .name(savedUser.getName())
                 .email(savedUser.getEmail())
+                .role(savedUser.getRole())
+                .status(savedUser.getStatus())
+                .createdAt(savedUser.getCreatedAt())
                 .build();
             }
 

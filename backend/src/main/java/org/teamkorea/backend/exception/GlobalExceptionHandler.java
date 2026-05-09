@@ -21,8 +21,8 @@ public class GlobalExceptionHandler {
         FieldError fieldError = e.getBindingResult().getFieldError();
 
         String message = (fieldError != null)
-                ? fieldError.getDefaultMessage()
-                : "요청한 값이 올바르지 않습니다. 입력값을 다시 확인해주세요.";
+            ? fieldError.getField() + ": " + fieldError.getDefaultMessage()
+            : "요청한 값이 올바르지 않습니다. 입력값을 다시 확인해주세요.";
 
         return ResponseEntity
                 .status(ErrorCode.INVALID_INPUT.getStatus())
@@ -75,16 +75,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.FORBIDDEN.getStatus())
                 .body(BaseResponse.error("해당 요청에 대한 접근 권한이 없습니다.", ErrorCode.FORBIDDEN.getCode()));
-    }
-
-     // ===== 추가: NullPointer 방어 =====
-    @ExceptionHandler(NullPointerException.class)
-    public ResponseEntity<BaseResponse<Void>> handleNullPointerException(
-            NullPointerException e
-    ) {
-        return ResponseEntity
-                .status(ErrorCode.INTERNAL_ERROR.getStatus())
-                .body(BaseResponse.error("서버 처리 중 Null 값 오류가 발생했습니다.", ErrorCode.INTERNAL_ERROR.getCode()));
     }
 
     // ===== 추가: 인증 객체 문제 (JWT userId 없을 때) =====

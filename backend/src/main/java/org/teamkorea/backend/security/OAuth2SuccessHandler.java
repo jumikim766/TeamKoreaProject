@@ -82,7 +82,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                         .username(generateUsername(email, providerId))
                                         .email(email)
                                         .name(name)
-                                        .passwordHash("SOCIAL_LOGIN")
+                                        .passwordHash(null)
                                         .role("USER")
                                         .status("ACTIVE")
                                         .provider(provider)

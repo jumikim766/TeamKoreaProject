@@ -112,37 +112,41 @@ public class User {
         this.lastLoginAt = LocalDateTime.now();
     }
 
-    // ===== 추가: 로그인 성공 시 마지막 로그인 시간 갱신 =====
+    // ===== 로그인 성공 시 마지막 로그인 시간 갱신 =====
     public void updateLastLoginAt() {
         this.lastLoginAt = LocalDateTime.now();
     }
 
-// ===== 추가: phoneEnc 포함 회원정보 수정 =====
+    // ===== phoneEnc 포함 회원정보 수정 =====
     public void updateProfile(byte[] phoneEnc, String name, String gender, Integer age) {
         if (phoneEnc != null) this.phoneEnc = phoneEnc;
-        if (name != null) this.name = name;
-        if (gender != null) this.gender = gender;
+        if (name != null && !name.isBlank()) this.name = name;
+        if (gender != null && !gender.isBlank()) this.gender = gender;
         if (age != null) this.age = age;
     }
 
-    // ===== 기존 유지: phone 없이 회원정보 수정 =====
-    public void updateProfile(String name, String gender, Integer age) {
-        if (name != null) this.name = name;
-        if (gender != null) this.gender = gender;
-        if (age != null) this.age = age;
+    // ===== 아이디/이메일 수정 =====
+    public void updateAccountInfo(String username, String email) {
+        if (username != null && !username.isBlank()) {
+            this.username = username;
+        }
+
+        if (email != null && !email.isBlank()) {
+            this.email = email;
+        }
     }
 
-    // ===== 추가: 비밀번호 변경 =====
+    // ===== 비밀번호 변경 =====
     public void changePassword(String encodedPassword) {
         this.passwordHash = encodedPassword;
     }
 
-    // ===== 추가: 탈퇴 여부 체크 =====
+    // ===== 탈퇴 여부 체크 =====
     public boolean isDeleted() {
         return "DELETED".equals(this.status);
     }
 
-    // ===== 기존 유지: soft delete =====
+    // ===== soft delete =====
     public void withdraw() {
         this.status = "DELETED";
         this.deletedAt = LocalDateTime.now();
