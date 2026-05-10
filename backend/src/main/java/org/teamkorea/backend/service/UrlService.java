@@ -11,6 +11,7 @@ import org.teamkorea.backend.dto.UrlListItemResponseDto;
 import org.teamkorea.backend.dto.UrlListResponseDto;
 import org.teamkorea.backend.repository.UrlAnalysisRepository;
 import org.teamkorea.backend.repository.UrlRepository;
+import org.teamkorea.backend.domain.RiskLevel;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +24,7 @@ public class UrlService {
     private final UrlRepository urlRepository;
     private final UrlAnalysisRepository urlAnalysisRepository;
 
+    // URL 목록 조회
     public UrlListResponseDto getUrls(
             String domain,
             String riskLevel,
@@ -36,26 +38,34 @@ public class UrlService {
                 Sort.by(Sort.Direction.DESC, "createdAt")
         );
 
-        Page<Url> urlPage;
-
-        if (domain != null && !domain.isBlank()) {
-            urlPage = urlRepository.findByDomainContainingIgnoreCase(domain, pageable);
-        } else {
-            urlPage = urlRepository.findAll(pageable);
+        // 빈 문자열 domain은 검색 조건에서 제외
+        String searchDomain = null;
+        if (domain != null && !domain.trim().isEmpty()) {
+                searchDomain = domain.trim();
         }
 
+        // 문자열 reiskLevel을 enum으로 변환
+        RiskLevel searchRiskLevel = null;
+        if (riskLevel != null && !riskLevel.trim().isEmpty()) {
+                try {
+                        searchRiskLevel = RiskLevel.valueOf(riskLevel.trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("올바르지 않은 위험도 값입니다.");
+                }
+        }
+
+        // URL 목록 조회
+        Page<Url> urlPage = urlRepository.searchUrls(domain, searchRiskLevel, isAnalyzed, pageable);
+
+        
         List<UrlListItemResponseDto> urls = urlPage.getContent().stream()
                 .map(this::toListItem)
-                .filter(dto -> riskLevel == null || riskLevel.isBlank()
-                        || riskLevel.equals(dto.getRiskLevel()))
-                .filter(dto -> isAnalyzed == null
-                        || isAnalyzed.equals(dto.getIsAnalyzed()))
                 .toList();
 
         return new UrlListResponseDto(
                 urls,
-                page,
-                size,
+                urlPage.getNumber(),
+                urlPage.getSize(),
                 urlPage.getTotalElements(),
                 urlPage.getTotalPages()
         );
