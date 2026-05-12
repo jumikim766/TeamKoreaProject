@@ -20,7 +20,6 @@ public class ReportResponseDto {
 
     /**
      * Report 엔티티 → DTO 변환 생성자
-     * [수정 포인트] 클래스명을 Reports에서 Report로 변경하고, 날짜 형식을 명세서 규격에 맞췄습니다.
      */
     public ReportResponseDto(Reports report) {
         this.reportId = report.getReportId();
