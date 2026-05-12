@@ -83,14 +83,18 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    "{\"success\": false, \"message\": \"로그인이 필요합니다.\", \"data\": null}"
+                                    objectMapper.writeValueAsString(
+                                        BaseResponse.error("로그인이 필요합니다.", "UNAUTHORIZED")
+                                )
                             );
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    "{\"success\": false, \"message\": \"접근 권한이 없습니다.\", \"data\": null}"
+                                   objectMapper.writeValueAsString(
+                                        BaseResponse.error("접근 권한이 없습니다.", "FORBIDDEN")
+                                )
                             );
                         })
                 )
