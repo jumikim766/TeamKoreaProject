@@ -3,13 +3,14 @@ package org.teamkorea.backend.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.teamkorea.backend.config.UserDetailsImpl;
 import org.teamkorea.backend.dto.BaseResponse;
 import org.teamkorea.backend.dto.ReportRequestDto;
 import org.teamkorea.backend.dto.ReportResponseDto;
 import org.teamkorea.backend.service.ReportService;
 
-import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,16 +24,15 @@ public class ReportController {
 
     /**
      * 사용자 신고 등록
+     * 에러 해결: email 대신 User 객체를 직접 전달하도록 수정
      */
     @PostMapping
     public ResponseEntity<BaseResponse<ReportResponseDto>> createReport(
             @RequestBody ReportRequestDto request,
-            Principal principal
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        // JWT 인증 후에는 principal에서 현재 사용자 이메일을 가져옴
-        String email = getLoginEmail(principal);
-
-        ReportResponseDto response = reportService.createReport(email, request);
+        // userDetails에서 직접 User 엔티티를 꺼내서 전달
+        ReportResponseDto response = reportService.createReport(userDetails.getUser(), request);
 
         // API 명세서 기준: 201 Created + "신고가 접수되었습니다."
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -44,28 +44,16 @@ public class ReportController {
      */
     @GetMapping
     public ResponseEntity<BaseResponse<Map<String, List<ReportResponseDto>>>> getMyReports(
-            Principal principal
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        // JWT 인증 후에는 principal에서 현재 사용자 이메일을 가져옴
-        String email = getLoginEmail(principal);
+        // 이메일 기반 조회 로직 유지
+        List<ReportResponseDto> reports = reportService.getReportsByEmail(userDetails.getUsername());
 
-        List<ReportResponseDto> reports = reportService.getReportsByEmail(email);
-
-        // API 명세서 기준: data 안에 reports 배열로 감싸서 반환
         Map<String, List<ReportResponseDto>> data = new HashMap<>();
         data.put("reports", reports);
 
         return ResponseEntity.ok(
                 BaseResponse.success("신고 내역 조회에 성공했습니다.", data)
         );
-    }
-
-    private String getLoginEmail(Principal principal) {
-        if (principal == null) {
-            // 임시 테스트용 이메일을 쓰는 것보다 명확하게 예외 처리하는 편이 안전함
-            throw new IllegalArgumentException("로그인이 필요합니다.");
-        }
-
-        return principal.getName();
     }
 }

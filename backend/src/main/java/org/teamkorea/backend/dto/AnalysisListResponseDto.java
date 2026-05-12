@@ -38,10 +38,10 @@ public class AnalysisListResponseDto {
      */
     public AnalysisListResponseDto(AnalysisHistory history) {
         // 엔티티에서 수정한 필드명 'analysis'를 정확히 참조합니다.
-        this.analysisId = history.getAnalysis().getAnalysisId();
-        this.url = history.getAnalysis().getUrl().getNormalizedUrl();
-        this.riskLevel = history.getAnalysis().getRiskLevel().name();
-        this.riskType = history.getAnalysis().getRiskType(); // 히스토리에서도 유형 노출
-        this.analyzedAt = history.getAnalysis().getAnalyzedAt();
+        this.analysisId = history.getUrlAnalysis().getAnalysisId();
+        this.url = history.getUrlAnalysis().getUrl().getNormalizedUrl();
+        this.riskLevel = history.getUrlAnalysis().getRiskLevel().name();
+        this.riskType = history.getUrlAnalysis().getRiskType(); // 히스토리에서도 유형 노출
+        this.analyzedAt = history.getUrlAnalysis().getAnalyzedAt();
     }
 }
