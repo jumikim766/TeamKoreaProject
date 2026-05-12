@@ -12,6 +12,7 @@ import SimplePage from './pages/SimplePage';
 import UrlPage from './pages/UrlPage';
 import './styles/Dashboard.css';
 import { clearTokens, getAccessToken } from './utils/token';
+import SecurityContactPage from './pages/SecurityContactPage';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -197,6 +198,10 @@ function App() {
   if (view === 'report-guide' || view === 'report') {
     return <ReportPage {...sharedProps} {...authProps} currentView={view} />;
   }
+
+  if (view === 'security-contact') {
+  return <SecurityContactPage {...sharedProps} {...authProps} />;
+}
 
   if (view === 'classification-method' || view === 'classification-criteria') {
     return <ClassificationPage {...sharedProps} {...authProps} currentView={view} />;
