@@ -10,7 +10,6 @@ import org.teamkorea.backend.domain.RefreshToken;
 import org.teamkorea.backend.domain.User;
 import org.teamkorea.backend.dto.LoginResponseDto;
 import org.teamkorea.backend.dto.LoginUserDto;
-import org.teamkorea.backend.dto.ReissueRequestDto;
 import org.teamkorea.backend.dto.ReissueResponseDto;
 import org.teamkorea.backend.dto.SignupRequestDto;
 import org.teamkorea.backend.dto.SignupResponseDto;
@@ -35,7 +34,6 @@ public class AuthService {
     private final CryptoUtil cryptoUtil;
 
     public SignupResponseDto signup(SignupRequestDto requestDto) {
-        validateSignupRequest(requestDto);
         validateDuplicate(requestDto);
 
         byte[] phoneEnc = null;
@@ -120,55 +118,35 @@ public class AuthService {
 
     // readOnly 제거: 만료 토큰 삭제(쓰기) 가능성이 있으므로
     @Transactional
-    public ReissueResponseDto reissue(ReissueRequestDto requestDto) {
-        if (requestDto == null
-                || requestDto.getRefreshToken() == null
-                || requestDto.getRefreshToken().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "refreshToken이 누락되었습니다.");
+    public ReissueResponseDto reissue(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "refreshToken 쿠키가 없습니다.");
         }
-
-        String refreshToken = requestDto.getRefreshToken();
-
         if (!jwtUtil.validateToken(refreshToken)) {
-            throw new BusinessException(
-                    ErrorCode.UNAUTHORIZED, "유효하지 않거나 만료된 refreshToken입니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "유효하지 않거나 만료된 refreshToken입니다.");
         }
-
         String refreshTokenHash = jwtUtil.hashToken(refreshToken);
-
         RefreshToken savedToken = refreshTokenRepository.findByTokenHash(refreshTokenHash)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.NOT_FOUND, "저장된 토큰 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "저장된 토큰 정보를 찾을 수 없습니다."));
 
-        // DB 기준 만료 시간 이중 확인
         if (savedToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.deleteByTokenHash(refreshTokenHash);
-            throw new BusinessException(
-                    ErrorCode.UNAUTHORIZED, "유효하지 않거나 만료된 refreshToken입니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "유효하지 않거나 만료된 refreshToken입니다.");
         }
 
         String newAccessToken = jwtUtil.generateAccessToken(savedToken.getUser());
-
         return ReissueResponseDto.builder()
                 .accessToken(newAccessToken)
                 .tokenType("Bearer")
                 .build();
     }
 
-    /** 현재 기기 로그아웃 */
+    /** logout(String refreshToken)은 null 허용으로 살짝 완화 */
     public void logout(String refreshToken) {
-        if (refreshToken == null || refreshToken.isBlank()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT, "로그아웃 요청 정보가 올바르지 않습니다.");
-        }
-
+        if (refreshToken == null || refreshToken.isBlank()) return; // 이미 만료/없음 → 멱등 처리
         String tokenHash = jwtUtil.hashToken(refreshToken);
-
         refreshTokenRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.UNAUTHORIZED, "인증 정보가 유효하지 않습니다."));
-
-        refreshTokenRepository.deleteByTokenHash(tokenHash);
+                .ifPresent(rt -> refreshTokenRepository.deleteByTokenHash(tokenHash));
     }
 
     /** 전체 기기 로그아웃 */
@@ -186,26 +164,6 @@ public class AuthService {
     }
 
     // ===== private 검증 메서드 =====
-
-    private void validateSignupRequest(SignupRequestDto requestDto) {
-        if (requestDto == null) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT, "회원가입 요청 정보가 올바르지 않습니다.");
-        }
-        if (requestDto.getUsername() == null || requestDto.getUsername().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "아이디는 필수입니다.");
-        }
-        if (requestDto.getEmail() == null || requestDto.getEmail().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일은 필수입니다.");
-        }
-        if (requestDto.getPassword() == null || requestDto.getPassword().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "비밀번호는 필수입니다.");
-        }
-        if (requestDto.getName() == null || requestDto.getName().isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이름은 필수입니다.");
-        }
-    }
-
     private void validateLoginRequest(String email, String password) {
         if (email == null || email.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일은 필수입니다.");
