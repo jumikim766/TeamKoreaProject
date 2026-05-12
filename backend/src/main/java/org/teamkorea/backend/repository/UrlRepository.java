@@ -42,6 +42,11 @@ public interface UrlRepository extends JpaRepository<Url, Long> {
                         FROM UrlAnalysis ua4
                         WHERE ua4.url = u
                     ))
+                    OR (:isAnalyzed = false AND NOT EXISTS (
+                        SELECT 1
+                        FROM UrlAnalysis ua5
+                        WHERE ua5.url = u
+                    ))
                 )    
     """)
     Page<Url> searchUrls(
