@@ -7,10 +7,12 @@ import MyPage from './pages/MyPage';
 import NotificationPage from './pages/NotificationPage';
 import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import ReportPage from './pages/ReportPage';
+import GuidePage from './pages/GuidePage';
 import SimplePage from './pages/SimplePage';
 import UrlPage from './pages/UrlPage';
 import './styles/Dashboard.css';
 import { clearTokens, getAccessToken } from './utils/token';
+import SecurityContactPage from './pages/SecurityContactPage';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -32,7 +34,8 @@ export type ViewMode =
   | 'service-info'
   | 'terms'
   | 'privacy'
-  | 'security-contact';
+  | 'security-contact'
+  | 'guide';
 
 function getInitialTheme(): ThemeMode {
   const savedTheme = window.localStorage.getItem('theme-mode');
@@ -196,9 +199,17 @@ function App() {
     return <ReportPage {...sharedProps} {...authProps} currentView={view} />;
   }
 
+  if (view === 'security-contact') {
+  return <SecurityContactPage {...sharedProps} {...authProps} />;
+}
+
   if (view === 'classification-method' || view === 'classification-criteria') {
     return <ClassificationPage {...sharedProps} {...authProps} currentView={view} />;
   }
+
+  if (view === 'guide') {
+  return <GuidePage />;
+}
 
   const currentPage = pageContent[view];
 
