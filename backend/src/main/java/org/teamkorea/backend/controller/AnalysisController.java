@@ -22,7 +22,7 @@ public class AnalysisController {
     private final AnalysisService analysisService;
 
     // 1. 분석 상세 조회
-    @GetMapping("/url-analysis/{analysisId}")
+    @GetMapping("/analysis-detail/{analysisId}")
     public ResponseEntity<AnalysisDetailResponseDto> getDetail(@PathVariable Long analysisId) {
         AnalysisDetailResponseDto response = analysisService.getDetail(analysisId);
         return ResponseEntity.ok(response);
