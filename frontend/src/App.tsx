@@ -12,6 +12,7 @@ import SimplePage from "./pages/SimplePage";
 import TermsPage from "./pages/TermsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import UrlPage from "./pages/UrlPage";
+import SecurityContactPage from "./pages/SecurityContactPage";
 import "./styles/Dashboard.css";
 import { clearTokens, getAccessToken } from "./utils/token";
 
@@ -206,11 +207,15 @@ function App() {
     return <ReportPage {...sharedProps} {...authProps} currentView={view} />;
   }
 
-  if (view === "classification-method" || view === "classification-criteria") {
-    return (
-      <ClassificationPage {...sharedProps} {...authProps} currentView={view} />
-    );
-  }
+if (view === "security-contact") {
+  return <SecurityContactPage {...sharedProps} {...authProps} />;
+}
+
+if (view === "classification-method" || view === "classification-criteria") {
+  return (
+    <ClassificationPage {...sharedProps} {...authProps} currentView={view} />
+  );
+}
 
   if (view === "terms") {
     return <TermsPage {...sharedProps} {...authProps} />;

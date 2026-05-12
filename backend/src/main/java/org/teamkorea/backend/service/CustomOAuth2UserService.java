@@ -6,7 +6,9 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
@@ -15,11 +17,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
         // 로그인 방식 받기 (google / naver)
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
-        System.out.println("OAuth 로그인 provider: " + registrationId);
+        log.info("OAuth 로그인 provider: {}", registrationId);
 
         OAuth2User oAuth2User = new DefaultOAuth2UserService().loadUser(userRequest);
-
-        System.out.println("OAuth 사용자 정보: " + oAuth2User.getAttributes());
 
         return oAuth2User;
     }
