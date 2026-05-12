@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 
 @Getter
 @Builder
@@ -20,7 +22,10 @@ public class SignupRequestDto {
     private String username;
 
     @NotBlank(message = "비밀번호는 필수입니다.")
-    @Size(min = 8, max = 20, message = "비밀번호는 8자 이상 20자 이하로 입력해주세요.")
+    @Pattern(
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,20}$",
+        message = "비밀번호는 영문 대문자, 소문자, 숫자, 특수문자를 포함한 8~20자여야 합니다."
+    )
     private String password;
 
     @NotBlank(message = "이름은 필수입니다.")
@@ -35,6 +40,13 @@ public class SignupRequestDto {
     @Pattern(regexp = "^010\\d{8}$", message = "전화번호는 010으로 시작하는 11자리 숫자여야 합니다.")
     private String phone;
 
+    @Pattern(
+        regexp = "^(MALE|FEMALE|OTHER)?$",
+        message = "성별은 MALE, FEMALE, OTHER 중 하나여야 합니다."
+    )
     private String gender;
+    
+    @Min(value = 1, message = "나이는 1 이상이어야 합니다.")
+    @Max(value = 120, message = "나이는 120 이하여야 합니다.")
     private Integer age;
 }
