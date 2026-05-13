@@ -1,15 +1,28 @@
 .guide-page {
+  width: 100%;
   min-height: 100vh;
-  background: #ffffff;
+  margin: 0;
+  padding: 0;
+  background: #f8fafc;
   color: #0f172a;
-  padding: 60px 24px;
   font-family: 'Pretendard', sans-serif;
 }
 
+.guide-main {
+  width: 100%;
+  padding: 48px 40px 80px;
+  box-sizing: border-box;
+}
+
 .hero-section {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 120px 0;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto 72px;
+  padding: 72px 64px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #0b63ce, #2458e6);
+  color: #ffffff;
+  box-sizing: border-box;
 }
 
 .hero-badge {
@@ -28,24 +41,28 @@
   line-height: 1.2;
   margin-bottom: 24px;
   font-weight: 800;
-  color: #0f172a;
+  color: #ffffff;
 }
 
 .hero-section p {
   font-size: 20px;
   line-height: 1.8;
-  color: #475569;
+  color: #ffffff;
+  margin-bottom: 40px;
+}
+
+.hero-sub {
   margin-bottom: 40px;
 }
 
 .hero-buttons {
   display: flex;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .primary-btn,
 .secondary-btn {
-  border: none;
   border-radius: 14px;
   padding: 16px 28px;
   font-size: 16px;
@@ -55,8 +72,9 @@
 }
 
 .primary-btn {
+  border: none;
   background: #2563eb;
-  color: white;
+  color: #ffffff;
   box-shadow: 0 10px 25px rgba(37, 99, 235, 0.15);
 }
 
@@ -66,13 +84,144 @@
 }
 
 .secondary-btn {
-  background: white;
+  background: #ffffff;
   color: #2563eb;
   border: 1px solid #cbd5e1;
 }
 
 .secondary-btn:hover {
   background: #eff6ff;
+}
+
+.guide-section {
+  width: 100%;
+  margin-bottom: 72px;
+}
+
+.guide-section h2 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.guide-section h2::after {
+  content: '';
+  width: 48px;
+  height: 4px;
+  background: #2563eb;
+  position: absolute;
+  left: 0;
+  bottom: -12px;
+  border-radius: 999px;
+}
+
+.card-grid,
+.threat-list {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.step-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 40px 28px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.step-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.08);
+}
+
+.step-number {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  font-size: 42px;
+  font-weight: 900;
+  color: #f1f5f9;
+}
+
+.step-icon,
+.threat-icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  margin-bottom: 28px;
+}
+
+.step-card h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+
+.step-card p {
+  color: #6b7280;
+  line-height: 1.9;
+  font-size: 16px;
+}
+
+.threat-item {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 28px;
+  transition: all 0.3s ease;
+}
+
+.threat-item:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+.threat-item h3 {
+  font-size: 22px;
+  color: #111827;
+  margin-bottom: 14px;
+}
+
+.threat-item p {
+  color: #6b7280;
+  line-height: 1.7;
+}
+
+.threat-item:nth-child(1) .threat-icon {
+  background: #fee2e2;
+}
+
+.threat-item:nth-child(2) .threat-icon {
+  background: #ffedd5;
+}
+
+.threat-item:nth-child(3) .threat-icon {
+  background: #ede9fe;
+}
+
+.threat-item:nth-child(4) .threat-icon {
+  background: #dbeafe;
+}
+
+.threat-item:nth-child(5) .threat-icon {
+  background: #fef3c7;
+}
+
+.threat-item:nth-child(6) .threat-icon {
+  background: #dcfce7;
 }
 
 .result-card {
@@ -112,6 +261,7 @@
 .result-reasons h3 {
   margin-bottom: 16px;
   font-size: 18px;
+  color: #111827;
 }
 
 .result-reasons ul {
@@ -121,246 +271,6 @@
 .result-reasons li {
   margin-bottom: 10px;
   color: #4b5563;
-}
-
-.faq-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.faq-item {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 20px;
-  padding: 28px;
-}
-
-.faq-item h3 {
-  font-size: 18px;
-  margin-bottom: 12px;
-  color: #111827;
-}
-
-.faq-item p {
-  color: #6b7280;
-  line-height: 1.7;
-}
-
-.faq-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.faq-item {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 20px;
-  padding: 28px;
-}
-
-.faq-item h3 {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 12px;
-  color: #111827;
-}
-
-.faq-item p {
-  color: #6b7280;
-  line-height: 1.7;
-}
-
-.cta-section {
-  margin-top: 100px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 32px;
-  padding: 60px 40px;
-  text-align: center;
-}
-
-.cta-section h2 {
-  font-size: 36px;
-  margin-bottom: 20px;
-  color: #111827;
-}
-
-.cta-section p {
-  color: #6b7280;
-  line-height: 1.8;
-  margin-bottom: 36px;
-}
-
-.cta-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.cta-btn {
-  border: none;
-  background: #111827;
-  color: white;
-  padding: 14px 24px;
-  border-radius: 14px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.guide-section {
-  margin-top: 80px;
-}
-
-.guide-section h2 {
-  font-size: 32px;
-  font-weight: 800;
-  color: #111827;
-  margin-bottom: 40px;
-  position: relative;
-}
-
-.guide-section h2::after {
-  content: '';
-  width: 48px;
-  height: 4px;
-  background: #2563eb;
-  position: absolute;
-  left: 0;
-  bottom: -12px;
-  border-radius: 999px;
-}
-
-/* 사용 방법 */
-
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 28px;
-}
-
-.step-card {
-  position: relative;
-  background: #ffffff;
-  border-radius: 28px;
-  padding: 40px 28px;
-  border: 1px solid #e5e7eb;
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.step-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.08);
-}
-
-.step-number {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  font-size: 42px;
-  font-weight: 900;
-  color: #f1f5f9;
-}
-
-.step-icon {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: #eff6ff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 38px;
-  margin-bottom: 28px;
-}
-
-.step-card h3 {
-  font-size: 24px;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 18px;
-  line-height: 1.5;
-}
-
-.step-card p {
-  color: #6b7280;
-  line-height: 1.9;
-  font-size: 16px;
-}
-
-/* 탐지 가능한 위협 */
-
-.threat-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 24px;
-}
-
-.threat-item {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 24px;
-  padding: 28px;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.threat-item:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
-}
-
-.threat-item span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: #eff6ff;
-  font-size: 28px;
-  margin-bottom: 20px;
-}
-
-.threat-item h3 {
-  font-size: 22px;
-  color: #111827;
-  margin-bottom: 14px;
-}
-
-.threat-item p {
-  color: #6b7280;
-  line-height: 1.7;
-}
-
-/* 위험 색상 */
-
-.threat-item:nth-child(1) span {
-  background: #fee2e2;
-}
-
-.threat-item:nth-child(2) span {
-  background: #ffedd5;
-}
-
-.threat-item:nth-child(3) span {
-  background: #ede9fe;
-}
-
-.threat-item:nth-child(4) span {
-  background: #dbeafe;
-}
-
-.threat-item:nth-child(5) span {
-  background: #fef3c7;
-}
-
-.threat-item:nth-child(6) span {
-  background: #dcfce7;
 }
 
 .faq-list {
@@ -396,6 +306,7 @@
 .faq-question h3 {
   font-size: 20px;
   color: #111827;
+  margin: 0;
 }
 
 .faq-question span {
@@ -408,4 +319,130 @@
   margin-top: 20px;
   color: #6b7280;
   line-height: 1.8;
+}
+
+.cta-section {
+  margin-top: 100px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 32px;
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.cta-section h2 {
+  font-size: 36px;
+  margin-bottom: 20px;
+  color: #111827;
+}
+
+.cta-section p {
+  color: #6b7280;
+  line-height: 1.8;
+  margin-bottom: 36px;
+}
+
+.cta-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cta-btn {
+  border: none;
+  background: #111827;
+  color: #ffffff;
+  padding: 14px 24px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Dark mode */
+
+.guide-page.dark {
+  background: #111111;
+  color: #ffffff;
+}
+
+.guide-page.dark .guide-main {
+  background: #111111;
+}
+
+.guide-page.dark .hero-section {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+}
+
+.guide-page.dark .guide-section h2,
+.guide-page.dark .cta-section h2,
+.guide-page.dark .cta-section p {
+  color: #ffffff;
+}
+
+.guide-page.dark .step-card,
+.guide-page.dark .threat-item,
+.guide-page.dark .result-card,
+.guide-page.dark .faq-item,
+.guide-page.dark .cta-section {
+  background: #2f2f2f;
+  border-color: #444;
+  color: #ffffff;
+}
+
+.guide-page.dark .step-card h3,
+.guide-page.dark .step-card p,
+.guide-page.dark .threat-item h3,
+.guide-page.dark .threat-item p,
+.guide-page.dark .result-card h3,
+.guide-page.dark .result-card p,
+.guide-page.dark .result-card li,
+.guide-page.dark .faq-question h3,
+.guide-page.dark .faq-answer {
+  color: #ffffff;
+}
+
+.guide-page.dark .step-number {
+  color: #4b5563;
+}
+
+.guide-page.dark .hero-badge,
+.guide-page.dark .step-icon,
+.guide-page.dark .threat-icon {
+  background: #454545;
+  color: #dbeafe;
+}
+
+.guide-page.dark .secondary-btn,
+.guide-page.dark .cta-btn {
+  background: #444;
+  color: #ffffff;
+  border: 1px solid #666;
+}
+
+.guide-page.dark .secondary-btn:hover,
+.guide-page.dark .cta-btn:hover {
+  background: #555;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .guide-main {
+    padding: 32px 20px 64px;
+  }
+
+  .hero-section {
+    padding: 48px 28px;
+  }
+
+  .hero-section h1 {
+    font-size: 42px;
+  }
+
+  .card-grid,
+  .threat-list {
+    grid-template-columns: 1fr;
+  }
 }

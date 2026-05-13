@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import AuthPage from "./pages/AuthPage";
 import ClassificationPage from "./pages/ClassificationPage";
@@ -17,6 +18,7 @@ import "./styles/Dashboard.css";
 import { clearTokens, getAccessToken } from "./utils/token";
 
 type ThemeMode = "light" | "dark";
+
 
 export type ViewMode =
   | "dashboard"
@@ -211,6 +213,7 @@ function App() {
     return <SecurityContactPage {...sharedProps} {...authProps} />;
   }
 
+
   if (view === "classification-method" || view === "classification-criteria") {
     return (
       <ClassificationPage {...sharedProps} {...authProps} currentView={view} />
@@ -225,9 +228,10 @@ function App() {
     return <PrivacyPage {...sharedProps} {...authProps} />;
   }
 
-  if (view === "guide") {
-    return <GuidePage />;
-  }
+  if (view === 'guide') {
+  return <GuidePage {...sharedProps} {...authProps} />;
+}
+
 
   const currentPage = pageContent[view];
 
