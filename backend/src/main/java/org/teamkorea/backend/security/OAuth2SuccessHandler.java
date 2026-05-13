@@ -3,19 +3,22 @@ package org.teamkorea.backend.security;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.teamkorea.backend.domain.RefreshToken;
 import org.teamkorea.backend.domain.User;
+import org.teamkorea.backend.exception.BusinessException;
+import org.teamkorea.backend.exception.ErrorCode;
 import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Map;
@@ -27,11 +30,24 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtil jwtUtil;
 
-    public OAuth2SuccessHandler(
-            UserRepository userRepository,
-            RefreshTokenRepository refreshTokenRepository,
-            JwtUtil jwtUtil
-    ) {
+    @Value("${app.oauth2.redirect-uri}")
+    private String frontRedirectUri;          // ex) http://localhost:5173/oauth/callback
+
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenExpirationMillis;
+
+    @Value("${app.cookie.secure:false}")      // 로컬은 false, 운영은 true
+    private boolean cookieSecure;
+
+    @Value("${app.cookie.same-site:Lax}")     // 로컬은 Lax, 크로스도메인 운영은 None
+    private String cookieSameSite;
+
+    @Value("${app.cookie.domain:}")           // 로컬은 비움
+    private String cookieDomain;
+
+    public OAuth2SuccessHandler(UserRepository userRepository,
+                                RefreshTokenRepository refreshTokenRepository,
+                                JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtUtil = jwtUtil;
@@ -48,30 +64,22 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
-        String provider;
-        String providerId;
-        String email;
-        String name;
-
+        String provider, providerId, email, name;
         if (attributes.containsKey("response")) {
             provider = "NAVER";
-
-            Map<String, Object> naverResponse =
-                    (Map<String, Object>) attributes.get("response");
-
+            Map<String, Object> naverResponse = (Map<String, Object>) attributes.get("response");
             providerId = (String) naverResponse.get("id");
-            email = (String) naverResponse.get("email");
-            name = (String) naverResponse.get("name");
+            email      = (String) naverResponse.get("email");
+            name       = (String) naverResponse.get("name");
         } else {
-            provider = "GOOGLE";
-
+            provider   = "GOOGLE";
             providerId = (String) attributes.get("sub");
-            email = (String) attributes.get("email");
-            name = (String) attributes.get("name");
+            email      = (String) attributes.get("email");
+            name       = (String) attributes.get("name");
         }
 
         if (providerId == null || email == null || name == null) {
-            throw new IllegalStateException("사용자 정보가 부족합니다.");
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "소셜 로그인 사용자 정보가 부족합니다.");
         }
 
         User user = userRepository
@@ -82,7 +90,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                         .username(generateUsername(email, providerId))
                                         .email(email)
                                         .name(name)
-                                        .passwordHash("SOCIAL_LOGIN")
+                                        .passwordHash(null)
                                         .role("USER")
                                         .status("ACTIVE")
                                         .provider(provider)
@@ -91,46 +99,39 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                         )
                 );
 
-        String username = generateUsername(email, providerId);
-
-        user.updateOAuthInfo(username, email, name, provider, providerId);
+        user.updateOAuthInfo(generateUsername(email, providerId), email, name, provider, providerId);
         user.updateLastLoginAt();
-
         User savedUser = userRepository.save(user);
 
-        String accessToken = jwtUtil.generateAccessToken(savedUser);
         String refreshToken = jwtUtil.generateRefreshToken(savedUser);
         String refreshTokenHash = jwtUtil.hashToken(refreshToken);
 
         LocalDateTime expiresAt = LocalDateTime.ofInstant(
-                jwtUtil.getRefreshTokenExpiryInstant(),
-                ZoneId.systemDefault()
-        );
+                jwtUtil.getRefreshTokenExpiryInstant(), ZoneId.systemDefault());
 
         refreshTokenRepository.deleteAllByUser(savedUser);
+        refreshTokenRepository.save(new RefreshToken(savedUser, refreshTokenHash, expiresAt));
 
-        RefreshToken savedRefreshToken =
-                new RefreshToken(savedUser, refreshTokenHash, expiresAt);
+        // === HttpOnly + Secure 쿠키로 refreshToken 전달 ===
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")                                   // 또는 "/api/auth"로 좁혀도 됨
+                .maxAge(Duration.ofMillis(refreshTokenExpirationMillis));
+        if (cookieDomain != null && !cookieDomain.isBlank()) {
+            builder.domain(cookieDomain);
+        }
+        response.addHeader("Set-Cookie", builder.build().toString());
 
-        refreshTokenRepository.save(savedRefreshToken);
-
-        String redirectUrl = "http://localhost:5173/oauth/callback"
-        + "?accessToken=" + URLEncoder.encode(accessToken, StandardCharsets.UTF_8)
-        + "&refreshToken=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)
-        + "&tokenType=Bearer";
-
-        response.sendRedirect(redirectUrl);
+        // accessToken은 URL에 싣지 않는다 → 프론트가 /api/auth/reissue로 받아감
+        response.sendRedirect(frontRedirectUri);
     }
 
     private String generateUsername(String email, String providerId) {
-        String base = email.split("@")[0];
+        String base   = email.split("@")[0];
         String suffix = providerId.substring(0, Math.min(5, providerId.length()));
         String username = base + "_" + suffix;
-
-        if (username.length() > 20) {
-            username = username.substring(0, 20);
-        }
-
-        return username;
+        return username.length() > 20 ? username.substring(0, 20) : username;
     }
 }

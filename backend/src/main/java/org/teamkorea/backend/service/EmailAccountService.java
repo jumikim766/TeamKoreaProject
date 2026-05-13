@@ -8,6 +8,7 @@ import org.teamkorea.backend.domain.*;
 import org.teamkorea.backend.dto.EmailAccountRequestDto;
 import org.teamkorea.backend.dto.EmailAccountResponseDto;
 import org.teamkorea.backend.repository.*;
+import org.teamkorea.backend.security.CryptoUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -19,19 +20,22 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.Optional;
+
+import jakarta.mail.internet.InternetAddress;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class EmailAccountService {
 
+    private static final int FIRST_SYNC_LIMIT = 100;
+    private static final int NEXT_SYNC_LIMIT = 10;
+
     private final EmailAccountRepository emailAccountRepository;
     private final UserRepository userRepository;
     private final EmailRepository emailRepository;
-    private final UrlRepository urlRepository;
-    private final EmailUrlRepository emailUrlRepository;
-    private final AnalysisService analysisService;
+    private final CryptoUtil cryptoUtil;
+    private final EmailSaveService emailSaveService;
     
     // 이메일 계정 등록
     @Transactional
@@ -55,7 +59,7 @@ public class EmailAccountService {
                 .imapHost(imapConfig.host())
                 .imapPort(imapConfig.port())
                 .loginId(request.getLoginId())
-                .secretEnc(request.getSecret().getBytes(StandardCharsets.UTF_8))
+                .secretEnc(cryptoUtil.encrypt(request.getSecret()))
                 .active(true)
                 .lastSyncStatus(null)
                 .lastSyncedAt(null)
@@ -87,13 +91,12 @@ public class EmailAccountService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
         EmailAccount emailAccount = emailAccountRepository.findByAccountIdAndUser(accountId, user)
-                .orElseThrow(() -> new IllegalArgumentException("삭제할 이메일 계정을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("수집할 이메일 계정을 찾을 수 없습니다."));
 
         emailAccountRepository.delete(emailAccount);
     }
 
     // 이메일 동기화
-    @Transactional
     public Map<String, Object> syncEmails(Long userId, Long accountId) {
 
         User user = userRepository.findById(userId)
@@ -115,13 +118,13 @@ public class EmailAccountService {
         int extractedUrlCount = 0;
 
         try {
-            System.out.println("========== SYNC START ==========");
-            System.out.println("accountId = " + account.getAccountId());
-            System.out.println("provider = " + account.getProvider());
-            System.out.println("email = " + account.getEmail());
-            System.out.println("loginId = " + account.getLoginId());
-            System.out.println("imapHost = " + account.getImapHost());
-            System.out.println("imapPort = " + account.getImapPort());
+            // System.out.println("========== SYNC START ==========");
+            // System.out.println("accountId = " + account.getAccountId());
+            // System.out.println("provider = " + account.getProvider());
+            // System.out.println("email = " + account.getEmail());
+            // System.out.println("loginId = " + account.getLoginId());
+            // System.out.println("imapHost = " + account.getImapHost());
+            // System.out.println("imapPort = " + account.getImapPort());
 
             // 마지막 동기화 시각 조회
             LocalDateTime lastSyncedAt = account.getLastSyncedAt();
@@ -136,7 +139,7 @@ public class EmailAccountService {
             Session session = Session.getInstance(props);
             store = session.getStore("imap");
 
-            String secret = new String(account.getSecretEnc(), StandardCharsets.UTF_8);
+            String secret = cryptoUtil.decrypt(account.getSecretEnc());
 
             store.connect(
                     account.getImapHost(),
@@ -149,9 +152,18 @@ public class EmailAccountService {
 
             Message[] messages = inbox.getMessages();
 
-            int startIndex = messages.length - 1;
-            int endIndex = Math.max(0, messages.length - 10);
+            boolean isFirstSync = account.getLastSyncedAt() == null;
 
+            int syncLimit = isFirstSync ? FIRST_SYNC_LIMIT : NEXT_SYNC_LIMIT;
+
+            int startIndex = messages.length - 1;
+            int endIndex = Math.max(0, messages.length - syncLimit);
+
+            // System.out.println("[SYNC] firstSync = " + isFirstSync);
+            // System.out.println("[SYNC] syncLimit = " + syncLimit);
+            // System.out.println("[SYNC] totalMessages = " + messages.length);
+
+            // sync 시작 - 100개 / 이후 10개
             for (int i = startIndex; i >= endIndex; i--) {
 
                 Message msg = messages[i];
@@ -162,7 +174,7 @@ public class EmailAccountService {
                         ? LocalDateTime.ofInstant(
                         msg.getReceivedDate().toInstant(),
                         ZoneId.systemDefault()
-                )
+                        )
                         : LocalDateTime.now();
 
                 /*
@@ -170,85 +182,38 @@ public class EmailAccountService {
                     skippedEmailCount++;
                     continue;
                 }
-*/
+                */
                 String messageUid = buildMessageUid(msg);
 
-                /* 
+                
                 if (emailRepository.existsByMessageUid(messageUid)) {
                     skippedEmailCount++;
                     continue;
-                }*/
+                }
 
                 String subject = msg.getSubject();
                 String bodyText = getText(msg);
-                System.out.println("메일 제목: " + subject);
-System.out.println("메일 내용: " + bodyText);
 
-                Email savedEmail = emailRepository.save(
-                        Email.builder()
-                                .account(account)
-                                .messageUid(messageUid)
-                                .senderName(null)
-                                .senderEmail(extractSenderEmail(msg))
-                                .receiverEmail(account.getEmail())
-                                .subject(subject)
-                                .bodyText(bodyText)
-                                .receivedAt(receivedAt)
-                                .build()
+                // System.out.println("메일 제목: " + subject);
+                // System.out.println("메일 내용: " + bodyText);
+
+                List<String> extractedUrls = extractUrls(bodyText);
+
+                int savedUrlCount = emailSaveService.saveEmailAndUrls(
+                    userId,
+                    account,
+                    messageUid,
+                    extractSenderName(msg),
+                    extractSenderEmail(msg),
+                    account.getEmail(),
+                    subject,
+                    bodyText,
+                    receivedAt,
+                    extractedUrls
                 );
 
                 savedEmailCount++;
-
-                List<String> extractedUrls = extractUrls(bodyText);
-                    System.out.println("추출된 URL 개수: " + extractedUrls.size());
-                    System.out.println("추출된 URL 리스트: " + extractedUrls);
-                for (String rawUrl : extractedUrls) {
-
-    String normalizedUrl = cleanUrl(rawUrl);
-
-    if (normalizedUrl == null || normalizedUrl.isBlank()) {
-        continue;
-    }
-
-    String urlHash = sha256(normalizedUrl);
-
-                // URL 중복 처리 (이미 존재하면 seenCount 증가, lastSeenAt 갱신)
-                Url url;
-
-                Optional<Url> existingUrlOpt = urlRepository.findByUrlHash(urlHash);
-
-                if (existingUrlOpt.isPresent()) {
-                    url = existingUrlOpt.get();
-                    url.setLastSeenAt(LocalDateTime.now());
-                    url.setSeenCount(url.getSeenCount() + 1);
-                } else {
-                    url = Url.builder()
-                        .normalizedUrl(normalizedUrl)
-                        .urlHash(urlHash)
-                        .domain(extractDomain(normalizedUrl))
-                        .scheme(extractScheme(normalizedUrl))
-                        .firstSeenAt(LocalDateTime.now())
-                        .lastSeenAt(LocalDateTime.now())
-                        .seenCount(1)
-                        .build();
-                }               
-
-                // 기존 URL이든 신규 URL이든 저장
-                Url savedUrl = urlRepository.save(url);
-
-                emailUrlRepository.save(
-                    EmailUrl.builder()
-                        .email(savedEmail)
-                        .url(savedUrl)
-                        .rawUrl(normalizedUrl)
-                        .linkText(null)
-                        .build()
-                );
-
-                analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
-
-                extractedUrlCount++;
-                }
+                extractedUrlCount += savedUrlCount;
             }
 
             account.updateSyncSuccess();
@@ -261,16 +226,16 @@ System.out.println("메일 내용: " + bodyText);
             result.put("extractedUrlCount", extractedUrlCount);
             result.put("lastSyncedAt", account.getLastSyncedAt());
 
-            System.out.println("========== SYNC SUCCESS ==========");
+            // System.out.println("========== SYNC SUCCESS ==========");
 
             return result;
 
         } catch (Exception e) {
             account.updateSyncFailed();
 
-            System.out.println("========== SYNC ERROR ==========");
+            // System.out.println("========== SYNC ERROR ==========");
             e.printStackTrace();
-            System.out.println("========== SYNC ERROR END ==========");
+            // System.out.println("========== SYNC ERROR END ==========");
 
             throw new RuntimeException("이메일 동기화 중 오류가 발생했습니다.", e);
 
@@ -293,7 +258,7 @@ System.out.println("메일 내용: " + bodyText);
         try {
             return EmailProvider.valueOf(provider.toUpperCase());
         } catch (Exception e) {
-            throw new IllegalArgumentException("지원하지 않는 provider입니다.");
+            throw new IllegalArgumentException("이메일 계정 등록 정보가 올바르지 않습니다.");
         }
     }
 
@@ -386,6 +351,10 @@ System.out.println("메일 내용: " + bodyText);
                 return null;
             }
 
+            if (froms[0] instanceof InternetAddress internetAddress) {
+                return internetAddress.getAddress();
+            }
+
             return froms[0].toString();
 
         } catch (Exception e) {
@@ -393,32 +362,26 @@ System.out.println("메일 내용: " + bodyText);
         }
     }
 
-    // 도메인 추출
-    private String extractDomain(String url) {
+    // 발신자 이름 추출
+    private String extractSenderName(Message msg) {
         try {
-            return url.split("/")[2];
+            Address[] froms = msg.getFrom();
+
+            if (froms == null || froms.length == 0) {
+                return null;
+            }
+
+            if (froms[0] instanceof InternetAddress internetAddress) {
+                return internetAddress.getPersonal();
+            }
+
+            return null;
+
         } catch (Exception e) {
             return null;
         }
     }
 
-    // 프로토콜 추출
-    private String extractScheme(String url) {
-        try {
-            return url.split(":")[0];
-        } catch (Exception e) {
-            return null;
-        }
-    }
-    private String cleanUrl(String rawUrl) {
-    if (rawUrl == null) {
-        return null;
-    }
-
-    return rawUrl
-            .trim()
-            .replaceAll("[\\)\\]\\}\\>,\\.]+$", "");
-}
     // url 해시 생성
     private String sha256(String input) {
 

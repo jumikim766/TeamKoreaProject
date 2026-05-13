@@ -15,7 +15,7 @@ const StepCard = ({
     <div className="step-card">
 
       <div className="step-number">
-        {step}
+        STEP {step}
       </div>
 
       <div className="step-icon">

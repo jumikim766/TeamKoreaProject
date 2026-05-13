@@ -1,12 +1,15 @@
 import { useEffect, useRef } from 'react';
-import { saveTokens } from '../utils/token';
+import { saveAccessToken } from '../utils/token';
 
 type OAuthCallbackPageProps = {
   onSuccess: () => void;
   onFail: () => void;
 };
 
-function OAuthCallbackPage({ onSuccess, onFail }: OAuthCallbackPageProps) {
+function OAuthCallbackPage({
+  onSuccess,
+  onFail,
+}: OAuthCallbackPageProps) {
   const handledRef = useRef(false);
 
   useEffect(() => {
@@ -16,10 +19,10 @@ function OAuthCallbackPage({ onSuccess, onFail }: OAuthCallbackPageProps) {
     const params = new URLSearchParams(window.location.search);
 
     const accessToken = params.get('accessToken');
-    const refreshToken = params.get('refreshToken');
 
-    if (accessToken && refreshToken) {
-      saveTokens(accessToken, refreshToken);
+    if (accessToken) {
+      saveAccessToken(accessToken);
+
       onSuccess();
 
       alert('로그인이 성공되었습니다.');

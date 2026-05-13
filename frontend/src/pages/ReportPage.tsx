@@ -151,7 +151,7 @@ function ReportPage({
                   <section className="mail-detail-card">
                     <div className="mail-detail-head">
                       <h2>신고 접수 안내</h2>
-                      <span className="risk-badge risk-주의">주의</span>
+                    
                     </div>
 
                     <div className="mail-meta">

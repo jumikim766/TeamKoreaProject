@@ -1,29 +1,29 @@
-import Header from '../components/Header';
-import Navbar from '../components/Navbar';
+import Header from "../components/Header";
+import Navbar from "../components/Navbar";
 
-type ThemeMode = 'light' | 'dark';
+type ThemeMode = "light" | "dark";
 
 type ViewMode =
-  | 'dashboard'
-  | 'login'
-  | 'signup'
-  | 'mypage'
-  | 'my-mailbox'
-  | 'mail-connect'
-  | 'my-url'
-  | 'url-library'
-  | 'notifications'
-  | 'notification-settings'
-  | 'report-guide'
-  | 'report'
-  | 'classification-method'
-  | 'classification-criteria'
-  | 'service-info'
-  | 'terms'
-  | 'privacy'
-  | 'security-contact';
+  | "dashboard"
+  | "login"
+  | "signup"
+  | "mypage"
+  | "my-mailbox"
+  | "mail-connect"
+  | "my-url"
+  | "url-library"
+  | "notifications"
+  | "notification-settings"
+  | "report-guide"
+  | "report"
+  | "classification-method"
+  | "classification-criteria"
+  | "service-info"
+  | "terms"
+  | "privacy"
+  | "security-contact";
 
-type SimplePageView = 'service-info' | 'terms' | 'privacy' | 'security-contact';
+type SimplePageView = "service-info" | "terms" | "privacy" | "security-contact";
 
 type SimplePageProps = {
   theme: ThemeMode;
