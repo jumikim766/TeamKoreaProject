@@ -15,6 +15,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.teamkorea.backend.service.CustomOAuth2UserService;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.teamkorea.backend.dto.BaseResponse;
+
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
@@ -24,6 +27,7 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ObjectMapper objectMapper;
 
     /**
      * CORS 허용 오리진을 application.properties에서 주입받아
@@ -36,10 +40,12 @@ public class SecurityConfig {
 
     public SecurityConfig(OAuth2SuccessHandler oAuth2SuccessHandler,
                           CustomOAuth2UserService customOAuth2UserService,
-                          JwtAuthenticationFilter jwtAuthenticationFilter) {
+                          JwtAuthenticationFilter jwtAuthenticationFilter,
+                          ObjectMapper objectMapper) {
         this.oAuth2SuccessHandler = oAuth2SuccessHandler;
         this.customOAuth2UserService = customOAuth2UserService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -60,6 +66,7 @@ public class SecurityConfig {
                                 "/api/auth/signup",
                                 "/api/auth/login",
                                 "/api/auth/reissue",
+                                "/api/auth/logout",
                                 "/api/hello",
                                 "/api/users/check-username",
                                 "/api/users/check-email"
@@ -76,14 +83,18 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    "{\"success\": false, \"message\": \"로그인이 필요합니다.\", \"data\": null}"
+                                    objectMapper.writeValueAsString(
+                                        BaseResponse.error("로그인이 필요합니다.", "UNAUTHORIZED")
+                                )
                             );
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.setContentType("application/json;charset=UTF-8");
                             response.getWriter().write(
-                                    "{\"success\": false, \"message\": \"접근 권한이 없습니다.\", \"data\": null}"
+                                   objectMapper.writeValueAsString(
+                                        BaseResponse.error("접근 권한이 없습니다.", "FORBIDDEN")
+                                )
                             );
                         })
                 )
