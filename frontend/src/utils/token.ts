@@ -1,17 +1,9 @@
-export const saveTokens = (accessToken: string, refreshToken: string) => {
-  localStorage.setItem('accessToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
-};
+const KEY = "accessToken";
 
-export const getAccessToken = () => {
-  return localStorage.getItem('accessToken');
-};
+export const saveAccessToken = (token: string) => localStorage.setItem(KEY, token);
+export const getAccessToken = () => localStorage.getItem(KEY);
+export const clearAccessToken = () => localStorage.removeItem(KEY);
 
-export const getRefreshToken = () => {
-  return localStorage.getItem('refreshToken');
-};
-
-export const clearTokens = () => {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-};
+// 호환용 (App.tsx에서 사용 중) — 점진적 마이그레이션
+export const clearTokens = clearAccessToken;
+// saveTokens / getRefreshToken은 export하지 않음 (호출부 제거 대상)
