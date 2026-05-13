@@ -1,9 +1,25 @@
-const KEY = "accessToken";
+const ACCESS_TOKEN_KEY = "accessToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
 
-export const saveAccessToken = (token: string) => localStorage.setItem(KEY, token);
-export const getAccessToken = () => localStorage.getItem(KEY);
-export const clearAccessToken = () => localStorage.removeItem(KEY);
+export const saveAccessToken = (token: string) =>
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
 
-// 호환용 (App.tsx에서 사용 중) — 점진적 마이그레이션
-export const clearTokens = clearAccessToken;
-// saveTokens / getRefreshToken은 export하지 않음 (호출부 제거 대상)
+export const getAccessToken = () =>
+  localStorage.getItem(ACCESS_TOKEN_KEY);
+
+export const clearAccessToken = () =>
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+
+// 기존 OAuthCallbackPage.tsx 호환용
+export const saveTokens = (accessToken: string, refreshToken: string) => {
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+};
+
+export const getRefreshToken = () =>
+  localStorage.getItem(REFRESH_TOKEN_KEY);
+
+export const clearTokens = () => {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+};
