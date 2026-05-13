@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
+import { login, signup } from "../api/authApi";
+import { saveAccessToken } from "../utils/token";
+import { getErrorMessage } from "../api/errorMessage";
 import "../styles/Dashboard.css";
 
 type PageViewTarget =
@@ -103,27 +106,34 @@ function AuthPages({
     isPasswordValid &&
     isPasswordSame;
 
-  const handleLoginSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
 
-    setLoginEmailTouched(true);
+  setLoginEmailTouched(true);
 
-    if (!loginEmail.trim()) {
-      setLoginError("");
-      return;
-    }
-
-    if (!loginPassword.trim()) {
-      setLoginError("");
-      return;
-    }
-
-    localStorage.setItem("accessToken", "test-access-token");
-    localStorage.setItem("refreshToken", "test-refresh-token");
-    localStorage.setItem("userName", "팀코");
+  if (!loginEmail.trim() || !loginPassword.trim()) {
     setLoginError("");
-    onLoginSuccess("팀코");
-  };
+    return;
+  }
+
+  try {
+    const res = await login(loginEmail.trim(), loginPassword);
+    const data = res.data.data;
+
+    if (!data?.accessToken) {
+      setLoginError("로그인 응답이 올바르지 않습니다.");
+      return;
+    }
+
+    saveAccessToken(data.accessToken);
+    localStorage.setItem("userName", data.user.name);
+
+    setLoginError("");
+    onLoginSuccess(data.user.name);
+  } catch (error) {
+    setLoginError(getErrorMessage(error, "로그인에 실패했습니다."));
+  }
+};
 
   const handleCheckId = () => {
     if (!signupId.trim()) {
@@ -159,23 +169,24 @@ function AuthPages({
     setEmailCheckMessage("사용 가능한 이메일입니다.");
   };
 
-  const handleSignupSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSignupSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
 
-    if (!canSignup) return;
+  if (!canSignup) return;
 
-    console.log("회원가입 정보", {
-      name: signupName,
-      id: signupId,
-      email: signupEmail,
+  try {
+    await signup({
+      username: signupId.trim(),
+      email: signupEmail.trim(),
       password: signupPassword,
+      name: signupName.trim(),
     });
 
-    localStorage.setItem("accessToken", "test-access-token");
-    localStorage.setItem("refreshToken", "test-refresh-token");
-    localStorage.setItem("userName", signupName || "팀코");
-    onLoginSuccess(signupName || "팀코");
-  };
+    onGoLogin();
+  } catch (error) {
+    setEmailCheckMessage(getErrorMessage(error, "회원가입에 실패했습니다."));
+  }
+};
 
   return (
     <div className="dashboard-shell">
