@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.Optional;
-import java.net.URI;
+
+import jakarta.mail.internet.InternetAddress;
 
 @Service
 @RequiredArgsConstructor
@@ -34,10 +34,8 @@ public class EmailAccountService {
     private final EmailAccountRepository emailAccountRepository;
     private final UserRepository userRepository;
     private final EmailRepository emailRepository;
-    private final UrlRepository urlRepository;
-    private final EmailUrlRepository emailUrlRepository;
-    private final AnalysisService analysisService;
     private final CryptoUtil cryptoUtil;
+    private final EmailSaveService emailSaveService;
     
     // 이메일 계정 등록
     @Transactional
@@ -99,7 +97,6 @@ public class EmailAccountService {
     }
 
     // 이메일 동기화
-    @Transactional
     public Map<String, Object> syncEmails(Long userId, Long accountId) {
 
         User user = userRepository.findById(userId)
@@ -200,71 +197,23 @@ public class EmailAccountService {
                 // System.out.println("메일 제목: " + subject);
                 // System.out.println("메일 내용: " + bodyText);
 
-                Email savedEmail = emailRepository.save(
-                        Email.builder()
-                                .account(account)
-                                .messageUid(messageUid)
-                                .senderName(null)
-                                .senderEmail(extractSenderEmail(msg))
-                                .receiverEmail(account.getEmail())
-                                .subject(subject)
-                                .bodyText(bodyText)
-                                .receivedAt(receivedAt)
-                                .build()
+                List<String> extractedUrls = extractUrls(bodyText);
+
+                int savedUrlCount = emailSaveService.saveEmailAndUrls(
+                    userId,
+                    account,
+                    messageUid,
+                    extractSenderName(msg),
+                    extractSenderEmail(msg),
+                    account.getEmail(),
+                    subject,
+                    bodyText,
+                    receivedAt,
+                    extractedUrls
                 );
 
                 savedEmailCount++;
-
-                List<String> extractedUrls = extractUrls(bodyText);
-                    // System.out.println("추출된 URL 개수: " + extractedUrls.size());
-                    // System.out.println("추출된 URL 리스트: " + extractedUrls);
-                for (String rawUrl : extractedUrls) {
-
-    String normalizedUrl = cleanUrl(rawUrl);
-
-    if (normalizedUrl == null || normalizedUrl.isBlank()) {
-        continue;
-    }
-
-    String urlHash = sha256(normalizedUrl);
-
-                // URL 중복 처리 (이미 존재하면 seenCount 증가, lastSeenAt 갱신)
-                Url url;
-
-                Optional<Url> existingUrlOpt = urlRepository.findByUrlHash(urlHash);
-
-                if (existingUrlOpt.isPresent()) {
-                    url = existingUrlOpt.get();
-                    url.setLastSeenAt(LocalDateTime.now());
-                    url.setSeenCount(url.getSeenCount() + 1);
-                } else {
-                    url = Url.builder()
-                        .normalizedUrl(normalizedUrl)
-                        .urlHash(urlHash)
-                        .domain(extractDomain(normalizedUrl))
-                        .scheme(extractScheme(normalizedUrl))
-                        .firstSeenAt(LocalDateTime.now())
-                        .lastSeenAt(LocalDateTime.now())
-                        .seenCount(1)
-                        .build();
-                }               
-
-                // 기존 URL이든 신규 URL이든 저장
-                Url savedUrl = urlRepository.save(url);
-
-                emailUrlRepository.save(
-                    EmailUrl.builder()
-                        .email(savedEmail)
-                        .url(savedUrl)
-                        .rawUrl(rawUrl)
-                        .linkText(null)
-                        .build()
-                );
-
-                analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
-
-                extractedUrlCount++;
-                }
+                extractedUrlCount += savedUrlCount;
             }
 
             account.updateSyncSuccess();
@@ -402,6 +351,10 @@ public class EmailAccountService {
                 return null;
             }
 
+            if (froms[0] instanceof InternetAddress internetAddress) {
+                return internetAddress.getAddress();
+            }
+
             return froms[0].toString();
 
         } catch (Exception e) {
@@ -409,87 +362,26 @@ public class EmailAccountService {
         }
     }
 
-    // 도메인 추출
-    private String extractDomain(String url) {
+    // 발신자 이름 추출
+    private String extractSenderName(Message msg) {
         try {
-            URI uri = new URI(url);
-            return uri.getHost() != null ? uri.getHost().toLowerCase() : null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
+            Address[] froms = msg.getFrom();
 
-    // 프로토콜 추출
-    private String extractScheme(String url) {
-        try {
-            URI uri = new URI(url);
-            return uri.getScheme() != null ? uri.getScheme().toLowerCase() : null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-    
-    private String cleanUrl(String rawUrl) {
-        if (rawUrl == null || rawUrl.isBlank()) {
-        return null;
-        }
-
-        try {
-            String cleaned = rawUrl.trim();
-
-            // 이메일/HTML에서 URL 뒤에 붙는 닫는 문자 제거
-            cleaned = cleaned.replaceAll("[\\)\\]\\}\\>,\\.\"']+$", "");
-
-            URI uri = new URI(cleaned);
-
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-
-            if (scheme == null || host == null) {
+            if (froms == null || froms.length == 0) {
                 return null;
             }
 
-            scheme = scheme.toLowerCase();
-            host = host.toLowerCase();
-
-            // http, https만 저장
-            if (!scheme.equals("http") && !scheme.equals("https")) {
-                return null;
+            if (froms[0] instanceof InternetAddress internetAddress) {
+                return internetAddress.getPersonal();
             }
 
-            String path = uri.getRawPath();
-            String query = uri.getRawQuery();
-
-            if (path == null || path.isBlank()) {
-                path = "";
-            }
-
-            // 마지막 / 제거: https://test.com/ -> https://test.com
-            if (path.equals("/")) {
-                path = "";
-            }
-
-            StringBuilder normalized = new StringBuilder();
-            normalized.append(scheme)
-                    .append("://")
-                    .append(host);
-
-            if (uri.getPort() != -1) {
-                normalized.append(":").append(uri.getPort());
-            }
-
-            normalized.append(path);
-
-            if (query != null && !query.isBlank()) {
-                normalized.append("?").append(query);
-            }
-
-            return normalized.toString();
+            return null;
 
         } catch (Exception e) {
             return null;
-        }       
+        }
     }
+
     // url 해시 생성
     private String sha256(String input) {
 
