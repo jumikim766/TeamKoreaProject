@@ -10,6 +10,8 @@ import org.teamkorea.backend.dto.BaseResponse;
 import org.teamkorea.backend.dto.EmailAccountRequestDto;
 import org.teamkorea.backend.dto.EmailAccountResponseDto;
 import org.teamkorea.backend.service.EmailAccountService;
+import org.teamkorea.backend.exception.BusinessException;
+import org.teamkorea.backend.exception.ErrorCode;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,9 +93,15 @@ public class EmailAccountController {
     private Long getLoginUserId(Authentication authentication) {
 
         if (authentication == null || authentication.getDetails() == null) {
-            throw new IllegalStateException("로그인이 필요합니다.");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "로그인이 필요합니다.");
+    
         }
 
-        return (Long) authentication.getDetails();
-    }
+        if (!(authentication.getDetails() instanceof Long userId)) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED, "인증 정보가 올바르지 않습니다.");
+        }
+
+        return userId;
+        
+        }
 }
