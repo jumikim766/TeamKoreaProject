@@ -1,4 +1,3 @@
-
 import '../styles/reportGuide.css';
 import { useState } from 'react';
 
