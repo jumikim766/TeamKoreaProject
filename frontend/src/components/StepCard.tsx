@@ -1,5 +1,5 @@
 type StepCardProps = {
-  step: number;
+  step: string;
   icon: string;
   title: string;
   description: string;
