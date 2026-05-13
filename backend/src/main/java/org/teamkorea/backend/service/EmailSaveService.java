@@ -109,9 +109,17 @@ public class EmailSaveService {
             );
 
             // 6. URL 분석 결과 저장
-            analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
+            // 분석 실패해도 이메일/URL 저장과 sync 자체는 실패하지 않도록 처리
+            // TODO: AnalysisService의 sourceType, ruleVersion 필수값 세팅 수정 전까지 임시 비활성화
+            // analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
+            // try {
+            //         analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
+            // } catch (Exception e) {
+            //         System.out.println("[ANALYSIS ERROR] urlId = " + savedUrl.getUrlId());
+            //         e.printStackTrace();
+            // }
 
-            extractedUrlCount++;
+            // extractedUrlCount++;
         }
 
         // 실제 저장/연결 처리된 URL 개수 반환

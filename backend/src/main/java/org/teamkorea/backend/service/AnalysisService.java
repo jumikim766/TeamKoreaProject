@@ -38,8 +38,10 @@ public class AnalysisService {
         UrlAnalysis analysis = UrlAnalysis.builder()
                 .url(url)
                 .riskLevel(riskLevel)
+                .riskType("PHISHING")
                 .score(BigDecimal.valueOf(85.0))
                 .reasonSummary("피싱 의심 도메인, 비정상적 URL 구조")
+                .ruleVersion("RULE_BASED_V1")
                 .analyzedAt(LocalDateTime.now())
                 .build();
 
