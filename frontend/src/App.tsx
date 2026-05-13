@@ -13,6 +13,7 @@ import UrlPage from './pages/UrlPage';
 import './styles/Dashboard.css';
 import { clearTokens, getAccessToken } from './utils/token';
 
+
 type ThemeMode = 'light' | 'dark';
 
 export type ViewMode =
@@ -203,9 +204,8 @@ function App() {
   }
 
   if (view === 'guide') {
-  return <GuidePage />;
+  return <GuidePage {...sharedProps} {...authProps} />;
 }
-
   const currentPage = pageContent[view];
 
   return (
