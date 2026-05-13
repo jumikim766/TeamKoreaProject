@@ -1,5 +1,5 @@
 type StepCardProps = {
-  step: string;
+  step: number;
   icon: string;
   title: string;
   description: string;
@@ -15,7 +15,7 @@ const StepCard = ({
     <div className="step-card">
 
       <div className="step-number">
-        {step}
+        STEP {step}
       </div>
 
       <div className="step-icon">
