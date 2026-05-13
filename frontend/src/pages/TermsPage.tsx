@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import type { ViewMode } from "../App";
 import termsData from "../data/terms.json";
 import "../styles/Policy.css";
+import { useEffect } from "react";
 
 type ThemeMode = "light" | "dark";
 
@@ -53,6 +54,10 @@ function TermsPage({
   onGoSignup,
   onGoMyPage,
 }: TermsPageProps) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className={`dashboard-shell ${theme}`}>
       <Header
@@ -73,6 +78,9 @@ function TermsPage({
       <main className="policy-page">
         {/* 페이지 제목 */}
         <div className="policy-heading">
+          <button className="back-button" onClick={onGoHome} type="button">
+            뒤로가기
+          </button>
           <p className="policy-eyebrow">URL GUARD</p>
           <h1 className="policy-title">이용약관</h1>
         </div>

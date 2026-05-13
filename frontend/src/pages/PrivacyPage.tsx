@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import type { ViewMode } from "../App";
 import privacyData from "../data/privacy.json";
 import "../styles/Policy.css";
+import { useEffect } from "react";
 
 type ThemeMode = "light" | "dark";
 
@@ -53,6 +54,10 @@ function PrivacyPage({
   onGoSignup,
   onGoMyPage,
 }: PrivacyPageProps) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className={`dashboard-shell ${theme}`}>
       <Header
@@ -72,6 +77,9 @@ function PrivacyPage({
 
       <main className="policy-page">
         <div className="policy-heading">
+          <button className="back-button" onClick={onGoHome} type="button">
+            뒤로가기
+          </button>
           <p className="policy-eyebrow">URL GUARD</p>
           <h1 className="policy-title">개인정보 처리방침</h1>
         </div>

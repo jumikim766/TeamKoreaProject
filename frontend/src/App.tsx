@@ -207,15 +207,15 @@ function App() {
     return <ReportPage {...sharedProps} {...authProps} currentView={view} />;
   }
 
-if (view === "security-contact") {
-  return <SecurityContactPage {...sharedProps} {...authProps} />;
-}
+  if (view === "security-contact") {
+    return <SecurityContactPage {...sharedProps} {...authProps} />;
+  }
 
-if (view === "classification-method" || view === "classification-criteria") {
-  return (
-    <ClassificationPage {...sharedProps} {...authProps} currentView={view} />
-  );
-}
+  if (view === "classification-method" || view === "classification-criteria") {
+    return (
+      <ClassificationPage {...sharedProps} {...authProps} currentView={view} />
+    );
+  }
 
   if (view === "terms") {
     return <TermsPage {...sharedProps} {...authProps} />;
