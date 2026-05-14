@@ -55,7 +55,7 @@ public class UrlService {
         }
 
         // URL 목록 조회
-        Page<Url> urlPage = urlRepository.searchUrls(domain, searchRiskLevel, isAnalyzed, pageable);
+        Page<Url> urlPage = urlRepository.searchUrls(searchDomain, searchRiskLevel, isAnalyzed, pageable);
 
         
         List<UrlListItemResponseDto> urls = urlPage.getContent().stream()

@@ -1,59 +1,52 @@
 package org.teamkorea.backend.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.teamkorea.backend.domain.UrlAnalysis;
-
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AnalysisDetailResponseDto {
-    private Long analysisId;
+    private Long analysisId; 
     private Long urlId;
-    
-    // 추가 포인트: API 명세서 [7]번 요구사항 반영
     private String normalizedUrl; 
-    private String domain;
-
-    private String riskLevel;   
-    private String riskType;   
+    private String domain; 
+    private String riskLevel; 
+    private String riskType;
     private BigDecimal score;
-    private String reasonSummary;
-    private String comment;     
+    private String reasonSummary; 
+    private String comment;
     private Boolean sslVerified;
     private Integer redirectionDepth;
     private Boolean containsFormInput;
     private String featuresJson;
     private String ruleVersion;
-    private LocalDateTime analyzedAt;
+    private String analyzedAt; // 명세서 규격에 맞게 String으로 관리 
 
     /**
-     * UrlAnalysis 엔티티를 상세 DTO로 변환하는 생성자
+     * [수정 포인트] 파라미터 오타를 수정하였습니다.
+     * 엔티티를 DTO로 변환하는 정적 메서드입니다.
      */
-    public AnalysisDetailResponseDto(UrlAnalysis analysis) {
-        this.analysisId = analysis.getAnalysisId();
-        this.urlId = analysis.getUrl().getUrlId();
-        
-        // 추가 포인트: 연관된 Url 엔티티에서 정보를 가져옵니다
-        this.normalizedUrl = analysis.getUrl().getNormalizedUrl();
-        this.domain = analysis.getUrl().getDomain();
-
-        this.riskLevel = analysis.getRiskLevel().name(); 
-        this.riskType = analysis.getRiskType();
-        this.score = analysis.getScore();
-        this.reasonSummary = analysis.getReasonSummary();
-        this.comment = "자동 분석 시스템에 의해 생성된 결과입니다."; 
-        this.sslVerified = analysis.getSslVerified();
-        this.redirectionDepth = analysis.getRedirectionDepth();
-        this.containsFormInput = analysis.getContainsFormInput();
-        this.featuresJson = analysis.getFeaturesJson();
-        this.ruleVersion = analysis.getRuleVersion();
-        this.analyzedAt = analysis.getAnalyzedAt();
+    public static AnalysisDetailResponseDto from(UrlAnalysis analysis) {
+        return AnalysisDetailResponseDto.builder()
+                .analysisId(analysis.getAnalysisId())
+                .urlId(analysis.getUrl().getUrlId()) // DB 최종 코드 url_id 매핑 
+                .normalizedUrl(analysis.getUrl().getNormalizedUrl()) // 
+                .domain(analysis.getUrl().getDomain()) // 
+                .riskLevel(analysis.getRiskLevel().name()) // DANGER 등 
+                .riskType(analysis.getRiskType()) // [cite: 116]
+                .score(analysis.getScore()) // [cite: 116]
+                .reasonSummary(analysis.getReasonSummary()) // [cite: 109]
+                .comment("자동 분석 시스템에 의해 생성된 결과입니다.")
+                .sslVerified(analysis.getSslVerified())
+                .redirectionDepth(analysis.getRedirectionDepth())
+                .containsFormInput(analysis.getContainsFormInput())
+                .featuresJson(analysis.getFeaturesJson())
+                .ruleVersion(analysis.getRuleVersion())
+                .analyzedAt(analysis.getAnalyzedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)) // ISO 8601 형식 
+                .build();
     }
 }

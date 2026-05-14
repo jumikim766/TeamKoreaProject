@@ -2,28 +2,11 @@ import ChartBox from '../components/ChartBox';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import '../styles/Dashboard.css';
+import type { ViewMode } from '../App';
 
 type ThemeMode = 'light' | 'dark';
 
-type ViewMode =
-  | 'dashboard'
-  | 'login'
-  | 'signup'
-  | 'mypage'
-  | 'my-mailbox'
-  | 'mail-connect'
-  | 'my-url'
-  | 'url-library'
-  | 'notifications'
-  | 'notification-settings'
-  | 'report-guide'
-  | 'report'
-  | 'classification-method'
-  | 'classification-criteria'
-  | 'service-info'
-  | 'terms'
-  | 'privacy'
-  | 'security-contact';
+
 
 interface DashboardProps {
   theme: ThemeMode;
@@ -111,7 +94,7 @@ function Dashboard({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate('service-info')}>
+        <button type="button" onClick={() => onNavigate('guide')}>
           서비스 소개
         </button>
         <button type="button" onClick={() => onNavigate('terms')}>

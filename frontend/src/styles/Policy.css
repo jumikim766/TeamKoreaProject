@@ -1,0 +1,202 @@
+.policy-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+/* 제목 영역 */
+.policy-eyebrow {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-primary, #3b82f6);
+  margin: 0 0 3px;
+  margin-top: 24px;
+}
+
+.policy-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  margin-bottom: 32px;
+}
+
+.policy-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text, #111);
+}
+
+/* ─── 목차 박스 ──────────────────────────────────────────── */
+.policy-toc-box {
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 28px 32px;
+  margin-bottom: 56px;
+  background: var(--color-surface, #fff);
+}
+
+.policy-toc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0 24px;
+}
+
+/* 장 버튼 */
+.policy-toc-chapter {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 6px 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text, #111);
+  cursor: pointer;
+  margin-bottom: 2px;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
+.policy-toc-col:first-child .policy-toc-chapter {
+  margin-top: 0;
+}
+
+.policy-toc-chapter:hover {
+  color: var(--color-primary, #3b82f6);
+}
+
+/* 조 버튼 */
+.policy-toc-section {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 3px 0 3px 12px;
+  font-size: 13px;
+  color: var(--color-text-muted, #555);
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.policy-toc-section:hover {
+  color: var(--color-primary, #3b82f6);
+}
+
+.back-button {
+  border: 0;
+  border-radius: 14px;
+  background: #6b7280;
+  color: #ffffff;
+  padding: 12px 38px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  width: fit-content;
+  margin-bottom: 24px;
+}
+
+.back-button:hover {
+  opacity: 0.8;
+}
+
+.top-button {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+
+  border: 1px solid #6b7280;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #6b7280;
+  width: 40px;
+  height: 40px;
+  padding: 8px 8px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── 본문 ───────────────────────────────────────────────── */
+.policy-body {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.policy-chapter-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text, #111);
+  margin: 0 0 28px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+}
+
+.policy-section {
+  margin-bottom: 36px;
+}
+
+.policy-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #111);
+  margin: 0 0 10px;
+}
+
+.policy-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.policy-line {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--color-text-muted, #444);
+  margin: 0;
+  white-space: pre-line;
+}
+
+/* ─── 다크모드 ───────────────────────────────────────────── */
+[data-theme="dark"] .policy-toc-box {
+  background: var(--color-surface, #1e1e2e);
+  border-color: var(--color-border, #333);
+}
+
+[data-theme="dark"] .policy-title,
+[data-theme="dark"] .policy-toc-chapter,
+[data-theme="dark"] .policy-chapter-title,
+[data-theme="dark"] .policy-section-title {
+  color: var(--color-text, #f0f0f0);
+}
+
+[data-theme="dark"] .policy-toc-section,
+[data-theme="dark"] .policy-line {
+  color: var(--color-text-muted, #aaa);
+}
+
+[data-theme="dark"] .policy-chapter-title {
+  border-color: var(--color-border, #333);
+}
+
+/* ─── 반응형 ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .policy-toc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .policy-toc-grid {
+    grid-template-columns: 1fr;
+  }
+}

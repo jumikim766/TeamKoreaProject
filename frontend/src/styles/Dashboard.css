@@ -1078,32 +1078,62 @@
   gap: 20px;
 }
 
-.mail-list-card,
-.mail-detail-card {
+/* 신고 안내 표 */
+.mail-list-card {
+  border: 1px solid var(--line);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(37, 99, 235, 0.08);
   overflow: hidden;
+  background: #ffffff;
 }
 
-.mail-table {
+.mail-table,
+.mail-table-row {
   display: grid;
-  grid-template-columns: 1.1fr 1.2fr 1.4fr 1fr;
-  gap: 0;
+  grid-template-columns: 0.9fr 1.2fr 2.2fr 0.8fr;
+  align-items: stretch;
 }
 
 .mail-table-header {
   background: #f8fbff;
-  color: var(--text-strong);
-  font-size: 14px;
-  font-weight: 700;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
 }
 
-.mail-table-header span {
+.mail-table-header span,
+.mail-table-row span {
+  padding: 20px 18px;
   display: flex;
   align-items: center;
+  justify-content: center; /* 가로 가운데 */
+  text-align: center; /* 텍스트 가운데 */
+  min-height: 88px;
+}
+
+/* 세로선만 추가 */
+.mail-table-header span:not(:last-child),
+.mail-table-row span:not(:last-child) {
+  border-right: 1px solid var(--line);
+}
+
+/* 가로선 제거 */
+.mail-table-row {
+  border-top: none;
+  border-bottom: none;
+  background: #ffffff;
+}
+
+.mail-table-row button {
+  all: unset;
+}
+
+.mail-table-row strong {
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.mail-table-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .mail-table-body {
@@ -1111,18 +1141,36 @@
   flex-direction: column;
 }
 
-.mail-table-row {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  color: var(--text-body);
-  padding: 18px;
-  display: grid;
-  grid-template-columns: 1.1fr 1.2fr 1.4fr 1fr;
-  text-align: left;
-  cursor: pointer;
-  border-bottom: 1px solid var(--line);
-  transition: background-color 0.18s ease;
+/* hover */
+.mail-table-row:hover {
+  background: #f8fbff;
+}
+
+/* active */
+.mail-table-row.is-active {
+  background: #eef4ff;
+}
+
+:root[data-theme='dark'] .mail-list-card {
+  background: #3a3a3a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .mail-table-header {
+  background: #474747;
+}
+
+@media (max-width: 900px) {
+  .mail-table,
+  .mail-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mail-table-header span,
+  .mail-table-row span {
+    border-right: none !important;
+    border-bottom: 1px solid var(--line);
+  }
 }
 
 .mail-table-row:hover,
@@ -2539,3 +2587,4 @@
 .site-header .header-link-actions .theme-toggle {
   margin-left: 8px;
 }
+
