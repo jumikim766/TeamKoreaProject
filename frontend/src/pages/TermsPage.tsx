@@ -142,6 +142,12 @@ function TermsPage({
           ))}
         </div>
       </main>
+      <button
+        className="top-button"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      >
+        ↑
+      </button>
     </div>
   );
 }

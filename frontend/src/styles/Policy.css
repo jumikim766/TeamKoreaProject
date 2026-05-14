@@ -103,6 +103,28 @@
   opacity: 0.8;
 }
 
+.top-button {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+
+  border: 1px solid #6b7280;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #6b7280;
+  width: 40px;
+  height: 40px;
+  padding: 8px 8px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ─── 본문 ───────────────────────────────────────────────── */
 .policy-body {
   display: flex;

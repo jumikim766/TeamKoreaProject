@@ -1,25 +1,25 @@
-import { useState } from 'react';
-import Header from '../components/Header';
-import Navbar from '../components/Navbar';
-import '../styles/Dashboard.css';
+import { useState } from "react";
+import Header from "../components/Header";
+import Navbar from "../components/Navbar";
+import "../styles/Dashboard.css";
 
-type ThemeMode = 'light' | 'dark';
+type ThemeMode = "light" | "dark";
 
 type PageViewTarget =
-  | 'my-mailbox'
-  | 'mail-connect'
-  | 'my-url'
-  | 'url-library'
-  | 'notifications'
-  | 'notification-settings'
-  | 'report-guide'
-  | 'report'
-  | 'classification-method'
-  | 'classification-criteria'
-  | 'service-info'
-  | 'terms'
-  | 'privacy'
-  | 'security-contact';
+  | "my-mailbox"
+  | "mail-connect"
+  | "my-url"
+  | "url-library"
+  | "notifications"
+  | "notification-settings"
+  | "report-guide"
+  | "report"
+  | "classification-method"
+  | "classification-criteria"
+  | "service-info"
+  | "terms"
+  | "privacy"
+  | "security-contact";
 
 interface SecurityContactPageProps {
   theme: ThemeMode;
@@ -37,7 +37,7 @@ interface SecurityContactPageProps {
 function SecurityContactPage({
   theme,
   isLoggedIn = false,
-  userName = '팀코',
+  userName = "팀코",
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -46,7 +46,7 @@ function SecurityContactPage({
   onGoMyPage,
   onNavigate,
 }: SecurityContactPageProps) {
-  const [inquiryContent, setInquiryContent] = useState('');
+  const [inquiryContent, setInquiryContent] = useState("");
 
   return (
     <div className="dashboard-shell">
@@ -91,7 +91,7 @@ function SecurityContactPage({
                 <button
                   className="primary-button"
                   type="button"
-                  onClick={() => alert('문의가 접수되었습니다.')}
+                  onClick={() => alert("문의가 접수되었습니다.")}
                 >
                   문의 접수
                 </button>
@@ -104,7 +104,7 @@ function SecurityContactPage({
 
                 <textarea
                   className="mail-connect-input"
-                  style={{ minHeight: '160px', resize: 'vertical' }}
+                  style={{ minHeight: "160px", resize: "vertical" }}
                   placeholder="문의 내용을 입력해주세요."
                   value={inquiryContent}
                   onChange={(event) => setInquiryContent(event.target.value)}
@@ -128,16 +128,16 @@ function SecurityContactPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate('service-info')}>
+        <button type="button" onClick={() => onNavigate("service-info")}>
           서비스 소개
         </button>
-        <button type="button" onClick={() => onNavigate('terms')}>
+        <button type="button" onClick={() => onNavigate("terms")}>
           이용약관
         </button>
-        <button type="button" onClick={() => onNavigate('privacy')}>
+        <button type="button" onClick={() => onNavigate("privacy")}>
           개인정보 처리방침
         </button>
-        <button type="button" onClick={() => onNavigate('security-contact')}>
+        <button type="button" onClick={() => onNavigate("security-contact")}>
           보안 문의
         </button>
       </footer>
