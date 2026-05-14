@@ -16,6 +16,7 @@ import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlAnalysisRepository;
 import org.springframework.security.access.AccessDeniedException;
+import org.teamkorea.backend.domain.RiskLevel;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,7 +32,8 @@ public class EmailService {
 
     // 이메일 목록 조회
     public Page<EmailListResponseDto> getEmails(
-            Long userId, Long accountId, String keyword, LocalDateTime receivedAtFrom, LocalDateTime receivedAtTo, int page, int size) {
+            Long userId, Long accountId, String keyword, LocalDateTime receivedAtFrom, LocalDateTime receivedAtTo,
+            int page, int size) {
 
         // 페이지네이션 설정
         Pageable pageable = PageRequest.of(page, size);
@@ -41,11 +43,10 @@ public class EmailService {
         if (keyword != null && !keyword.trim().isEmpty()) {
             searchKeyword = keyword.trim();
         }
-        
+
         // 현재 로그인한 사용자 기준으로만 이메일 조회
         Page<Email> emails = emailRepository.searchEmailByUser(
-            userId, accountId, searchKeyword, receivedAtFrom, receivedAtTo, pageable);
-        
+                userId, accountId, searchKeyword, receivedAtFrom, receivedAtTo, pageable);
 
         return emails.map(this::toEmailListResponse);
     }
@@ -61,6 +62,9 @@ public class EmailService {
 
         int urlCount = emailUrlRepository.countByEmail_EmailId(emailId);
 
+        // 이메일에 포함된 URL 중 가장 높은 위험도 계산
+        String riskLevel = calculateEmailRiskLevel(emailId);
+
         return EmailDetailResponseDto.builder()
                 .emailId(email.getEmailId())
                 .accountId(email.getAccount() != null ? email.getAccount().getAccountId() : null)
@@ -72,6 +76,7 @@ public class EmailService {
                 .receivedAt(email.getReceivedAt())
                 .createdAt(email.getCreatedAt())
                 .urlCount(urlCount)
+                .riskLevel(riskLevel)
                 .build();
     }
 
@@ -79,8 +84,8 @@ public class EmailService {
     public List<EmailUrlResponseDto> getEmailUrls(Long userId, Long emailId) {
 
         Email email = emailRepository.findByIdWithAccount(emailId)
-            .orElseThrow(() -> new IllegalArgumentException("해당 이메일을 찾을 수 없습니다."));
-        
+                .orElseThrow(() -> new IllegalArgumentException("해당 이메일을 찾을 수 없습니다."));
+
         validateEmailOwner(email, userId);
 
         List<EmailUrl> emailUrls = emailUrlRepository.findByEmailIdWithUrl(emailId);
@@ -138,14 +143,54 @@ public class EmailService {
         return preview;
     }
 
+    // 이메일에 포함된 URL 중 가장 높은 위험도 계산
+    private String calculateEmailRiskLevel(Long emailId) {
+
+        List<EmailUrl> emailUrls = emailUrlRepository.findByEmailIdWithUrl(emailId);
+
+        RiskLevel highestRiskLevel = RiskLevel.SAFE;
+
+        for (EmailUrl emailUrl : emailUrls) {
+            if (emailUrl == null || emailUrl.getUrl() == null) {
+                continue;
+            }
+
+            RiskLevel currentRiskLevel = urlAnalysisRepository
+                    .findTopByUrl_UrlIdOrderByAnalyzedAtDesc(emailUrl.getUrl().getUrlId())
+                    .map(analysis -> analysis.getRiskLevel())
+                    .orElse(RiskLevel.SAFE);
+
+            if (getRiskPriority(currentRiskLevel) > getRiskPriority(highestRiskLevel)) {
+                highestRiskLevel = currentRiskLevel;
+            }
+        }
+
+        return highestRiskLevel.name();
+    }
+
+    // 위험도 우선순위
+    private int getRiskPriority(RiskLevel riskLevel) {
+        if (riskLevel == null) {
+            return 0;
+        }
+
+        return switch (riskLevel) {
+            case SAFE -> 1;
+            case SUSPICIOUS -> 2;
+            case WARNING -> 3;
+            case DANGER -> 4;
+            case CRITICAL -> 5;
+        };
+    }
+
     // 이메일이 현재 로그인한 사용자의 것인지 검증
     private void validateEmailOwner(Email email, Long userId) {
 
-        if(email.getAccount() == null ||
+        if (email.getAccount() == null ||
                 email.getAccount().getUser() == null ||
                 !email.getAccount().getUser().getUserId().equals(userId)) {
 
             throw new AccessDeniedException("해당 이메일에 접근할 권한이 없습니다.");
-                }
+        }
     }
 }

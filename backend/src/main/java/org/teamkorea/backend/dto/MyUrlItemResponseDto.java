@@ -1,26 +1,26 @@
 package org.teamkorea.backend.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
 @AllArgsConstructor
-public class EmailDetailResponseDto {
+public class MyUrlItemResponseDto {
 
+    private Long urlId;
     private Long emailId;
     private Long accountId;
-    private String senderEmail;
     private String senderName;
-    private String receiverEmail;
-    private String subject;
-    private String bodyText;
+    private String senderEmail;
+    private String emailSubject;
+    private String originalUrl;
+    private String normalizedUrl;
+    private String domain;
+    private String riskLevel;
+    private String reasonSummary;
+    private Boolean isAnalyzed;
     private LocalDateTime receivedAt;
     private LocalDateTime createdAt;
-    private int urlCount;
-    private String riskLevel;
-    
 }
