@@ -22,13 +22,19 @@ public class UrlAnalysis {
     @JoinColumn(name = "url_id", nullable = false)
     private Url url;
 
+    // [수정] 명세서 필수 항목인 도메인 필드 추가 [cite: 82, 120]
+    @Column(name = "domain", nullable = false, length = 255)
+    private String domain;
+
+    // [수정] 명세서 [2]에 따른 제공자 구분값 [cite: 236]
     @Column(name = "source_type", nullable = false, length = 20)
     private String sourceType;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "risk_level", nullable = false, length = 20)
-    private RiskLevel riskLevel; // Enum 타입 (SAFE, WARNING, DANGER, CRITICAL)
+    private RiskLevel riskLevel; 
 
+    // [수정] 명세서 응답 예시의 'riskType' 반영 [cite: 124, 139]
     @Column(name = "risk_type", length = 50)
     private String riskType;
 
@@ -67,8 +73,6 @@ public class UrlAnalysis {
         LocalDateTime now = LocalDateTime.now();
         if (this.analyzedAt == null) this.analyzedAt = now;
         if (this.createdAt == null) this.createdAt = now;
-        if (this.sslVerified == null) this.sslVerified = false;
-        if (this.redirectionDepth == null) this.redirectionDepth = 0;
-        if (this.containsFormInput == null) this.containsFormInput = false;
+        if (this.ruleVersion == null) this.ruleVersion = "v1.0"; 
     }
 }

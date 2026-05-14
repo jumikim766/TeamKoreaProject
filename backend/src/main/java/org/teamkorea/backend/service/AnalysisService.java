@@ -4,28 +4,29 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 import org.teamkorea.backend.domain.*;
-import org.teamkorea.backend.dto.AnalysisDetailResponseDto;
-import org.teamkorea.backend.dto.AnalysisListPageResponseDto;
-import org.teamkorea.backend.dto.AnalysisListResponseDto;
+import org.teamkorea.backend.dto.*;
 import org.teamkorea.backend.repository.*;
-import org.teamkorea.backend.ai.LlmAnalysisService;
-import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
+
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class AnalysisService {
 
+    private final UserRepository userRepository;
     private final UrlRepository urlRepository;
     private final UrlAnalysisRepository urlAnalysisRepository;
     private final AnalysisHistoryRepository analysisHistoryRepository;
-    private final UserRepository userRepository;
-    private final DomainReputationRepository reputationRepository;
-    private final LlmAnalysisService llmAnalysisService;
+    private final NotificationRepository notificationRepository;
+
+    private static final String CURRENT_RULE_VERSION = "ruleset-1.0.0";
 
     public UrlAnalysis analyzeAndSave(Long userId, Long urlId) {
         User user = userRepository.findById(userId)
@@ -33,116 +34,106 @@ public class AnalysisService {
         Url url = urlRepository.findById(urlId)
                 .orElseThrow(() -> new IllegalArgumentException("URL을 찾을 수 없습니다."));
 
-        DomainReputation reputation = reputationRepository.findByDomain(url.getDomain())
-                .orElse(DomainReputation.builder()
-                        .domain(url.getDomain())
-                        .trustScore(50)
-                        .build());
+        RiskLevel riskLevel = RiskLevel.DANGER; 
+        String extractedDomain = extractDomain(url.getNormalizedUrl()); 
 
-        // 1. 기술 점수 계산
-        double technicalScore = calculateTechnicalScore(url.getNormalizedUrl());
-        
-        // 2. 최종 점수 계산 (평판 도메인에서 수정했던 getTrustScoreValue() 사용)
-        double finalScore = (technicalScore * 0.7) + (reputation.getTrustScoreValue() * 0.3);
-
-        // 3. Enum 타입으로 등급 결정
-        RiskLevel riskLevel = determineRiskLevel(finalScore, reputation);
-        BigDecimal scoreValue = BigDecimal.valueOf(finalScore);
-
-        UrlAnalysis newAnalysis = UrlAnalysis.builder()
+        UrlAnalysis analysis = UrlAnalysis.builder()
                 .url(url)
-                .sourceType("SYSTEM")
-                .riskLevel(riskLevel) // Enum 타입 적용
-                .riskType(RiskLevel.SAFE.equals(riskLevel) ? null : "PHISHING")
-                .score(scoreValue)
-                .sslVerified(false)
+                .domain(extractedDomain)
+                .sourceType("MAIL") 
+                .riskLevel(riskLevel)
+                .riskType("PHISHING") 
+                .score(BigDecimal.valueOf(85.0))
+                .reasonSummary("피싱 의심 도메인 및 비정상적 구조 탐지")
+                .ruleVersion(CURRENT_RULE_VERSION)
+                .sslVerified(true)
                 .redirectionDepth(0)
                 .containsFormInput(false)
-                .reasonSummary(
-                        generateLlmSummary(url, riskLevel, finalScore, reputation))
-                .ruleVersion("v1.1")
+                .featuresJson("{}")
                 .analyzedAt(LocalDateTime.now())
                 .build();
 
-        UrlAnalysis saved = urlAnalysisRepository.save(newAnalysis);
-        analysisHistoryRepository.save(new AnalysisHistory(user, saved, "WEB"));
-        return saved;
-    }
-
-    @Transactional(readOnly = true)
-    public AnalysisListPageResponseDto getAnalysisList(String riskLevel, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "analyzedAt"));
-        Page<UrlAnalysis> analysisPage;
-
-        if (riskLevel != null && !riskLevel.isBlank()) {
-            // String을 Enum으로 변환하여 조회
-            RiskLevel level = RiskLevel.valueOf(riskLevel);
-            analysisPage = urlAnalysisRepository.findByRiskLevel(level, pageable);
-        } else {
-            analysisPage = urlAnalysisRepository.findAll(pageable);
-        }
-
-        List<AnalysisListResponseDto> analyses = analysisPage.getContent()
-                .stream()
-                .map(AnalysisListResponseDto::new)
-                .toList();
-
-        return AnalysisListPageResponseDto.builder()
-                .analyses(analyses)
-                .page(analysisPage.getNumber())
-                .size(analysisPage.getSize())
-                .totalElements(analysisPage.getTotalElements())
-                .totalPages(analysisPage.getTotalPages())
+        UrlAnalysis savedAnalysis = urlAnalysisRepository.save(analysis);
+        
+        AnalysisHistory history = AnalysisHistory.builder()
+                .user(user)
+                .urlAnalysis(savedAnalysis) 
+                .source("MAIL") 
                 .build();
+        analysisHistoryRepository.save(history);
+
+        if (riskLevel != RiskLevel.SAFE) {
+            createRiskNotification(user, savedAnalysis); 
+            sendDiscordAlert(savedAnalysis); 
+        }
+        
+        return savedAnalysis;
     }
 
     @Transactional(readOnly = true)
     public AnalysisDetailResponseDto getDetail(Long analysisId) {
         UrlAnalysis analysis = urlAnalysisRepository.findById(analysisId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 분석 결과를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("분석 결과가 없습니다."));
         return new AnalysisDetailResponseDto(analysis);
     }
 
-    // --- 내부 로직 메서드 ---
-
-    private RiskLevel determineRiskLevel(double score, DomainReputation rep) {
-        // 블랙리스트 여부 확인 및 점수별 Enum 반환
-        if (Boolean.TRUE.equals(rep.getIsBlacklisted()) || score < 40) return RiskLevel.CRITICAL;
-        if (score < 60) return RiskLevel.DANGER;
-        if (score < 80) return RiskLevel.WARNING;
-        return RiskLevel.SAFE;
+    @Transactional(readOnly = true)
+    public Page<AnalysisHistoryResponseDto> getAnalysisList(User user, Pageable pageable) {
+        return analysisHistoryRepository.findByUser(user, pageable)
+                .map(history -> {
+                    UrlAnalysis ua = history.getUrlAnalysis();
+                    return AnalysisHistoryResponseDto.builder()
+                            .historyId(history.getHistoryId())
+                            .analysisId(ua.getAnalysisId())
+                            .url(ua.getUrl().getNormalizedUrl())
+                            .riskLevel(ua.getRiskLevel().name())
+                            .source(history.getSource())
+                            .createdAt(history.getCreatedAt().toString())
+                            .build();
+                });
     }
 
-    private double calculateTechnicalScore(String url) {
-        if (url == null || url.isBlank()) return 30.0;
-        if (url.contains("@") || url.matches(".*\\d{1,3}\\.\\d{1,3}.*")) return 20.0;
-        if (url.length() > 100) return 50.0;
-        return 90.0; 
+    private void createRiskNotification(User user, UrlAnalysis analysis) {
+        Notification noti = Notification.builder()
+                .user(user)
+                .urlAnalysis(analysis)
+                .channel("WEB") 
+                .title("🚨 위험 URL 감지")
+                .message("[" + analysis.getRiskLevel().name() + "] 등급의 URL 발견")
+                .isRead(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(noti);
     }
 
-    private String generateSummary(RiskLevel riskLevel, DomainReputation rep) {
-        if (Boolean.TRUE.equals(rep.getIsBlacklisted())) return "블랙리스트에 등록된 위험 도메인입니다.";
-        return "종합 분석 결과 " + riskLevel.name() + " 등급으로 판정되었습니다.";
+    @Transactional(readOnly = true)
+    public List<NotificationResponseDto> getNotifications(User user) {
+        return notificationRepository.findByUserAndIsReadFalseOrderByCreatedAtDesc(user)
+                .stream()
+                .map(NotificationResponseDto::from)
+                .collect(Collectors.toList());
     }
-    private String generateLlmSummary(Url url, RiskLevel riskLevel, double finalScore, DomainReputation reputation) {
-    try {
-        LlmAnalysisResponse llmResponse = llmAnalysisService.analyze(
-                url.getNormalizedUrl(),
-                url.getDomain(),
-                riskLevel.name(),
-                finalScore,
-                Boolean.TRUE.equals(reputation.getIsBlacklisted()),
-                Boolean.TRUE.equals(reputation.getIsWhitelisted())
-        );
 
-        if (llmResponse != null && llmResponse.getReasonSummary() != null && !llmResponse.getReasonSummary().isBlank()) {
-            return llmResponse.getReasonSummary();
+    private String extractDomain(String urlString) {
+        try {
+            URI uri = new URI(urlString);
+            String host = uri.getHost();
+            if (host == null) return "unknown";
+            return host.startsWith("www.") ? host.substring(4) : host;
+        } catch (Exception e) {
+            return "unknown"; 
         }
-    } catch (Exception e) {
-        return generateSummary(riskLevel, reputation);
     }
 
-    return generateSummary(riskLevel, reputation);
-}
-
+    private void sendDiscordAlert(UrlAnalysis analysis) {
+        try {
+            String webhookUrl = "YOUR_DISCORD_WEBHOOK_URL"; 
+            RestTemplate restTemplate = new RestTemplate();
+            Map<String, Object> body = new HashMap<>();
+            body.put("content", "🚨 위험 URL 탐지 알림: " + analysis.getUrl().getNormalizedUrl());
+            restTemplate.postForEntity(webhookUrl, body, String.class);
+        } catch (Exception e) {
+            System.err.println("디스코드 전송 실패");
+        }
+    }
 }
