@@ -78,7 +78,7 @@ public class AnalysisService {
     public AnalysisDetailResponseDto getDetail(Long analysisId) {
         UrlAnalysis analysis = urlAnalysisRepository.findById(analysisId)
                 .orElseThrow(() -> new IllegalArgumentException("분석 결과가 없습니다."));
-        return new AnalysisDetailResponseDto(analysis);
+        return AnalysisDetailResponseDto.from(analysis);
     }
 
     /**
