@@ -8,7 +8,9 @@ import org.springframework.web.client.RestTemplate;
 import org.teamkorea.backend.domain.*;
 import org.teamkorea.backend.dto.*;
 import org.teamkorea.backend.repository.*;
+
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -24,6 +26,8 @@ public class AnalysisService {
     private final AnalysisHistoryRepository analysisHistoryRepository;
     private final NotificationRepository notificationRepository;
 
+    private static final String CURRENT_RULE_VERSION = "ruleset-1.0.0";
+
     /**
      * URL 분석 실행 및 저장
      */
@@ -34,65 +38,66 @@ public class AnalysisService {
                 .orElseThrow(() -> new IllegalArgumentException("URL을 찾을 수 없습니다."));
 
         RiskLevel riskLevel = RiskLevel.DANGER; 
+        String extractedDomain = extractDomain(url.getNormalizedUrl()); 
 
+        // 1. UrlAnalysis 엔티티 빌드 (ruleVersion 및 필수 필드 포함)
         UrlAnalysis analysis = UrlAnalysis.builder()
                 .url(url)
+                .domain(extractedDomain)
+                .sourceType("MAIL") 
                 .riskLevel(riskLevel)
-                .riskType("PHISHING")
+                .riskType("PHISHING") 
                 .score(BigDecimal.valueOf(85.0))
-                .reasonSummary("피싱 의심 도메인, 비정상적 URL 구조")
-                .ruleVersion("RULE_BASED_V1")
+                .reasonSummary("피싱 의심 도메인 및 비정상적 구조 탐지")
+                .ruleVersion(CURRENT_RULE_VERSION) // [해결] rule_version NOT NULL 충족
+                .sslVerified(true)
+                .redirectionDepth(0)
+                .containsFormInput(false)
+                .featuresJson("{}")
                 .analyzedAt(LocalDateTime.now())
                 .build();
 
-        UrlAnalysis saved = urlAnalysisRepository.save(analysis);
-        analysisHistoryRepository.save(AnalysisHistory.createHistory(user, saved, "MAIL"));
+        UrlAnalysis savedAnalysis = urlAnalysisRepository.save(analysis);
+        
+        // 2. AnalysisHistory 저장 (static 메서드 활용)
+        analysisHistoryRepository.save(AnalysisHistory.createHistory(user, savedAnalysis, "MAIL"));
 
+        // 3. 알림 및 디스코드 전송
         if (riskLevel != RiskLevel.SAFE) {
-            createRiskNotification(user, saved);
-            sendDiscordAlert(saved); 
+            createRiskNotification(user, savedAnalysis); 
+            sendDiscordAlert(savedAnalysis); 
         }
-        return saved;
+        
+        return savedAnalysis;
     }
 
     /**
-     * 디스코드 알림 발송 (한국어 등급 표기)
+     * 상세 분석 결과 조회 (기존 DTO 생성자 사용)
      */
-    private void sendDiscordAlert(UrlAnalysis analysis) {
-        try {
-            String webhookUrl = "YOUR_DISCORD_WEBHOOK_URL"; 
-            RestTemplate restTemplate = new RestTemplate();
+    @Transactional(readOnly = true)
+    public AnalysisDetailResponseDto getDetail(Long analysisId) {
+        UrlAnalysis analysis = urlAnalysisRepository.findById(analysisId)
+                .orElseThrow(() -> new IllegalArgumentException("분석 결과가 없습니다."));
+        return AnalysisDetailResponseDto.from(analysis);
+    }
 
-            String levelKor;
-            String emoji;
-            switch (analysis.getRiskLevel()) {
-                case SAFE -> { levelKor = "안전"; emoji = "✅"; }
-                case WARNING -> { levelKor = "주의"; emoji = "⚠️"; }
-                case DANGER -> { levelKor = "위험"; emoji = "🚨"; }
-                case CRITICAL -> { levelKor = "심각"; emoji = "💀"; }
-                default -> { levelKor = "알 수 없음"; emoji = "❓"; }
-            }
-
-            Map<String, Object> body = new HashMap<>();
-            String content = String.format(
-                "📩 **새로운 메일이 도착했습니다!**\n" +
-                "본문에 포함된 URL 분석 결과입니다.\n\n" +
-                "🔗 **분석 URL:** %s\n" +
-                "%s **위험 등급:** [%s]\n" +
-                "📝 **탐지 사유:** %s\n\n" +
-                "※ 의심스러운 링크는 절대 클릭하지 마세요!",
-                analysis.getUrl().getNormalizedUrl(),
-                emoji,
-                levelKor,
-                analysis.getReasonSummary()
-            );
-            
-            body.put("content", content);
-            restTemplate.postForEntity(webhookUrl, body, String.class);
-            
-        } catch (Exception e) {
-            System.err.println("디스코드 전송 실패: " + e.getMessage());
-        }
+    /**
+     * 내 분석 히스토리 페이징 조회
+     */
+    @Transactional(readOnly = true)
+    public Page<AnalysisHistoryResponseDto> getAnalysisList(User user, Pageable pageable) {
+        return analysisHistoryRepository.findByUser(user, pageable)
+                .map(history -> {
+                    UrlAnalysis ua = history.getUrlAnalysis();
+                    return AnalysisHistoryResponseDto.builder()
+                            .historyId(history.getHistoryId())
+                            .analysisId(ua.getAnalysisId())
+                            .url(ua.getUrl().getNormalizedUrl())
+                            .riskLevel(ua.getRiskLevel().name())
+                            .source(history.getSource())
+                            .createdAt(history.getCreatedAt().toString())
+                            .build();
+                });
     }
 
     /**
@@ -106,6 +111,7 @@ public class AnalysisService {
                 .title("🚨 메일 내 위험 URL 감지")
                 .message("수신된 메일에서 [" + analysis.getRiskLevel().name() + "] 등급의 URL이 발견되었습니다.")
                 .isRead(false)
+                .createdAt(LocalDateTime.now())
                 .build();
         notificationRepository.save(noti);
     }
@@ -122,29 +128,47 @@ public class AnalysisService {
     }
 
     /**
-     * 상세 분석 결과 조회
+     * 도메인 추출 유틸리티
      */
-    @Transactional(readOnly = true)
-    public AnalysisDetailResponseDto getDetail(Long analysisId) {
-        UrlAnalysis analysis = urlAnalysisRepository.findById(analysisId)
-                .orElseThrow(() -> new IllegalArgumentException("분석 결과가 없습니다."));
-        return AnalysisDetailResponseDto.from(analysis);
+    private String extractDomain(String urlString) {
+        try {
+            URI uri = new URI(urlString);
+            String host = uri.getHost();
+            if (host == null) return "unknown";
+            return host.startsWith("www.") ? host.substring(4) : host;
+        } catch (Exception e) {
+            return "unknown"; 
+        }
     }
 
     /**
-     * [수정 완료] 내 분석 히스토리 페이징 조회
-     * Object 타입을 Page<AnalysisHistoryResponseDto>로 변경하고 로직을 구현했습니다.
+     * 디스코드 알림 발송 (한국어 등급 및 이모지 적용)
      */
-    @Transactional(readOnly = true)
-    public Page<AnalysisHistoryResponseDto> getAnalysisList(User user, Pageable pageable) {
-        return analysisHistoryRepository.findByUser(user, pageable)
-                .map(history -> AnalysisHistoryResponseDto.builder()
-                        .historyId(history.getHistoryId())
-                        .analysisId(history.getUrlAnalysis().getAnalysisId())
-                        .url(history.getUrlAnalysis().getUrl().getNormalizedUrl())
-                        .riskLevel(history.getUrlAnalysis().getRiskLevel().name())
-                        .source(history.getSource())
-                        .createdAt(history.getCreatedAt().toString())
-                        .build());
+    private void sendDiscordAlert(UrlAnalysis analysis) {
+        try {
+            String webhookUrl = "YOUR_DISCORD_WEBHOOK_URL"; 
+            RestTemplate restTemplate = new RestTemplate();
+
+            String levelKor = switch (analysis.getRiskLevel()) {
+                case SAFE -> "안전";
+                case WARNING -> "주의";
+                case DANGER -> "위험";
+                case CRITICAL -> "심각";
+                default -> "알 수 없음";
+            };
+
+            Map<String, Object> body = new HashMap<>();
+            String content = String.format(
+                "🚨 **위험 URL 탐지 알림**\n🔗 URL: %s\n등급: [%s]\n사유: %s",
+                analysis.getUrl().getNormalizedUrl(),
+                levelKor,
+                analysis.getReasonSummary()
+            );
+            
+            body.put("content", content);
+            restTemplate.postForEntity(webhookUrl, body, String.class);
+        } catch (Exception e) {
+            System.err.println("디스코드 전송 실패: " + e.getMessage());
+        }
     }
 }

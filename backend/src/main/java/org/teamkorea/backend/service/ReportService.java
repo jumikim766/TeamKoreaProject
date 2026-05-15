@@ -5,9 +5,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.teamkorea.backend.domain.*;
 import org.teamkorea.backend.dto.*;
-import org.teamkorea.backend.repository.ReportsRepository;
-import java.time.format.DateTimeFormatter;
+import org.teamkorea.backend.repository.*;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -15,31 +16,62 @@ import java.util.List;
 public class ReportService {
 
     private final ReportsRepository reportRepository;
+    private final UserRepository userRepository;
+    private final UrlRepository urlRepository;
 
-   // ReportService.java 내의 createReport 메서드 수정
-@Transactional
-public ReportResponseDto createReport(User email, ReportRequestDto request) { // [수정] 파라미터를 Long userId 대신 User user로 변경
-    
-    // 1. Report 엔티티 생성 (DB 최종 코드 필드명 일치)
-    Reports report = Reports.builder()
-            .user(email)
-            .reportedUrl(request.getReportedUrl()) 
-            .reason(request.getReason())
-            .status("RECEIVED") 
-            .build();
+    /**
+     * 새로운 신고를 접수합니다.
+     */
+    public ReportResponseDto createReport(String email, ReportRequestDto request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("신고자를 찾을 수 없습니다."));
 
-    Reports savedReport = reportRepository.save(report);
+        Url url = null;
+        String finalReportedUrl = request.getReportedUrl();
 
-    // 2. DTO 반환 (생성자 대신 Builder 사용으로 에러 방지)
-    return ReportResponseDto.builder()
-            .reportId(savedReport.getReportId())
-            .status(savedReport.getStatus())
-            .createdAt(savedReport.getCreatedAt().toString()) 
-            .build();
-}
+        // 만약 특정 분석 결과나 URL ID가 연관되어 있다면 정보를 가져옴
+        if (request.getUrlId() != null) {
+            url = urlRepository.findById(request.getUrlId())
+                    .orElseThrow(() -> new IllegalArgumentException("신고할 URL 정보를 찾을 수 없습니다."));
+            finalReportedUrl = url.getNormalizedUrl(); 
+        }
 
-public List<ReportResponseDto> getReportsByEmail(String email) {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'getReportsByEmail'");
-}
+        // 1. Reports 엔티티 생성 (데이터 사전의 status: RECEIVED 반영)
+        Reports report = Reports.builder()
+                .user(user)
+                .url(url)
+                .reportedUrl(finalReportedUrl)
+                .reason(request.getReason())
+                .status("RECEIVED") 
+                .build();
+
+        Reports savedReport = reportRepository.save(report);
+
+        // 2. DTO 반환 (createdAt은 String으로 변환하여 전달)
+        return ReportResponseDto.builder()
+                .reportId(savedReport.getReportId())
+                .status(savedReport.getStatus())
+                .createdAt(savedReport.getCreatedAt() != null ? 
+                           savedReport.getCreatedAt().toString() : null)
+                .build();
+    }
+
+    /**
+     * 사용자의 이메일을 기반으로 신고 내역 목록을 조회합니다.
+     */
+    @Transactional(readOnly = true)
+    public List<ReportResponseDto> getReportsByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        // 리포지토리의 findByUser_UserId 또는 findByUser 메서드 사용
+        return reportRepository.findByUser(user)
+                .stream()
+                .map(report -> ReportResponseDto.builder()
+                        .reportId(report.getReportId())
+                        .status(report.getStatus())
+                        .createdAt(report.getCreatedAt().toString())
+                        .build())
+                .collect(Collectors.toList());
+    }
 }

@@ -7,17 +7,19 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByEmail(String email); // 로그인용
+    // [수정] 이메일로 사용자 조회 (로그인 및 중복 체크용)
+    Optional<User> findByEmail(String email);
 
-    Optional<User> findByUsername(String username); // 회원가입/기타용
+    // [유지] 사용자명으로 조회
+    Optional<User> findByUsername(String username);
 
-    // 소셜 로그인
+    // [유지] 소셜 로그인 (구글, 네이버 등)
     Optional<User> findByProviderAndProviderId(String provider, String providerId);
 
-    // 중복 체크
+    // [유지] 중복 체크 기능
     boolean existsByEmail(String email);
     boolean existsByUsername(String username);
 
-    // ===== 추가: ACTIVE 상태 사용자만 조회 =====
+    // [유지] 상태값(ACTIVE 등) 기준 조회
     Optional<User> findByUserIdAndStatus(Long userId, String status);
 }

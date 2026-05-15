@@ -24,17 +24,16 @@ public class ReportController {
 
     /**
      * 사용자 신고 등록
-     * 에러 해결: email 대신 User 객체를 직접 전달하도록 수정
      */
     @PostMapping
     public ResponseEntity<BaseResponse<ReportResponseDto>> createReport(
             @RequestBody ReportRequestDto request,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        // userDetails에서 직접 User 엔티티를 꺼내서 전달
-        ReportResponseDto response = reportService.createReport(userDetails.getUser(), request);
+        // [수정 포인트 1] 메서드 명을 createReports -> createReport로 변경 (s 제거)
+        // [수정 포인트 2] 서비스를 String email을 받도록 고쳤으므로 userDetails.getUsername() 전달
+        ReportResponseDto response = reportService.createReport(userDetails.getUsername(), request);
 
-        // API 명세서 기준: 201 Created + "신고가 접수되었습니다."
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.success("신고가 접수되었습니다.", response));
     }
@@ -46,7 +45,6 @@ public class ReportController {
     public ResponseEntity<BaseResponse<Map<String, List<ReportResponseDto>>>> getMyReports(
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        // 이메일 기반 조회 로직 유지
         List<ReportResponseDto> reports = reportService.getReportsByEmail(userDetails.getUsername());
 
         Map<String, List<ReportResponseDto>> data = new HashMap<>();
