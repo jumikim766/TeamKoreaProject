@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import AuthPage from "./pages/AuthPage";
 import ClassificationPage from "./pages/ClassificationPage";
@@ -18,7 +17,6 @@ import "./styles/Dashboard.css";
 import { clearTokens, getAccessToken } from "./utils/token";
 
 type ThemeMode = "light" | "dark";
-
 
 export type ViewMode =
   | "dashboard"
@@ -40,6 +38,36 @@ export type ViewMode =
   | "privacy"
   | "security-contact"
   | "guide";
+
+const viewToPath: Record<ViewMode, string> = {
+  dashboard: "/",
+  login: "/login",
+  signup: "/signup",
+  mypage: "/mypage",
+  "my-mailbox": "/my-mailbox",
+  "mail-connect": "/mail-connect",
+  "my-url": "/my-url",
+  "url-library": "/url-library",
+  notifications: "/notifications",
+  "notification-settings": "/notification-settings",
+  "report-guide": "/report-guide",
+  report: "/report",
+  "classification-method": "/classification-method",
+  "classification-criteria": "/classification-criteria",
+  "service-info": "/service-info",
+  terms: "/terms",
+  privacy: "/privacy",
+  "security-contact": "/security-contact",
+  guide: "/guide",
+};
+
+const pathToView: Record<string, ViewMode> = Object.fromEntries(
+  Object.entries(viewToPath).map(([view, path]) => [path, view]),
+) as Record<string, ViewMode>;
+
+function getViewFromPath(): ViewMode {
+  return pathToView[window.location.pathname] || "dashboard";
+}
 
 function getInitialTheme(): ThemeMode {
   const savedTheme = window.localStorage.getItem("theme-mode");
@@ -86,7 +114,7 @@ const pageContent: Record<
 
 function App() {
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
-  const [view, setView] = useState<ViewMode>("dashboard");
+  const [view, setView] = useState<ViewMode>(getViewFromPath);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(
     Boolean(getAccessToken()),
   );
@@ -97,6 +125,19 @@ function App() {
     window.localStorage.setItem("theme-mode", theme);
   }, [theme]);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setView(getViewFromPath());
+      refreshLoginState();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
   const refreshLoginState = () => {
     const hasToken = Boolean(getAccessToken());
 
@@ -104,8 +145,19 @@ function App() {
     setUserName(hasToken ? getSavedUserName() : "사용자");
   };
 
-  const handleNavigate = (nextView: ViewMode) => {
+  const handleNavigate = (nextView: ViewMode, replace = false) => {
     refreshLoginState();
+
+    const nextPath = viewToPath[nextView];
+
+    if (window.location.pathname !== nextPath) {
+      if (replace) {
+        window.history.replaceState(null, "", nextPath);
+      } else {
+        window.history.pushState(null, "", nextPath);
+      }
+    }
+
     setView(nextView);
   };
 
@@ -133,7 +185,7 @@ function App() {
     clearTokens();
     setIsLoggedIn(false);
     setUserName("사용자");
-    setView("dashboard");
+    handleNavigate("dashboard");
   };
 
   const sharedProps = {
@@ -157,13 +209,13 @@ function App() {
       <OAuthCallbackPage
         onSuccess={() => {
           refreshLoginState();
-          setView("dashboard");
+          handleNavigate("dashboard", true);
         }}
         onFail={() => {
           clearTokens();
           setIsLoggedIn(false);
           setUserName("사용자");
-          setView("login");
+          handleNavigate("login", true);
         }}
       />
     );
@@ -177,7 +229,7 @@ function App() {
         mode={view}
         onLoginSuccess={() => {
           refreshLoginState();
-          setView("dashboard");
+          handleNavigate("dashboard", true);
         }}
       />
     );
@@ -213,7 +265,6 @@ function App() {
     return <SecurityContactPage {...sharedProps} {...authProps} />;
   }
 
-
   if (view === "classification-method" || view === "classification-criteria") {
     return (
       <ClassificationPage {...sharedProps} {...authProps} currentView={view} />
@@ -228,10 +279,9 @@ function App() {
     return <PrivacyPage {...sharedProps} {...authProps} />;
   }
 
-  if (view === 'guide') {
-  return <GuidePage {...sharedProps} {...authProps} />;
-}
-
+  if (view === "guide") {
+    return <GuidePage {...sharedProps} {...authProps} />;
+  }
 
   const currentPage = pageContent[view];
 
