@@ -73,6 +73,7 @@ public class UrlService {
                                 urlPage.getTotalPages());
         }
 
+        // URL 상세 조회
         public UrlDetailResponseDto getUrlDetail(Long urlId) {
                 Url url = urlRepository.findById(urlId)
                                 .orElseThrow(() -> new IllegalArgumentException("해당 URL 정보를 찾을 수 없습니다."));
@@ -88,17 +89,32 @@ public class UrlService {
                                 .map(UrlAnalysis::getReasonSummary)
                                 .orElse(null);
 
+                List<EmailUrl> emailUrls = emailUrlRepository.findByUrlIdWithEmail(urlId);
+
+                String senderName = null;
+                String senderEmail = null;
+                String originalUrl = url.getNormalizedUrl();
+
+                if (!emailUrls.isEmpty()) {
+                        EmailUrl emailUrl = emailUrls.get(0);
+
+                        senderName = emailUrl.getEmail().getSenderName();
+                        senderEmail = emailUrl.getEmail().getSenderEmail();
+                        originalUrl = emailUrl.getRawUrl();
+                }
+
                 return new UrlDetailResponseDto(
                                 url.getUrlId(),
-                                url.getNormalizedUrl(), // originalUrl 임시 처리
+                                senderName,
+                                senderEmail,
+                                originalUrl,
                                 url.getNormalizedUrl(),
                                 url.getDomain(),
                                 riskLevel,
                                 reasonSummary,
                                 url.getCreatedAt(),
-                                url.getLastSeenAt() // updatedAt 대신 lastSeenAt 사용
+                                url.getLastSeenAt()
                 );
-
         }
 
         // 나의 URL 목록 조회

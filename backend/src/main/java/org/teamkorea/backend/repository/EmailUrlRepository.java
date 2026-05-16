@@ -100,4 +100,14 @@ public interface EmailUrlRepository extends JpaRepository<EmailUrl, Long> {
             @Param("accountId") Long accountId,
             @Param("domain") String domain,
             @Param("isAnalyzed") Boolean isAnalyzed);
+
+    @Query("""
+            SELECT eu
+            FROM EmailUrl eu
+            JOIN FETCH eu.email e
+            JOIN FETCH eu.url u
+            WHERE u.urlId = :urlId
+            ORDER BY eu.createdAt DESC
+            """)
+    List<EmailUrl> findByUrlIdWithEmail(@Param("urlId") Long urlId);
 }

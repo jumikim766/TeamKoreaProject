@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 public class UrlDetailResponseDto {
 
     private Long urlId;
+    private String senderName;
+    private String senderEmail;
     private String originalUrl;
     private String normalizedUrl;
     private String domain;
