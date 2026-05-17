@@ -31,23 +31,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final JwtUtil jwtUtil;
 
     @Value("${app.oauth2.redirect-uri}")
-    private String frontRedirectUri;          // ex) http://localhost:5173/oauth/callback
+    private String frontRedirectUri; // ex) http://localhost:5173/oauth/callback
 
     @Value("${jwt.refresh-token-expiration}")
     private long refreshTokenExpirationMillis;
 
-    @Value("${app.cookie.secure:false}")      // 로컬은 false, 운영은 true
+    @Value("${app.cookie.secure:false}") // 로컬은 false, 운영은 true
     private boolean cookieSecure;
 
-    @Value("${app.cookie.same-site:Lax}")     // 로컬은 Lax, 크로스도메인 운영은 None
+    @Value("${app.cookie.same-site:Lax}") // 로컬은 Lax, 크로스도메인 운영은 None
     private String cookieSameSite;
 
-    @Value("${app.cookie.domain:}")           // 로컬은 비움
+    @Value("${app.cookie.domain:}") // 로컬은 비움
     private String cookieDomain;
 
     public OAuth2SuccessHandler(UserRepository userRepository,
-                                RefreshTokenRepository refreshTokenRepository,
-                                JwtUtil jwtUtil) {
+            RefreshTokenRepository refreshTokenRepository,
+            JwtUtil jwtUtil) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtUtil = jwtUtil;
@@ -57,8 +57,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Transactional
     @SuppressWarnings("unchecked")
     public void onAuthenticationSuccess(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication)
+            HttpServletResponse response,
+            Authentication authentication)
             throws IOException, ServletException {
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
@@ -69,13 +69,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             provider = "NAVER";
             Map<String, Object> naverResponse = (Map<String, Object>) attributes.get("response");
             providerId = (String) naverResponse.get("id");
-            email      = (String) naverResponse.get("email");
-            name       = (String) naverResponse.get("name");
+            email = (String) naverResponse.get("email");
+            name = (String) naverResponse.get("name");
         } else {
-            provider   = "GOOGLE";
+            provider = "GOOGLE";
             providerId = (String) attributes.get("sub");
-            email      = (String) attributes.get("email");
-            name       = (String) attributes.get("name");
+            email = (String) attributes.get("email");
+            name = (String) attributes.get("name");
         }
 
         if (providerId == null || email == null || name == null) {
@@ -84,20 +84,16 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         User user = userRepository
                 .findByProviderAndProviderId(provider, providerId)
-                .orElseGet(() ->
-                        userRepository.findByEmail(email).orElseGet(() ->
-                                User.builder()
-                                        .username(generateUsername(email, providerId))
-                                        .email(email)
-                                        .name(name)
-                                        .passwordHash(null)
-                                        .role("USER")
-                                        .status("ACTIVE")
-                                        .provider(provider)
-                                        .providerId(providerId)
-                                        .build()
-                        )
-                );
+                .orElseGet(() -> userRepository.findByEmail(email).orElseGet(() -> User.builder()
+                        .username(generateUsername(email, providerId))
+                        .email(email)
+                        .name(name)
+                        .passwordHash(null)
+                        .role("USER")
+                        .status("ACTIVE")
+                        .provider(provider)
+                        .providerId(providerId)
+                        .build()));
 
         user.updateOAuthInfo(generateUsername(email, providerId), email, name, provider, providerId);
         user.updateLastLoginAt();
@@ -117,7 +113,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite(cookieSameSite)
-                .path("/")                                   // 또는 "/api/auth"로 좁혀도 됨
+                .path("/") // 또는 "/api/auth"로 좁혀도 됨
                 .maxAge(Duration.ofMillis(refreshTokenExpirationMillis));
         if (cookieDomain != null && !cookieDomain.isBlank()) {
             builder.domain(cookieDomain);
@@ -129,7 +125,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     private String generateUsername(String email, String providerId) {
-        String base   = email.split("@")[0];
+        String base = email.split("@")[0];
         String suffix = providerId.substring(0, Math.min(5, providerId.length()));
         String username = base + "_" + suffix;
         return username.length() > 20 ? username.substring(0, 20) : username;
