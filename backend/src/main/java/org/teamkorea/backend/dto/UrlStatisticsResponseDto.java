@@ -10,7 +10,8 @@ public class UrlStatisticsResponseDto {
     private long totalCount;
     private long criticalCount;
     private long dangerCount;
-    private long cautionCount;
+    private long warningCount;
+    private long suspiciousCount;
     private long safeCount;
     private long unanalyzedCount;
 }

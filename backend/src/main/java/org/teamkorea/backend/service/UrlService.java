@@ -48,15 +48,8 @@ public class UrlService {
                         searchDomain = domain.trim();
                 }
 
-                // 문자열 reiskLevel을 enum으로 변환
-                RiskLevel searchRiskLevel = null;
-                if (riskLevel != null && !riskLevel.trim().isEmpty()) {
-                        try {
-                                searchRiskLevel = RiskLevel.valueOf(riskLevel.trim().toUpperCase());
-                        } catch (IllegalArgumentException e) {
-                                throw new IllegalArgumentException("올바르지 않은 위험도 값입니다.");
-                        }
-                }
+                // 문자열 riskLevel을 enum으로 변환
+                RiskLevel searchRiskLevel = parseRiskLevel(riskLevel);
 
                 // URL 목록 조회
                 Page<Url> urlPage = urlRepository.searchUrls(searchDomain, searchRiskLevel, isAnalyzed, pageable);
@@ -73,6 +66,7 @@ public class UrlService {
                                 urlPage.getTotalPages());
         }
 
+        // URL 상세 조회
         public UrlDetailResponseDto getUrlDetail(Long urlId) {
                 Url url = urlRepository.findById(urlId)
                                 .orElseThrow(() -> new IllegalArgumentException("해당 URL 정보를 찾을 수 없습니다."));
@@ -82,23 +76,37 @@ public class UrlService {
 
                 String riskLevel = latestAnalysis
                                 .map(analysis -> analysis.getRiskLevel().name())
-                                .orElse("UNKNOWN");
+                                .orElse("SAFE");
 
                 String reasonSummary = latestAnalysis
                                 .map(UrlAnalysis::getReasonSummary)
                                 .orElse(null);
 
+                List<EmailUrl> emailUrls = emailUrlRepository.findByUrlIdWithEmail(urlId);
+
+                String senderName = null;
+                String senderEmail = null;
+                String originalUrl = url.getNormalizedUrl();
+
+                if (!emailUrls.isEmpty()) {
+                        EmailUrl emailUrl = emailUrls.get(0);
+
+                        senderName = emailUrl.getEmail().getSenderName();
+                        senderEmail = emailUrl.getEmail().getSenderEmail();
+                        originalUrl = emailUrl.getRawUrl();
+                }
+
                 return new UrlDetailResponseDto(
                                 url.getUrlId(),
-                                url.getNormalizedUrl(), // originalUrl 임시 처리
+                                senderName,
+                                senderEmail,
+                                originalUrl,
                                 url.getNormalizedUrl(),
                                 url.getDomain(),
                                 riskLevel,
                                 reasonSummary,
                                 url.getCreatedAt(),
-                                url.getLastSeenAt() // updatedAt 대신 lastSeenAt 사용
-                );
-
+                                url.getLastSeenAt());
         }
 
         // 나의 URL 목록 조회
@@ -165,7 +173,8 @@ public class UrlService {
                 long totalCount = urls.size();
                 long criticalCount = 0;
                 long dangerCount = 0;
-                long cautionCount = 0;
+                long warningCount = 0;
+                long suspiciousCount = 0;
                 long safeCount = 0;
                 long unanalyzedCount = 0;
 
@@ -184,20 +193,24 @@ public class UrlService {
                                 criticalCount++;
                         } else if (riskLevel == RiskLevel.DANGER) {
                                 dangerCount++;
-                        } else if (riskLevel == RiskLevel.WARNING || riskLevel == RiskLevel.SUSPICIOUS) {
-                                cautionCount++;
+                        } else if (riskLevel == RiskLevel.WARNING) {
+                                warningCount++;
+                        } else if (riskLevel == RiskLevel.SUSPICIOUS) {
+                                suspiciousCount++;
                         } else if (riskLevel == RiskLevel.SAFE) {
                                 safeCount++;
                         }
                 }
 
                 return new UrlStatisticsResponseDto(
-                                totalCount,
-                                criticalCount,
-                                dangerCount,
-                                cautionCount,
-                                safeCount,
-                                unanalyzedCount);
+                        totalCount,
+                        criticalCount,
+                        dangerCount,
+                        warningCount,
+                        suspiciousCount,
+                        safeCount,
+                        unanalyzedCount
+                );
         }
 
         // 나의 URL 목록 DTO 변환
@@ -212,7 +225,7 @@ public class UrlService {
 
                 String riskLevel = latestAnalysis
                                 .map(analysis -> analysis.getRiskLevel().name())
-                                .orElse("UNKNOWN");
+                                .orElse("SAFE");
 
                 String reasonSummary = latestAnalysis
                                 .map(UrlAnalysis::getReasonSummary)
@@ -243,7 +256,7 @@ public class UrlService {
 
                 String riskLevel = latestAnalysis
                                 .map(analysis -> analysis.getRiskLevel().name())
-                                .orElse("UNKNOWN");
+                                .orElse("SAFE");
 
                 return new UrlListItemResponseDto(
                                 url.getUrlId(),
@@ -263,21 +276,13 @@ public class UrlService {
                 return value.trim();
         }
 
-        // API 명세서 위험도 값과 현재 RiskLevel enum 값 매핑
+        // 위험도 문자열을 RiskLevel enum으로 변환
         private RiskLevel parseRiskLevel(String riskLevel) {
                 if (riskLevel == null || riskLevel.trim().isEmpty()) {
                         return null;
                 }
 
                 String value = riskLevel.trim().toUpperCase();
-
-                if ("DANGEROUS".equals(value)) {
-                        value = "DANGER";
-                }
-
-                if ("CAUTION".equals(value)) {
-                        value = "WARNING";
-                }
 
                 try {
                         return RiskLevel.valueOf(value);

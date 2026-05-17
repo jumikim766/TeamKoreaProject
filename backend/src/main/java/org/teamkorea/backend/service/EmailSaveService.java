@@ -10,6 +10,7 @@ import org.teamkorea.backend.domain.Url;
 import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlRepository;
+import org.teamkorea.backend.service.AnalysisService;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +28,6 @@ public class EmailSaveService {
     private final EmailUrlRepository emailUrlRepository;
     private final AnalysisService analysisService;
 
-    
     // 이메일 1개 저장 + 해당 이메일에서 추출된 URL 저장
     @Transactional
     public int saveEmailAndUrls(
@@ -40,8 +40,7 @@ public class EmailSaveService {
             String subject,
             String bodyText,
             LocalDateTime receivedAt,
-            List<String> extractedUrls
-    ) {
+            List<String> extractedUrls) {
         // 1. emails 테이블에 이메일 저장
         Email savedEmail = emailRepository.save(
                 Email.builder()
@@ -53,13 +52,17 @@ public class EmailSaveService {
                         .subject(subject)
                         .bodyText(bodyText)
                         .receivedAt(receivedAt)
-                        .build()
-        );
+                        .build());
 
         int extractedUrlCount = 0;
 
+        // 같은 이메일 안에서 중복으로 추출된 URL 제거
+        List<String> distinctUrls = extractedUrls.stream()
+                .distinct()
+                .toList();
+
         // 2. 이메일 본문에서 추출된 URL 목록 저장
-        for (String rawUrl : extractedUrls) {
+        for (String rawUrl : distinctUrls) {
 
             // 원본 URL을 정규화
             String normalizedUrl = cleanUrl(rawUrl);
@@ -105,21 +108,19 @@ public class EmailSaveService {
                             .url(savedUrl)
                             .rawUrl(rawUrl)
                             .linkText(null)
-                            .build()
-            );
+                            .build());
 
             // 6. URL 분석 결과 저장
             // 분석 실패해도 이메일/URL 저장과 sync 자체는 실패하지 않도록 처리
-            // TODO: AnalysisService의 sourceType, ruleVersion 필수값 세팅 수정 전까지 임시 비활성화
-            // analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
-            // try {
-            //         analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
-            // } catch (Exception e) {
-            //         System.out.println("[ANALYSIS ERROR] urlId = " + savedUrl.getUrlId());
-            //         e.printStackTrace();
-            // }
+            try {
+                analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
+            } catch (Exception e) {
+                // TODO: 추후 log.warn으로 변경
+                System.out.println("[ANALYSIS ERROR] urlId = " + savedUrl.getUrlId());
+            }
 
-            // extractedUrlCount++;
+            // 실제 저장/연결 처리된 URL 개수 증가
+            extractedUrlCount++;
         }
 
         // 실제 저장/연결 처리된 URL 개수 반환
@@ -170,6 +171,11 @@ public class EmailSaveService {
             scheme = scheme.toLowerCase();
             host = host.toLowerCase();
 
+            // www. 제거
+            if (host.startsWith("www.")) {
+                host = host.substring(4);
+            }
+
             // http, https만 저장
             if (!scheme.equals("http") && !scheme.equals("https")) {
                 return null;
@@ -182,7 +188,12 @@ public class EmailSaveService {
                 path = "";
             }
 
-            // 마지막 / 제거
+            // 경로 끝의 / 제거
+            if (path.endsWith("/") && path.length() > 1) {
+                path = path.substring(0, path.length() - 1);
+            }
+
+            // 루트 경로 / 제거
             if (path.equals("/")) {
                 path = "";
             }

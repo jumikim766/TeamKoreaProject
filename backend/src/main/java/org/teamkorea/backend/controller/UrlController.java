@@ -11,9 +11,7 @@ import org.teamkorea.backend.dto.UrlStatisticsResponseDto;
 import org.teamkorea.backend.exception.BusinessException;
 import org.teamkorea.backend.exception.ErrorCode;
 import org.teamkorea.backend.service.UrlService;
-import org.springframework.security.core.Authentication;
 import org.teamkorea.backend.dto.MyUrlListResponseDto;
-import org.teamkorea.backend.dto.UrlStatisticsResponseDto;
 
 @RestController
 @RequestMapping("/api/urls")
