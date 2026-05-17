@@ -1,4 +1,4 @@
-import apiClient from './axiosInstance';
+import apiClient from "./axiosInstance";
 
 // 이메일 연동 계정 응답 타입
 export interface EmailAccount {
@@ -52,6 +52,7 @@ export interface EmailDetail {
   receivedAt: string;
   createdAt: string;
   urlCount: number;
+  riskLevel: string;
 }
 
 // 이메일 URL 1개 타입
@@ -64,35 +65,30 @@ export interface EmailUrlItem {
 }
 
 // 이메일 URL 목록 조회 응답 타입
-export interface EmailUrlsResponse {
+export interface EmailUrlResponse {
   emailId: number;
   urls: EmailUrlItem[];
 }
 
 // 이메일 연동 계정 목록 조회
-export const getEmailAccounts = async () => {
-  const response = await apiClient.get('/api/email-accounts');
+export const getEmailAccount = async () => {
+  const response = await apiClient.get("/api/email-accounts");
 
   return response.data.data.emailAccounts as EmailAccount[];
 };
 
 // 이메일 계정 등록
 export const createEmailAccount = async (
-  request: CreateEmailAccountRequest
+  request: CreateEmailAccountRequest,
 ) => {
-  const response = await apiClient.post(
-    '/api/email-accounts',
-    request
-  );
+  const response = await apiClient.post("/api/email-accounts", request);
 
   return response.data.data as EmailAccount;
 };
 
 // 이메일 계정 삭제
 export const deleteEmailAccount = async (accountId: number) => {
-  const response = await apiClient.delete(
-    `/api/email-accounts/${accountId}`
-  );
+  const response = await apiClient.delete(`/api/email-accounts/${accountId}`);
 
   return response.data;
 };
@@ -100,14 +96,14 @@ export const deleteEmailAccount = async (accountId: number) => {
 // 이메일 즉시 동기화
 export const syncEmailAccount = async (accountId: number) => {
   const response = await apiClient.post(
-    `/api/email-accounts/${accountId}/sync`
+    `/api/email-accounts/${accountId}/sync`,
   );
 
   return response.data.data;
 };
 
 // 이메일 목록 조회
-export const getEmails = async (params?: {
+export const getEmail = async (params?: {
   accountId?: number;
   keyword?: string;
   receivedAtFrom?: string;
@@ -115,7 +111,7 @@ export const getEmails = async (params?: {
   page?: number;
   size?: number;
 }) => {
-  const response = await apiClient.get('/api/emails', {
+  const response = await apiClient.get("/api/emails", {
     params: {
       accountId: params?.accountId,
       keyword: params?.keyword,
@@ -131,18 +127,14 @@ export const getEmails = async (params?: {
 
 // 이메일 상세 조회
 export const getEmailDetail = async (emailId: number) => {
-  const response = await apiClient.get(
-    `/api/emails/${emailId}`
-  );
+  const response = await apiClient.get(`/api/emails/${emailId}`);
 
   return response.data.data as EmailDetail;
 };
 
 // 특정 이메일 URL 목록 조회
-export const getEmailUrls = async (emailId: number) => {
-  const response = await apiClient.get(
-    `/api/emails/${emailId}/urls`
-  );
+export const getEmailUrl = async (emailId: number) => {
+  const response = await apiClient.get(`/api/emails/${emailId}/urls`);
 
-  return response.data.data as EmailUrlsResponse;
+  return response.data.data as EmailUrlResponse;
 };
