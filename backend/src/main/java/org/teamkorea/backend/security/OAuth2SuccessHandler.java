@@ -16,6 +16,7 @@ import org.teamkorea.backend.exception.BusinessException;
 import org.teamkorea.backend.exception.ErrorCode;
 import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
+import java.util.UUID;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -85,7 +86,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         User user = userRepository
                 .findByProviderAndProviderId(provider, providerId)
                 .orElseGet(() -> userRepository.findByEmail(email).orElseGet(() -> User.builder()
-                        .username(generateUsername(email, providerId))
+                        .username(generateUsername(email))
                         .email(email)
                         .name(name)
                         .passwordHash(null)
@@ -95,8 +96,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                         .providerId(providerId)
                         .build()));
 
-        user.updateOAuthInfo(generateUsername(email, providerId), email, name, provider, providerId);
+        user.updateOAuthInfo(user.getUsername(), email, name, provider, providerId);
         user.updateLastLoginAt();
+
         User savedUser = userRepository.save(user);
 
         String refreshToken = jwtUtil.generateRefreshToken(savedUser);
@@ -124,10 +126,14 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         response.sendRedirect(frontRedirectUri);
     }
 
-    private String generateUsername(String email, String providerId) {
-        String base = email.split("@")[0];
-        String suffix = providerId.substring(0, Math.min(5, providerId.length()));
+    private String generateUsername(String email) {
+        String base = email.split("@")[0]
+                .replaceAll("[^a-zA-Z0-9]", "");
+
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+
         String username = base + "_" + suffix;
+
         return username.length() > 20 ? username.substring(0, 20) : username;
     }
 }

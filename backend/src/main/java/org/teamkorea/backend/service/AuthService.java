@@ -126,7 +126,7 @@ public class AuthService {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "refreshToken 쿠키가 없습니다.");
         }
-        if (jwtUtil.validateAndGetClaims(refreshToken) == null) {
+        if (!jwtUtil.validateToken(refreshToken)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "유효하지 않거나 만료된 refreshToken입니다.");
         }
         String refreshTokenHash = jwtUtil.hashToken(refreshToken);
