@@ -1,7 +1,7 @@
 import apiClient from "./axiosInstance";
 
+
 // 이메일 제공자 타입
-// 백엔드 provider 값 기준
 export type EmailProvider = "GMAIL" | "NAVER" | "DAUM" | "OUTLOOK" | "CUSTOM";
 
 // 이메일 연동 계정 응답 타입
@@ -99,7 +99,6 @@ export const getEmailAccounts = async () => {
 // 이메일 계정 등록
 export const createEmailAccount = async (request: CreateEmailAccountRequest) => {
   const response = await apiClient.post("/api/email-accounts", request);
-
   return response.data.data as EmailAccount;
 };
 
@@ -113,12 +112,24 @@ export const deleteEmailAccount = async (accountId: number) => {
 // 이메일 즉시 동기화
 export const syncEmailAccount = async (accountId: number) => {
   const response = await apiClient.post(`/api/email-accounts/${accountId}/sync`);
+  return response.data.data;
+};
 
   return response.data.data;
 };
 
 // 이메일 목록 조회
 export const getEmails = async (params?: EmailListParams) => {
+  const response = await apiClient.get("/api/emails", {
+    params: {
+      accountId: params?.accountId,
+      keyword: params?.keyword,
+      receivedAtFrom: params?.receivedAtFrom,
+      receivedAtTo: params?.receivedAtTo,
+      page: params?.page ?? 0,
+      size: params?.size ?? 20,
+    },
+  });
   const response = await apiClient.get("/api/emails", {
     params: {
       accountId: params?.accountId,
@@ -143,11 +154,14 @@ export const getEmailDetail = async (emailId: number) => {
 // 특정 이메일 URL 목록 조회
 export const getEmailUrls = async (emailId: number) => {
   const response = await apiClient.get(`/api/emails/${emailId}/urls`);
-
   return response.data.data as EmailUrlsResponse;
 };
 
-// mail API 모음
+export const getEmailAccount = getEmailAccounts;
+export const getEmail = getEmails;
+export const getEmailUrl = getEmailUrls;
+export type EmailUrlResponse = EmailUrlsResponse;
+
 export const mailApi = {
   getEmailAccounts,
   createEmailAccount,
