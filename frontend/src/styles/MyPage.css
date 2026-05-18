@@ -1,0 +1,66 @@
+.mypage-section {
+  width: 100%;
+  max-width: 760px;
+}
+
+.mypage-form-grid {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.mypage-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.mypage-row > span {
+  color: var(--text-strong);
+  font-weight: 700;
+}
+
+.mypage-row input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-strong);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.mypage-inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.inline-action-button {
+  min-width: 96px;
+  white-space: nowrap;
+}
+
+.mypage-actions {
+  margin-top: 30px;
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 980px) {
+  .mypage-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mypage-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inline-action-button {
+    width: 100%;
+  }
+}
