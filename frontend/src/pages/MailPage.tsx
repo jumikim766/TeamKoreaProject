@@ -3,6 +3,7 @@ import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/Dashboard.css";
 
+// API 함수
 import {
   getEmailAccount,
   createEmailAccount,
@@ -52,8 +53,6 @@ interface MailPageProps {
   onNavigate: (view: PageViewTarget) => void;
 }
 
-const mailboxAccounts = ["1234@5678.com", "8765@4321.com", "abcd@efgh.com"];
-
 function MailPage({
   theme,
   currentView,
@@ -67,14 +66,14 @@ function MailPage({
   onGoMyPage,
   onNavigate,
 }: MailPageProps) {
-  const [selectedAccount, setSelectedAccount] = useState(mailboxAccounts[0]);
+  const [selectedAccount, setSelectedAccount] = useState("");
   const [selectedMailId, setSelectedMailId] = useState<number | null>(null);
   const [connectEmail, setConnectEmail] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<
     "GMAIL" | "NAVER" | "DAUM" | "OUTLOOK" | "CUSTOM"
   >("GMAIL");
   const [connectEmailError, setConnectEmailError] = useState("");
-  const [connectedEmails, setConnectedEmails] = useState(mailboxAccounts);
+  const [connectedEmails, setConnectedEmails] = useState<string[]>([]);
   const [emailAccounts, setEmailAccounts] = useState<EmailAccount[]>([]);
   const [emails, setEmails] = useState<EmailListItem[]>([]);
   const [selectedEmailDetail, setSelectedEmailDetail] =
@@ -84,7 +83,14 @@ function MailPage({
     const fetchEmailAccounts = async () => {
       try {
         const accounts = await getEmailAccount();
+
+        // 이메일 계정 state 저장
         setEmailAccounts(accounts);
+
+        const accountEmails = accounts.map((account) => account.email);
+        setConnectedEmails(accountEmails);
+
+        setSelectedAccount((prev) => prev || accountEmails[0] || "");
       } catch (error) {
         console.error("이메일 계정 목록 조회 실패:", error);
       }
@@ -171,7 +177,13 @@ function MailPage({
 
       await createEmailAccount(request);
 
-      setConnectedEmails((prev) => [...prev, connectEmail]);
+      const accounts = await getEmailAccount();
+      setEmailAccounts(accounts);
+
+      const accountEmails = accounts.map((account) => account.email);
+      setConnectedEmails(accountEmails);
+      setSelectedAccount((prev) => prev || connectEmail);
+
       setConnectEmail("");
       setConnectEmailError("");
       alert("이메일이 연동되었습니다.");
@@ -278,11 +290,15 @@ function MailPage({
                       setSelectedMailId(null);
                     }}
                   >
-                    {connectedEmails.map((email) => (
-                      <option key={email} value={email}>
-                        {email}
-                      </option>
-                    ))}
+                    {connectedEmails.length > 0 ? (
+                      connectedEmails.map((email) => (
+                        <option key={email} value={email}>
+                          {email}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">연동된 이메일이 없습니다.</option>
+                    )}
                   </select>
                 </div>
 

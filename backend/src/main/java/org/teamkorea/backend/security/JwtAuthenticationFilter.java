@@ -26,7 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response,
+                                     HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
         String authorizationHeader = request.getHeader("Authorization");
@@ -38,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 토큰 검증과 Claims 추출을 한 번에 처리
             Claims claims = jwtUtil.validateAndGetClaims(token);
 
-            if (claims != null) {
+                if (claims != null) {
                 Long userId = Long.parseLong(claims.getSubject());
                 String email = claims.get("email", String.class);
                 String role = claims.get("role", String.class);
