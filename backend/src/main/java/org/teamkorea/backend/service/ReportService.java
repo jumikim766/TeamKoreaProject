@@ -3,74 +3,69 @@ package org.teamkorea.backend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.teamkorea.backend.domain.*;
-import org.teamkorea.backend.dto.*;
-import org.teamkorea.backend.repository.*;
+import org.teamkorea.backend.domain.Report;
+import org.teamkorea.backend.domain.Url;
+import org.teamkorea.backend.domain.User;
+import org.teamkorea.backend.dto.ReportRequestDto;
+import org.teamkorea.backend.dto.ReportResponseDto;
+import org.teamkorea.backend.repository.ReportRepository;
+import org.teamkorea.backend.repository.UrlRepository;
+import org.teamkorea.backend.repository.UserRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
+@Transactional
 public class ReportService {
 
-    private final ReportsRepository reportRepository;
-    private final UserRepository userRepository;
+    private final ReportRepository reportRepository;
     private final UrlRepository urlRepository;
+    private final UserRepository userRepository;
 
-    /**
-     * 새로운 신고를 접수합니다.
-     */
-    public ReportResponseDto createReport(String email, ReportRequestDto request) {
+    public ReportResponseDto createReport(ReportRequestDto request, String email) {
+        
+        // 1. 사용자 조회
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("신고자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        
+        // 🚨 에러 원인 제거: DTO에 있는 정확한 이름인 getUrl() 하나만 사용합니다! (urlId 체크 등 싹 삭제)
+        String targetUrl = request.getUrl(); 
+        
+        // 2. 입력된 URL 텍스트로 DB에서 매핑 검색
+        Url existingUrl = urlRepository.findByNormalizedUrl(targetUrl).orElse(null);
 
-        Url url = null;
-        String finalReportedUrl = request.getReportedUrl();
-
-        // 만약 특정 분석 결과나 URL ID가 연관되어 있다면 정보를 가져옴
-        if (request.getUrlId() != null) {
-            url = urlRepository.findById(request.getUrlId())
-                    .orElseThrow(() -> new IllegalArgumentException("신고할 URL 정보를 찾을 수 없습니다."));
-            finalReportedUrl = url.getNormalizedUrl(); 
-        }
-
-        // 1. Reports 엔티티 생성 (데이터 사전의 status: RECEIVED 반영)
-        Reports report = Reports.builder()
+        // 3. Report 엔티티 생성
+        Report report = Report.builder()
                 .user(user)
-                .url(url)
-                .reportedUrl(finalReportedUrl)
+                .url(existingUrl)
+                .reportedUrl(targetUrl) // DB에는 입력받은 URL 그대로 저장
                 .reason(request.getReason())
-                .status("RECEIVED") 
+                .status("RECEIVED")
                 .build();
 
-        Reports savedReport = reportRepository.save(report);
+        // 4. DB 저장
+        Report savedReport = reportRepository.save(report);
 
-        // 2. DTO 반환 (createdAt은 String으로 변환하여 전달)
+        // 5. 응답 DTO 반환
         return ReportResponseDto.builder()
                 .reportId(savedReport.getReportId())
                 .status(savedReport.getStatus())
-                .createdAt(savedReport.getCreatedAt() != null ? 
-                           savedReport.getCreatedAt().toString() : null)
                 .build();
     }
 
-    /**
-     * 사용자의 이메일을 기반으로 신고 내역 목록을 조회합니다.
-     */
     @Transactional(readOnly = true)
-    public List<ReportResponseDto> getReportsByEmail(String email) {
+    public List<ReportResponseDto> getMyReports(String email) {
+        
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        // 리포지토리의 findByUser_UserId 또는 findByUser 메서드 사용
         return reportRepository.findByUser(user)
                 .stream()
                 .map(report -> ReportResponseDto.builder()
                         .reportId(report.getReportId())
                         .status(report.getStatus())
-                        .createdAt(report.getCreatedAt().toString())
                         .build())
                 .collect(Collectors.toList());
     }

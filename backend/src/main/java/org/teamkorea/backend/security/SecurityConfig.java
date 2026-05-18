@@ -58,6 +58,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // 1. 로그인 없이 접근 가능한 퍼블릭 화이트리스트
                         .requestMatchers(
                                 "/",
                                 "/oauth2/**",
@@ -71,6 +72,9 @@ public class SecurityConfig {
                                 "/api/users/check-username",
                                 "/api/users/check-email"
                         ).permitAll()
+                        // 2. 통합된 URL 분석 및 이력 조회 관련 엔드포인트 보호 (명시적 추가)
+                        .requestMatchers("/api/url-analysis/**").authenticated()
+                        // 3. 그 외 나머지 모든 요청은 무조건 인증 필요
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth

@@ -35,7 +35,6 @@ public class DomainReputation {
     @Column(name = "last_updated_at", nullable = false)
     private LocalDateTime lastUpdatedAt;
 
-    // 기존 코드 호환용 생성자 (AnalysisService 등에서 사용 가능)
     public DomainReputation(String domain, Integer trustScore, Boolean isWhitelisted, Boolean isBlacklisted) {
         this.domain = domain;
         this.trustScore = trustScore != null ? trustScore : 50;
@@ -58,10 +57,16 @@ public class DomainReputation {
         this.lastUpdatedAt = LocalDateTime.now();
     }
 
-    /**
-     * AnalysisService에서 double 연산을 위해 안전하게 점수를 반환하는 메서드
-     */
     public double getTrustScoreValue() {
         return this.trustScore != null ? this.trustScore.doubleValue() : 50.0;
+    }
+
+    // 🚨 IDE 에러 방지를 위해 명시적으로 Getter를 추가했습니다!
+    public Boolean getIsWhitelisted() {
+        return this.isWhitelisted;
+    }
+
+    public Boolean getIsBlacklisted() {
+        return this.isBlacklisted;
     }
 }

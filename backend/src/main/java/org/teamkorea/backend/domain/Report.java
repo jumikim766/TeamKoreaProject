@@ -6,12 +6,15 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Setter // 상태 변경(status) 및 관리를 위해 추가
+@Setter // 관리자 기능 등에서 상태(status) 변경 처리를 위해 유지
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
+@Builderpublic ReportBuilder url(User existingUrl) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'url'");
+    }
 @Table(name = "reports")
-public class Reports { // 클래스명을 Report로 변경 (관례 준수)
+public class Report { // 클래스명을 Reports -> Report 로 변경 완료
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,14 +30,14 @@ public class Reports { // 클래스명을 Report로 변경 (관례 준수)
     private Url url; // 분석된 적이 없는 URL일 수 있으므로 NULL 허용 
 
     @Column(name = "reported_url", nullable = false, columnDefinition = "TEXT")
-    private String reportedUrl; // 
+    private String reportedUrl; 
 
     @Column(name = "reason", nullable = false, length = 1000)
-    private String reason; // 
+    private String reason; 
 
     @Builder.Default
     @Column(name = "status", nullable = false, length = 20)
-    private String status = "RECEIVED"; // RECEIVED, REVIEWING, COMPLETED [cite: 217, 248]
+    private String status = "RECEIVED"; // RECEIVED, REVIEWING, COMPLETED
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -42,8 +45,8 @@ public class Reports { // 클래스명을 Report로 변경 (관례 준수)
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    // 기존 서비스 코드 호환성 유지
-    public Reports(User user, Url url, String reportedUrl, String reason) {
+    // 기존 서비스 코드 호환성 유지용 커스텀 생성자
+    public Report(User user, Url url, String reportedUrl, String reason) {
         this.user = user;
         this.url = url;
         this.reportedUrl = reportedUrl;
@@ -62,5 +65,10 @@ public class Reports { // 클래스명을 Report로 변경 (관례 준수)
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public static Object builder() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'builder'");
     }
 }

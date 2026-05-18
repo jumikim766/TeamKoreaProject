@@ -37,7 +37,6 @@ public class AnalysisListResponseDto {
      * 사용자의 히스토리 목록을 조회할 때 사용됩니다.
      */
     public AnalysisListResponseDto(AnalysisHistory history) {
-        // 엔티티에서 수정한 필드명 'analysis'를 정확히 참조합니다.
         this.analysisId = history.getUrlAnalysis().getAnalysisId();
         this.url = history.getUrlAnalysis().getUrl().getNormalizedUrl();
         this.riskLevel = history.getUrlAnalysis().getRiskLevel().name();

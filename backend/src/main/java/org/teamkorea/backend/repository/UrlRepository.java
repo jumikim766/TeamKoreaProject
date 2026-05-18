@@ -3,9 +3,9 @@ package org.teamkorea.backend.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.teamkorea.backend.domain.Url;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.teamkorea.backend.domain.Url;
 import org.teamkorea.backend.domain.RiskLevel;
 
 import java.util.List;
@@ -20,7 +20,7 @@ public interface UrlRepository extends JpaRepository<Url, Long> {
 
     Page<Url> findByDomainContainingIgnoreCase(String domain, Pageable pageable);
 
-    // URL 목록 조회 - DB 조회 단계에서 처리
+    // URL 목록 조회
     @Query("""
             SELECT u
             FROM Url u
@@ -81,4 +81,8 @@ public interface UrlRepository extends JpaRepository<Url, Long> {
     List<Url> findUrlsForStatistics(
             @Param("domain") String domain,
             @Param("isAnalyzed") Boolean isAnalyzed);
+
+    // 🚨 핵심 수정 포인트: 기존의 Object 반환 메서드와 잘못된 findById 코드를 완전히 삭제했습니다.
+    // 이 메서드가 정상적으로 Optional<Url>을 반환해야 서비스와 연동됩니다.
+    Optional<Url> findByNormalizedUrl(String normalizedUrl);
 }

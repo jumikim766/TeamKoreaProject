@@ -118,4 +118,9 @@ public class User {
         this.status    = "DELETED";
         this.deletedAt = LocalDateTime.now();
     }
+
+    public String getNormalizedUrl() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getNormalizedUrl'");
+    }
 }

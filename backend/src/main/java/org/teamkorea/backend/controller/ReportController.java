@@ -22,30 +22,24 @@ public class ReportController {
 
     private final ReportService reportService;
 
-    /**
-     * 사용자 신고 등록
-     */
     @PostMapping
     public ResponseEntity<BaseResponse<ReportResponseDto>> createReport(
             @RequestBody ReportRequestDto request,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        // [수정 포인트 1] 메서드 명을 createReports -> createReport로 변경 (s 제거)
-        // [수정 포인트 2] 서비스를 String email을 받도록 고쳤으므로 userDetails.getUsername() 전달
-        ReportResponseDto response = reportService.createReport(userDetails.getUsername(), request);
+        // 컨트롤러에서는 String(이메일)을 서비스로 넘깁니다.
+        ReportResponseDto response = reportService.createReport(request, userDetails.getUsername());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(BaseResponse.success("신고가 접수되었습니다.", response));
     }
 
-    /**
-     * 내 신고 내역 조회
-     */
     @GetMapping
     public ResponseEntity<BaseResponse<Map<String, List<ReportResponseDto>>>> getMyReports(
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
-        List<ReportResponseDto> reports = reportService.getReportsByEmail(userDetails.getUsername());
+        // 여기서도 String(이메일)을 서비스로 넘깁니다.
+        List<ReportResponseDto> reports = reportService.getMyReports(userDetails.getUsername());
 
         Map<String, List<ReportResponseDto>> data = new HashMap<>();
         data.put("reports", reports);
