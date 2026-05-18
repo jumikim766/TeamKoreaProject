@@ -19,7 +19,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     // 현재 기기 로그아웃: 전달받은 Refresh Token만 삭제
     void deleteByTokenHash(String tokenHash);
 
-    // 회원 탈퇴 시 해당 사용자의 RefreshToken 전체 삭제
+    // 전체 기기 로그아웃: 해당 사용자의 모든 Refresh Token 삭제
     void deleteAllByUser(User user);
 
     // 만료된 Refresh Token 정리
