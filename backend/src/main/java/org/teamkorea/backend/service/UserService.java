@@ -11,6 +11,7 @@ import org.teamkorea.backend.exception.BusinessException;
 import org.teamkorea.backend.exception.ErrorCode;
 import org.teamkorea.backend.repository.UserRepository;
 import org.teamkorea.backend.security.CryptoUtil;
+import org.teamkorea.backend.repository.RefreshTokenRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final CryptoUtil cryptoUtil;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public UserMeResponseDto getMyInfo(Long userId) {
         User user = getActiveUser(userId);
@@ -47,12 +49,11 @@ public class UserService {
 
     @Transactional
     public UserUpdateResponseDto updateMyInfo(Long userId, UserUpdateRequestDto requestDto) {
-        boolean allBlank =
-                (requestDto.getUsername() == null || requestDto.getUsername().isBlank()) &&
-                (requestDto.getEmail()    == null || requestDto.getEmail().isBlank())    &&
-                (requestDto.getName()     == null || requestDto.getName().isBlank())     &&
-                (requestDto.getPhone()    == null || requestDto.getPhone().isBlank())    &&
-                (requestDto.getGender()   == null || requestDto.getGender().isBlank())   &&
+        boolean allBlank = (requestDto.getUsername() == null || requestDto.getUsername().isBlank()) &&
+                (requestDto.getEmail() == null || requestDto.getEmail().isBlank()) &&
+                (requestDto.getName() == null || requestDto.getName().isBlank()) &&
+                (requestDto.getPhone() == null || requestDto.getPhone().isBlank()) &&
+                (requestDto.getGender() == null || requestDto.getGender().isBlank()) &&
                 requestDto.getAge() == null;
 
         if (allBlank) {
@@ -61,9 +62,8 @@ public class UserService {
 
         User user = getActiveUser(userId);
 
-        boolean wantsAccountChange =
-                (requestDto.getUsername() != null && !requestDto.getUsername().isBlank()) ||
-                (requestDto.getEmail()    != null && !requestDto.getEmail().isBlank());
+        boolean wantsAccountChange = (requestDto.getUsername() != null && !requestDto.getUsername().isBlank()) ||
+                (requestDto.getEmail() != null && !requestDto.getEmail().isBlank());
 
         if (wantsAccountChange) {
             if (!"LOCAL".equals(user.getProvider())) {
@@ -96,16 +96,19 @@ public class UserService {
 
         user.updateProfile(
                 phoneEnc,
-                requestDto.getName()   != null && !requestDto.getName().isBlank()
-                        ? requestDto.getName()   : user.getName(),
+                requestDto.getName() != null && !requestDto.getName().isBlank()
+                        ? requestDto.getName()
+                        : user.getName(),
                 requestDto.getGender() != null && !requestDto.getGender().isBlank()
-                        ? requestDto.getGender() : user.getGender(),
-                requestDto.getAge()    != null
-                        ? requestDto.getAge()    : user.getAge()
-        );
+                        ? requestDto.getGender()
+                        : user.getGender(),
+                requestDto.getAge() != null
+                        ? requestDto.getAge()
+                        : user.getAge());
 
         String phoneMasked = (phoneEnc != null)
-                ? maskPhone(cryptoUtil.decrypt(phoneEnc)) : null;
+                ? maskPhone(cryptoUtil.decrypt(phoneEnc))
+                : null;
 
         return UserUpdateResponseDto.builder()
                 .userId(user.getUserId())
@@ -155,7 +158,8 @@ public class UserService {
                 throw new BusinessException(ErrorCode.UNAUTHORIZED, "비밀번호가 올바르지 않습니다.");
             }
         }
-        
+        // 회원 탈퇴 시 RefreshToken 전체 삭제
+        refreshTokenRepository.deleteAllByUser(user);
 
         user.withdraw();
     }
@@ -187,11 +191,13 @@ public class UserService {
      * 하이픈 포함 형식(010-XXXX-XXXX)도 처리하도록 먼저 숫자만 추출 후 마스킹.
      */
     private String maskPhone(String phone) {
-        if (phone == null || phone.isBlank()) return null;
+        if (phone == null || phone.isBlank())
+            return null;
 
         String digits = phone.replaceAll("[^0-9]", "");
 
-        if (digits.length() != 11) return phone; // 형식 미달 시 원문 반환
+        if (digits.length() != 11)
+            return phone; // 형식 미달 시 원문 반환
 
         return digits.substring(0, 3) + "****" + digits.substring(7);
     }
