@@ -187,4 +187,5 @@ if ("test@gmail.com".equals(email) && "1234".equals(password)) {
             throw new BusinessException(ErrorCode.CONFLICT, "이미 사용 중인 이메일입니다.");
         }
     }
+    
 }
