@@ -3,6 +3,7 @@ import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/Dashboard.css";
 
+// API 함수
 import {
   getEmailAccount,
   createEmailAccount,
