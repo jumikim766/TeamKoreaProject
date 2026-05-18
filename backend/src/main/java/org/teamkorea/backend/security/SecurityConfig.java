@@ -24,101 +24,97 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final ObjectMapper objectMapper;
+        private final OAuth2SuccessHandler oAuth2SuccessHandler;
+        private final CustomOAuth2UserService customOAuth2UserService;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final ObjectMapper objectMapper;
 
-    /**
-     * CORS 허용 오리진을 application.properties에서 주입받아
-     * 배포 환경마다 코드 수정 없이 변경할 수 있다.
-     *
-     * 예) app.cors.allowed-origins=https://example.com,https://www.example.com
-     */
-    @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+        /**
+         * CORS 허용 오리진을 application.properties에서 주입받아
+         * 배포 환경마다 코드 수정 없이 변경할 수 있다.
+         *
+         * 예) app.cors.allowed-origins=https://example.com,https://www.example.com
+         */
+        @Value("${app.cors.allowed-origins}")
+        private List<String> allowedOrigins;
 
-    public SecurityConfig(OAuth2SuccessHandler oAuth2SuccessHandler,
-                          CustomOAuth2UserService customOAuth2UserService,
-                          JwtAuthenticationFilter jwtAuthenticationFilter,
-                          ObjectMapper objectMapper) {
-        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
-        this.customOAuth2UserService = customOAuth2UserService;
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.objectMapper = objectMapper;
-    }
+        public SecurityConfig(OAuth2SuccessHandler oAuth2SuccessHandler,
+                        CustomOAuth2UserService customOAuth2UserService,
+                        JwtAuthenticationFilter jwtAuthenticationFilter,
+                        ObjectMapper objectMapper) {
+                this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+                this.customOAuth2UserService = customOAuth2UserService;
+                this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+                this.objectMapper = objectMapper;
+        }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                "/",
-                                "/oauth2/**",
-                                "/login/**",
-                                "/error",
-                                "/api/auth/signup",
-                                "/api/auth/login",
-                                "/api/auth/reissue",
-                                "/api/auth/logout",
-                                "/api/hello",
-                                "/api/users/check-username",
-                                "/api/users/check-email"
-                        ).permitAll()
-                        .anyRequest().authenticated()
-                )
-                .oauth2Login(oauth -> oauth
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService))
-                        .successHandler(oAuth2SuccessHandler)
-                )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write(
-                                    objectMapper.writeValueAsString(
-                                        BaseResponse.error("로그인이 필요합니다.", "UNAUTHORIZED")
-                                )
-                            );
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write(
-                                   objectMapper.writeValueAsString(
-                                        BaseResponse.error("접근 권한이 없습니다.", "FORBIDDEN")
-                                )
-                            );
-                        })
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                http
+                                .csrf(csrf -> csrf.disable())
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                                .requestMatchers(
+                                                                "/",
+                                                                "/oauth2/**",
+                                                                "/login/**",
+                                                                "/error",
+                                                                "/api/auth/signup",
+                                                                "/api/auth/login",
+                                                                "/api/auth/reissue",
+                                                                "/api/auth/logout",
+                                                                "/api/hello",
+                                                                "/api/users/check-username",
+                                                                "/api/users/check-email")
+                                                .permitAll()
+                                                .anyRequest().authenticated())
+                                .oauth2Login(oauth -> oauth
+                                                .userInfoEndpoint(userInfo -> userInfo
+                                                                .userService(customOAuth2UserService))
+                                                .successHandler(oAuth2SuccessHandler))
+                                .exceptionHandling(ex -> ex
+                                                .authenticationEntryPoint((request, response, authException) -> {
+                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                                        response.setContentType("application/json;charset=UTF-8");
+                                                        response.getWriter().write(
+                                                                        objectMapper.writeValueAsString(
+                                                                                        BaseResponse.error(
+                                                                                                        "로그인이 필요합니다.",
+                                                                                                        "UNAUTHORIZED")));
+                                                })
+                                                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                                                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                                        response.setContentType("application/json;charset=UTF-8");
+                                                        response.getWriter().write(
+                                                                        objectMapper.writeValueAsString(
+                                                                                        BaseResponse.error(
+                                                                                                        "접근 권한이 없습니다.",
+                                                                                                        "FORBIDDEN")));
+                                                }))
+                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+                return http.build();
+        }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder(12);
+        }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        config.setExposedHeaders(List.of("Authorization"));
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOrigins(allowedOrigins);
+                config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(List.of("*"));
+                config.setAllowCredentials(true);
+                config.setExposedHeaders(List.of("Authorization"));
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
+                return source;
+        }
 }

@@ -10,6 +10,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import io.jsonwebtoken.Claims;
+
 import java.io.IOException;
 import java.util.List;
 
@@ -24,8 +26,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+                                     HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
 
         String authorizationHeader = request.getHeader("Authorization");
 
@@ -33,21 +35,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             String token = authorizationHeader.substring(7);
 
-            // 토큰 유효성 검증
-            if (jwtUtil.validateToken(token)) {
+            // 토큰 검증과 Claims 추출을 한 번에 처리
+            Claims claims = jwtUtil.validateAndGetClaims(token);
 
-                // 토큰에서 사용자 정보 추출
-                Long userId = jwtUtil.getUserId(token);
-                String email = jwtUtil.getEmail(token);
-                String role = jwtUtil.getRole(token);
+                if (claims != null) {
+                Long userId = Long.parseLong(claims.getSubject());
+                String email = claims.get("email", String.class);
+                String role = claims.get("role", String.class);
 
                 // principal = email / details = userId 구조
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                email,
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                        );
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        email,
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role)));
 
                 // userId는 details에 저장
                 authentication.setDetails(userId);

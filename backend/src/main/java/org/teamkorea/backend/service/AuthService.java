@@ -21,7 +21,9 @@ import org.teamkorea.backend.security.CryptoUtil;
 import org.teamkorea.backend.security.JwtUtil;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor // 수동 생성자 → Lombok으로 통일
@@ -68,6 +70,9 @@ public class AuthService {
     }
 
     public LoginResponseDto login(String email, String password) {
+
+        log.info("로그인 요청");
+
         validateLoginRequest(email, password);
 
         User user = userRepository.findByEmail(email)
@@ -79,24 +84,15 @@ public class AuthService {
                     ErrorCode.INVALID_INPUT, "소셜 로그인 계정입니다. 일반 로그인을 사용할 수 없습니다.");
         }
 
+        if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
 
-        boolean match = passwordEncoder.matches(password, user.getPasswordHash());
+            log.warn("로그인 실패");
 
-System.out.println("입력 비밀번호 = " + password);
-System.out.println("DB 해시 = " + user.getPasswordHash());
-System.out.println("비밀번호 일치 여부 = " + match);
+            throw new BusinessException(
+                    ErrorCode.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
 
-if ("test@gmail.com".equals(email) && "1234".equals(password)) {
-    System.out.println("테스트 계정 로그인 강제 허용");
-} else if (user.getPasswordHash() == null || !match) {
-
-    throw new BusinessException(
-            ErrorCode.UNAUTHORIZED,
-            "이메일 또는 비밀번호가 올바르지 않습니다."
-    );
-}
-
-        String accessToken  = jwtUtil.generateAccessToken(user);
+        String accessToken = jwtUtil.generateAccessToken(user);
         String refreshToken = jwtUtil.generateRefreshToken(user);
         String refreshTokenHash = jwtUtil.hashToken(refreshToken);
 
@@ -108,6 +104,8 @@ if ("test@gmail.com".equals(email) && "1234".equals(password)) {
         refreshTokenRepository.save(new RefreshToken(user, refreshTokenHash, expiresAt));
 
         user.updateLastLoginAt();
+
+        log.info("로그인 성공");
 
         return LoginResponseDto.builder()
                 .accessToken(accessToken)
@@ -140,16 +138,34 @@ if ("test@gmail.com".equals(email) && "1234".equals(password)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "유효하지 않거나 만료된 refreshToken입니다.");
         }
 
-        String newAccessToken = jwtUtil.generateAccessToken(savedToken.getUser());
+        User user = savedToken.getUser();
+
+        // 기존 refreshToken 삭제
+        refreshTokenRepository.deleteByTokenHash(refreshTokenHash);
+
+        // 새 accessToken + 새 refreshToken 발급
+        String newAccessToken = jwtUtil.generateAccessToken(user);
+        String newRefreshToken = jwtUtil.generateRefreshToken(user);
+        String newRefreshTokenHash = jwtUtil.hashToken(newRefreshToken);
+
+        LocalDateTime newExpiresAt = LocalDateTime.ofInstant(
+                jwtUtil.getRefreshTokenExpiryInstant(),
+                ZoneId.systemDefault());
+
+        // 새 refreshToken 저장
+        refreshTokenRepository.save(new RefreshToken(user, newRefreshTokenHash, newExpiresAt));
+
         return ReissueResponseDto.builder()
                 .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
                 .build();
     }
 
     /** logout(String refreshToken)은 null 허용으로 살짝 완화 */
     public void logout(String refreshToken) {
-        if (refreshToken == null || refreshToken.isBlank()) return; // 이미 만료/없음 → 멱등 처리
+        if (refreshToken == null || refreshToken.isBlank())
+            return; // 이미 만료/없음 → 멱등 처리
         String tokenHash = jwtUtil.hashToken(refreshToken);
         refreshTokenRepository.findByTokenHash(tokenHash)
                 .ifPresent(rt -> refreshTokenRepository.deleteByTokenHash(tokenHash));
