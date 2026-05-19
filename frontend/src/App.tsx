@@ -185,11 +185,14 @@ function App() {
   const handleLogout = async () => {
   try {
     await logout();
+  } catch (error) {
+    console.error("로그아웃 실패:", error);
   } finally {
     clearAccessToken();
+    localStorage.removeItem("userName");
     setIsLoggedIn(false);
-    setUserName("사용자");
-    handleNavigate("login", true);
+
+    window.history.pushState(null, "", "/login");
   }
 };
 
