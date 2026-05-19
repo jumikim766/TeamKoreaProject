@@ -30,7 +30,6 @@ import jakarta.mail.internet.InternetAddress;
 @Transactional(readOnly = true)
 public class EmailAccountService {
 
-
     private static final int FIRST_SYNC_LIMIT = 100;
     private static final int NEXT_SYNC_LIMIT = 10;
 
@@ -39,7 +38,7 @@ public class EmailAccountService {
     private final EmailRepository emailRepository;
     private final CryptoUtil cryptoUtil;
     private final EmailSaveService emailSaveService;
-    
+
     // 이메일 계정 등록
     @Transactional
     public EmailAccountResponseDto createEmailAccount(Long userId, EmailAccountRequestDto request) {
@@ -60,8 +59,7 @@ public class EmailAccountService {
         byte[] secretEnc;
         try {
             secretEnc = cryptoUtil.encrypt(request.getSecret());
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "이메일 비밀번호 암호화 중 오류가 발생했습니다.");
         }
 
@@ -157,17 +155,17 @@ public class EmailAccountService {
             // 비밀번호 복호화 후 접속
             String secret = cryptoUtil.decrypt(account.getSecretEnc());
 
-            System.out.println("[DEBUG] host=" + account.getImapHost()
-            + ", port=" + account.getImapPort()
-            + ", loginId=" + account.getLoginId()
-            + ", secretLen=" + (secret == null ? "null" : secret.length()));
-            
+            // System.out.println("[DEBUG] host=" + account.getImapHost()
+            // + ", port=" + account.getImapPort()
+            // + ", loginId=" + account.getLoginId()
+            // + ", secretLen=" + (secret == null ? "null" : secret.length()));
+
             store.connect(account.getImapHost(), account.getLoginId(), secret);
 
             // store.connect(
-            //         account.getImapHost(),
-            //         account.getLoginId(),
-            //         secret
+            // account.getImapHost(),
+            // account.getLoginId(),
+            // secret
             // );
 
             // INBOX 열기
@@ -176,8 +174,8 @@ public class EmailAccountService {
 
             Message[] messages = inbox.getMessages();
 
-            System.out.println("[SYNC] totalMessages = " + messages.length);
-            System.out.println("[SYNC] lastSyncedAt = " + lastSyncedAt);
+            // System.out.println("[SYNC] totalMessages = " + messages.length);
+            // System.out.println("[SYNC] lastSyncedAt = " + lastSyncedAt);
 
             boolean isFirstSync = (lastSyncedAt == null);
             int syncLimit = isFirstSync ? FIRST_SYNC_LIMIT : NEXT_SYNC_LIMIT;
@@ -193,28 +191,29 @@ public class EmailAccountService {
 
                 Message msg = messages[i];
 
-                System.out.println("[SYNC] processing subject = " + msg.getSubject());
+                // System.out.println("[SYNC] processing subject = " + msg.getSubject());
 
                 collectedEmailCount++;
 
                 LocalDateTime receivedAt = msg.getReceivedDate() != null
                         ? LocalDateTime.ofInstant(
-                        msg.getReceivedDate().toInstant(),
-                        ZoneId.systemDefault()
-                        )
+                                msg.getReceivedDate().toInstant(),
+                                ZoneId.systemDefault())
                         : LocalDateTime.now();
 
-                /*/
-                if (lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
-                    skippedEmailCount++;
-                    continue;
-                }*/
-                
+                /*
+                 * /
+                 * if (lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
+                 * skippedEmailCount++;
+                 * continue;
+                 * }
+                 */
+
                 String messageUid = buildMessageUid(msg);
 
-                System.out.println("[SYNC] messageUid = " + messageUid);
+                // System.out.println("[SYNC] messageUid = " + messageUid);
                 boolean exists = emailRepository.existsByMessageUid(messageUid);
-                System.out.println("[SYNC] exists = " + exists);
+                // System.out.println("[SYNC] exists = " + exists);
 
                 if (emailRepository.existsByMessageUid(messageUid)) {
                     skippedEmailCount++;
@@ -224,26 +223,24 @@ public class EmailAccountService {
                 String subject = msg.getSubject();
                 String bodyText = getText(msg);
 
-
                 List<String> extractedUrls = extractUrls(bodyText);
 
-                 // 메일 1건 처리 실패가 sync 전체를 죽이지 않게 try-catch로 감쌈
+                // 메일 1건 처리 실패가 sync 전체를 죽이지 않게 try-catch로 감쌈
                 try {
                     int savedUrlCount = emailSaveService.saveEmailAndUrls(
-                        userId,
-                        account,
-                        messageUid,
-                        extractSenderName(msg),
-                        extractSenderEmail(msg),
-                        account.getEmail(),
-                        subject,
-                        bodyText,
-                        receivedAt,
-                        extractedUrls
-                    );
+                            userId,
+                            account,
+                            messageUid,
+                            extractSenderName(msg),
+                            extractSenderEmail(msg),
+                            account.getEmail(),
+                            subject,
+                            bodyText,
+                            receivedAt,
+                            extractedUrls);
 
-                    System.out.println("[SYNC] email saved, savedUrlCount = " + savedUrlCount);
-                    
+                    // System.out.println("[SYNC] email saved, savedUrlCount = " + savedUrlCount);
+
                     savedEmailCount++;
                     extractedUrlCount += savedUrlCount;
                 } catch (Exception perMailEx) {
@@ -252,7 +249,7 @@ public class EmailAccountService {
                     perMailEx.printStackTrace();
                 }
 
-                System.out.println("[SYNC] processing = " + msg.getSubject());
+                // System.out.println("[SYNC] processing = " + msg.getSubject());
 
             }
 
@@ -332,7 +329,7 @@ public class EmailAccountService {
 
             default:
                 throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 provider입니다.");
-            }
+        }
     }
 
     // 응답 DTO 변환
@@ -352,24 +349,78 @@ public class EmailAccountService {
     // 이메일 본문 추출
     private String getText(Part part) throws Exception {
 
-        if (part.isMimeType("text/plain") || part.isMimeType("text/html")) {
+        // 일반 텍스트 메일이면 그대로 반환
+        if (part.isMimeType("text/plain")) {
             Object content = part.getContent();
             return content != null ? content.toString() : "";
         }
 
+        // HTML 메일이면 태그 제거 후 텍스트만 반환
+        if (part.isMimeType("text/html")) {
+            Object content = part.getContent();
+            return content != null ? htmlToText(content.toString()) : "";
+        }
+
+        // multipart 메일이면 text/plain을 우선 사용하고, 없으면 text/html을 텍스트로 변환
         if (part.isMimeType("multipart/*")) {
             Multipart multipart = (Multipart) part.getContent();
 
-            for (int i = 0; i < multipart.getCount(); i++) {
-                String text = getText(multipart.getBodyPart(i));
+            String htmlText = "";
 
-                if (text != null && !text.isBlank()) {
-                    return text;
+            for (int i = 0; i < multipart.getCount(); i++) {
+                BodyPart bodyPart = multipart.getBodyPart(i);
+
+                if (bodyPart.isMimeType("text/plain")) {
+                    String text = getText(bodyPart);
+                    if (text != null && !text.isBlank()) {
+                        return text;
+                    }
+                }
+
+                if (bodyPart.isMimeType("text/html")) {
+                    htmlText = getText(bodyPart);
                 }
             }
+
+            return htmlText;
         }
 
         return "";
+    }
+
+    // HTML 태그 제거
+    private String htmlToText(String html) {
+        if (html == null || html.isBlank()) {
+            return "";
+        }
+
+        return html
+                // 줄바꿈 태그 먼저 처리
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</p>", "\n")
+                .replaceAll("(?i)</div>", "\n")
+                .replaceAll("(?i)</li>", "\n")
+
+                // style/script 제거
+                .replaceAll("(?is)<style.*?>.*?</style>", " ")
+                .replaceAll("(?is)<script.*?>.*?</script>", " ")
+
+                // 나머지 HTML 태그 제거
+                .replaceAll("(?is)<[^>]+>", " ")
+
+                // HTML 엔티티 변환
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("&amp;", "&")
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("&quot;", "\"")
+                .replaceAll("&#39;", "'")
+
+                // 줄바꿈 유지하면서 공백만 정리
+                .replaceAll("[ \\t\\x0B\\f\\r]+", " ")
+                .replaceAll("\\n{3,}", "\n\n")
+
+                .trim();
     }
 
     // 본문에서 URL 추출
@@ -443,7 +494,6 @@ public class EmailAccountService {
         }
     }
 
-    
     // 이메일 중복 방지용 ID 생성
     private String buildMessageUid(Message msg) throws Exception {
 
