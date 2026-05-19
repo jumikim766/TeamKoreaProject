@@ -48,63 +48,6 @@ public class SecurityConfig {
                 this.objectMapper = objectMapper;
         }
 
-<<<<<<< HEAD
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // 1. 로그인 없이 접근 가능한 퍼블릭 화이트리스트
-                        .requestMatchers(
-                                "/",
-                                "/oauth2/**",
-                                "/login/**",
-                                "/error",
-                                "/api/auth/signup",
-                                "/api/auth/login",
-                                "/api/auth/reissue",
-                                "/api/auth/logout",
-                                "/api/hello",
-                                "/api/users/check-username",
-                                "/api/users/check-email"
-                        ).permitAll()
-                        // 2. 통합된 URL 분석 및 이력 조회 관련 엔드포인트 보호 (명시적 추가)
-                        .requestMatchers("/api/url-analysis/**").authenticated()
-                        // 3. 그 외 나머지 모든 요청은 무조건 인증 필요
-                        .anyRequest().authenticated()
-                )
-                .oauth2Login(oauth -> oauth
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService))
-                        .successHandler(oAuth2SuccessHandler)
-                )
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write(
-                                    objectMapper.writeValueAsString(
-                                        BaseResponse.error("로그인이 필요합니다.", "UNAUTHORIZED")
-                                )
-                            );
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write(
-                                   objectMapper.writeValueAsString(
-                                        BaseResponse.error("접근 권한이 없습니다.", "FORBIDDEN")
-                                )
-                            );
-                        })
-                )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-=======
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
                 http
@@ -152,7 +95,6 @@ public class SecurityConfig {
                                                                                                         "FORBIDDEN")));
                                                 }))
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
->>>>>>> 0ecfb3ecaf9357044acaeb18d3396e5e688e5e5c
 
                 return http.build();
         }
@@ -171,16 +113,8 @@ public class SecurityConfig {
                 config.setAllowCredentials(true);
                 config.setExposedHeaders(List.of("Authorization"));
 
-<<<<<<< HEAD
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
-    }
-}
-=======
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 source.registerCorsConfiguration("/**", config);
                 return source;
         }
 }
->>>>>>> 0ecfb3ecaf9357044acaeb18d3396e5e688e5e5c
