@@ -1,4 +1,5 @@
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
+import { getRiskColor } from '../utils/riskLevel';
 
 interface ChartDatum {
   name: string;
@@ -12,7 +13,6 @@ interface ChartBoxProps {
   data: ChartDatum[];
 }
 
-const COLORS = ['#ef4444', '#f97316', '#facc15', '#3b82f6'];
 
 function ChartBox({ title, caption, total, data }: ChartBoxProps) {
   return (
@@ -40,8 +40,8 @@ function ChartBox({ title, caption, total, data }: ChartBoxProps) {
                 stroke="transparent"
                 isAnimationActive={false}
               >
-                {data.map((entry, index) => (
-                  <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                {data.map((entry) => (
+                  <Cell key={entry.name} fill={getRiskColor(entry.name)} />
                 ))}
               </Pie>
             </PieChart>
@@ -49,12 +49,12 @@ function ChartBox({ title, caption, total, data }: ChartBoxProps) {
         </div>
 
         <div className="chart-legend">
-          {data.map((item, index) => (
+          {data.map((item) => (
             <div key={item.name} className="legend-row">
               <div className="legend-main">
                 <span
                   className="legend-dot"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  style={{ backgroundColor: getRiskColor(item.name) }}
                 />
                 <span className="legend-label">{item.name}</span>
               </div>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
-import "../styles/Dashboard.css";
+import "../styles/MailPage.css";
+import { getRiskClassName, getRiskLabel } from "../utils/riskLevel";
 
 // API 함수
 import {
@@ -340,9 +341,9 @@ function MailPage({
                         <div className="mail-detail-head">
                           <h2>{selectedMail.subject}</h2>
                           <span
-                            className={`risk-badge risk-${selectedEmailDetail?.riskLevel}`}
+                            className={`risk-badge ${getRiskClassName(selectedEmailDetail?.riskLevel)}`}
                           >
-                            {selectedEmailDetail?.riskLevel}
+                            {getRiskLabel(selectedEmailDetail?.riskLevel)}
                           </span>
                         </div>
 
@@ -395,7 +396,7 @@ function MailPage({
               </div>
             ) : (
               <div className="mail-section">
-                <div className="mypage-head">
+                <div className="page-head">
                   <p className="eyebrow"></p>
                   <h1>이메일 연동하기</h1>
                 </div>

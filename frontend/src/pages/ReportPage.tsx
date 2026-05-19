@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import '../styles/Dashboard.css';
+import "../styles/ReportPage.css";
 
 type ThemeMode = 'light' | 'dark';
 type ReportViewMode = 'report-guide' | 'report';
@@ -100,23 +100,23 @@ function ReportPage({
 
           <section className="page-content-card">
             {currentView === 'report-guide' ? (
-              <div className="mail-section">
-                <div className="mypage-head">
+              <div className="report-section">
+                <div className="page-head">
                   <p className="eyebrow"></p>
                   <h1>신고 안내</h1>
                 </div>
 
-                <div className="mail-content-grid">
-                  <section className="mail-list-card">
-                    <div className="mail-table mail-table-header">
+                <div className="report-content-grid">
+                  <section className="report-list-card">
+                    <div className="report-table report-table-header">
                       <span>단계</span>
                       <span>내용</span>
                       <span>설명</span>
                       <span>상태</span>
                     </div>
 
-                    <div className="mail-table-body">
-                      <button className="mail-table-row is-active" type="button">
+                    <div className="report-table-body">
+                      <button className="report-table-row is-active" type="button">
                         <span>
                           <strong>1단계</strong>
                           <small>URL 확인</small>
@@ -126,7 +126,7 @@ function ReportPage({
                         <span>필수</span>
                       </button>
 
-                      <button className="mail-table-row" type="button">
+                      <button className="report-table-row" type="button">
                         <span>
                           <strong>2단계</strong>
                           <small>내용 작성</small>
@@ -136,7 +136,7 @@ function ReportPage({
                         <span>필수</span>
                       </button>
 
-                      <button className="mail-table-row" type="button">
+                      <button className="report-table-row" type="button">
                         <span>
                           <strong>3단계</strong>
                           <small>검토 반영</small>
@@ -148,13 +148,13 @@ function ReportPage({
                     </div>
                   </section>
 
-                  <section className="mail-detail-card">
-                    <div className="mail-detail-head">
+                  <section className="report-detail-card">
+                    <div className="report-detail-head">
                       <h2>신고 접수 안내</h2>
                     
                     </div>
 
-                    <div className="mail-meta">
+                    <div className="report-meta">
                       <p>
                         <strong>신고 대상 :</strong> 피싱, 악성코드, 계정 탈취 의심 URL
                       </p>
@@ -166,9 +166,9 @@ function ReportPage({
                       </p>
                     </div>
 
-                    <div className="mail-divider" />
+                    <div className="report-divider" />
 
-                    <div className="mail-body">
+                    <div className="report-body">
                       <p>
                         신고된 URL은 내부 기준에 따라 검토되며, 위험도에 따라 안전, 주의, 위험,
                         매우 위험으로 분류됩니다.
@@ -178,15 +178,15 @@ function ReportPage({
                 </div>
               </div>
             ) : (
-              <div className="mail-section">
-                <div className="mypage-head">
+              <div className="report-section">
+                <div className="page-head">
                   <p className="eyebrow"></p>
                   <h1>신고하기</h1>
                 </div>
 
-                <div className="mail-connect-box">
+                <div className="report-connect-box">
                   <input
-                    className="mail-connect-input"
+                    className="report-connect-input"
                     placeholder="신고할 URL을 입력하세요."
                     type="text"
                     value={reportUrl}
@@ -202,27 +202,27 @@ function ReportPage({
                   </button>
                 </div>
 
-                <div className="mail-connect-divider" />
+                <div className="report-connect-divider" />
 
-                <div className="connected-mail-section">
+                <div className="connected-report-section">
                   <h2>신고 사유</h2>
 
                   <textarea
-                    className="mail-connect-input"
+                    className="report-connect-input"
                     style={{ minHeight: '160px', resize: 'vertical' }}
                     placeholder="의심되는 이유를 입력해주세요."
                     value={reportReason}
                     onChange={(event) => setReportReason(event.target.value)}
                   />
 
-                  <div className="connected-mail-list">
-                    <div className="connected-mail-row">
+                  <div className="connected-report-list">
+                    <div className="connected-report-row">
                       <span>피싱 사이트로 의심됩니다.</span>
                     </div>
-                    <div className="connected-mail-row">
+                    <div className="connected-report-row">
                       <span>로그인 정보를 요구합니다.</span>
                     </div>
-                    <div className="connected-mail-row">
+                    <div className="connected-report-row">
                       <span>알 수 없는 파일 다운로드를 유도합니다.</span>
                     </div>
                   </div>

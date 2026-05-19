@@ -21,16 +21,18 @@ interface DashboardProps {
 }
 
 const totalCollection = [
-  { name: '매우 위험', value: 742 },
+  { name: '심각', value: 742 },
   { name: '위험', value: 416 },
   { name: '주의', value: 2018 },
+  { name: '의심', value: 640 },
   { name: '안전', value: 3621 },
 ];
 
 const todayCollection = [
-  { name: '매우 위험', value: 124 },
+  { name: '심각', value: 124 },
   { name: '위험', value: 87 },
   { name: '주의', value: 315 },
+  { name: '의심', value: 148 },
   { name: '안전', value: 758 },
 ];
 

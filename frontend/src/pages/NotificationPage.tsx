@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import '../styles/Dashboard.css';
+import "../styles/NotificationPage.css";
 
 type ThemeMode = 'light' | 'dark';
 type NotificationViewMode = 'notifications' | 'notification-settings';
@@ -234,7 +234,7 @@ function NotificationPage({
                       <span>{selectedNotification.date}</span>
                     </div>
 
-                    <div className="mail-divider" />
+                    <div className="notification-divider" />
 
                     <div className="notification-detail-body">
                       <p>{selectedNotification.content}</p>
@@ -244,7 +244,7 @@ function NotificationPage({
               </div>
             ) : (
               <div className="notification-section">
-                <div className="mypage-head">
+                <div className="page-head">
                   <p className="eyebrow"></p>
                   <h1>알림 설정</h1>
                 </div>

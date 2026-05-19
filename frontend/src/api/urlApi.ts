@@ -3,13 +3,11 @@ import apiClient from "./axiosInstance";
 // URL 위험도 타입
 // 백엔드 RiskLevel enum 및 현재 응답값 기준
 export type RiskLevel =
-  | "CRITICAL"
-  | "DANGEROUS"
-  | "DANGER"
-  | "SUSPICIOUS"
-  | "CAUTION"
   | "SAFE"
-  | "UNKNOWN";
+  | "SUSPICIOUS"
+  | "WARNING"
+  | "DANGER"
+  | "CRITICAL";
 
 // 전체 URL 목록 조회 요청 파라미터 타입
 export interface UrlListParams {
@@ -101,10 +99,11 @@ export interface UrlStatisticsParams {
 // URL 위험도 통계 조회 응답 타입
 export interface UrlStatistics {
   totalCount: number;
-  criticalCount: number;
-  dangerCount: number;
-  cautionCount: number;
   safeCount: number;
+  suspiciousCount: number;
+  warningCount: number;
+  dangerCount: number;
+  criticalCount: number;
   unanalyzedCount: number;
 }
 

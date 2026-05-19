@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import ChartBox from '../components/ChartBox';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import '../styles/Dashboard.css';
+import "../styles/UrlPage.css";
+import { getRiskClassName, getRiskLabel, type RiskLevelLabel } from '../utils/riskLevel';
 
 type ThemeMode = 'light' | 'dark';
 type UrlViewMode = 'my-url' | 'url-library';
@@ -29,7 +30,7 @@ interface UrlItem {
   link: string;
   date: string;
   time: string;
-  risk: '매우 위험' | '위험' | '주의' | '안전';
+  risk: RiskLevelLabel;
   reason: string[];
 }
 
@@ -54,7 +55,7 @@ const myUrlItems: UrlItem[] = [
     link: 'http://www.xxxyyyzzz.com/@@@###$$$%%%',
     date: '03.25',
     time: '12:34',
-    risk: '매우 위험',
+    risk: '심각',
     reason: [
       '해당 URL은 피싱 위험이 높은 주소 패턴으로 분석되었습니다.',
       '비정상적으로 긴 특수문자 조합이 포함되어 있습니다.',
@@ -83,7 +84,7 @@ const urlLibraryItems: UrlItem[] = [
     link: 'http://www.xxxyyyzzz.com/@@@###$$$%%%',
     date: '03.25',
     time: '12:34',
-    risk: '매우 위험',
+    risk: '심각',
     reason: [
       '여러 사용자에게 반복적으로 탐지된 고위험 URL입니다.',
       '피싱 사이트와 유사한 도메인 패턴을 사용하고 있습니다.',
@@ -105,9 +106,10 @@ const urlLibraryItems: UrlItem[] = [
 ];
 
 const chartData = [
-  { name: '매우 위험', value: 1234 },
+  { name: '심각', value: 1234 },
   { name: '위험', value: 1234 },
   { name: '주의', value: 1234 },
+  { name: '의심', value: 1234 },
   { name: '안전', value: 1234 },
 ];
 
@@ -185,11 +187,11 @@ function UrlPage({
           </aside>
 
           <section className="page-content-card">
-            <div className="mail-section">
+            <div className="url-section">
               {isMyUrl && (
-                <div className="mail-top-bar">
+                <div className="url-top-bar">
                   <select
-                    className="mail-account-select"
+                    className="url-filter-select"
                     value={selectedAccount}
                     onChange={(event) => setSelectedAccount(event.target.value)}
                   >
@@ -217,7 +219,7 @@ function UrlPage({
                 </div>
               </section>
 
-              <section className="mail-list-card url-list-card">
+              <section className="url-list-card url-list-card">
                 <div className="url-list-head">
                   <div>
                     <h2 className="url-list-title">
@@ -244,7 +246,7 @@ function UrlPage({
                   <span>설명</span>
                 </div>
 
-                <div className="mail-table-body">
+                <div className="url-table-body">
                   {urlItems.map((item, index) => {
                     const isOpened = openedUrlId === item.id;
                     const displayNumber = urlItems.length - index;
@@ -273,8 +275,8 @@ function UrlPage({
                           </span>
 
                           <span>
-                            <span className={`risk-badge risk-${item.risk}`}>
-                              {item.risk}
+                            <span className={`risk-badge ${getRiskClassName(item.risk)}`}>
+                              {getRiskLabel(item.risk)}
                             </span>
                           </span>
 

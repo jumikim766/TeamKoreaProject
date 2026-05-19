@@ -1,6 +1,7 @@
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import '../styles/Dashboard.css';
+import "../styles/ClassificationPage.css";
+import { getRiskClassName, getRiskLabel, type RiskLevelLabel } from '../utils/riskLevel';
 
 type ThemeMode = 'light' | 'dark';
 type ClassificationViewMode = 'classification-method' | 'classification-criteria';
@@ -26,7 +27,7 @@ interface ClassificationItem {
   title: string;
   description: string;
   detail: string;
-  status: '매우 위험' | '위험' | '주의' | '안전';
+  status: RiskLevelLabel;
 }
 
 interface ClassificationPageProps {
@@ -65,7 +66,7 @@ const classificationMethods: ClassificationItem[] = [
     title: '위험도 분류',
     description: '위험도 기준에 따라 단계 분류',
     detail:
-      '분석 결과를 기반으로 안전, 주의, 위험, 매우 위험 단계로 분류합니다.',
+      '분석 결과를 기반으로 안전, 의심, 주의, 위험, 심각 단계로 분류합니다.',
     status: '위험',
   },
 ];
@@ -80,24 +81,31 @@ const classificationCriteria: ClassificationItem[] = [
   },
   {
     id: 2,
+    title: '의심',
+    description: '의심 요소 존재',
+    detail: '출처나 패턴이 명확하지 않아 추가 확인이 필요한 URL입니다.',
+    status: '의심',
+  },
+  {
+    id: 3,
     title: '주의',
     description: '추가 확인 필요',
     detail: '신규 도메인 또는 단축 URL 등 추가 분석이 필요합니다.',
     status: '주의',
   },
   {
-    id: 3,
+    id: 4,
     title: '위험',
     description: '피싱 가능성 높음',
     detail: '로그인 유도 및 개인정보 입력을 요구하는 URL입니다.',
     status: '위험',
   },
   {
-    id: 4,
-    title: '매우 위험',
+    id: 5,
+    title: '심각',
     description: '즉시 차단 대상',
     detail: '악성코드 배포 또는 계정 탈취 시도가 확인되었습니다.',
-    status: '매우 위험',
+    status: '심각',
   },
 ];
 
@@ -175,8 +183,8 @@ function ClassificationPage({
           </aside>
 
           <section className="page-content-card">
-            <div className="mail-section">
-              <div className="mypage-head">
+            <div className="classification-section">
+              <div className="page-head">
                 <p className="eyebrow"></p>
 
                 <h1>
@@ -186,20 +194,20 @@ function ClassificationPage({
                 </h1>
               </div>
 
-              <div className="mail-content-grid">
-                <section className="mail-list-card">
-                  <div className="mail-table mail-table-header">
+              <div className="classification-content-grid">
+                <section className="classification-list-card">
+                  <div className="classification-table classification-table-header">
                     <span>항목</span>
                     <span>설명</span>
                     <span>상세 내용</span>
                     <span>상태</span>
                   </div>
 
-                  <div className="mail-table-body">
+                  <div className="classification-table-body">
                     {items.map((item) => (
                       <button
                         key={item.id}
-                        className="mail-table-row"
+                        className="classification-table-row"
                         type="button"
                       >
                         <span>
@@ -211,26 +219,26 @@ function ClassificationPage({
 
                         <span>{item.detail}</span>
 
-                        <span className={`risk-badge risk-${item.status}`}>
-                          {item.status}
+                        <span className={`risk-badge ${getRiskClassName(item.status)}`}>
+                          {getRiskLabel(item.status)}
                         </span>
                       </button>
                     ))}
                   </div>
                 </section>
 
-                <section className="mail-detail-card">
-                  <div className="mail-detail-head">
+                <section className="classification-detail-card">
+                  <div className="classification-detail-head">
                     <h2>{selectedItem.title}</h2>
 
                     <span
-                      className={`risk-badge risk-${selectedItem.status}`}
+                      className={`risk-badge ${getRiskClassName(selectedItem.status)}`}
                     >
-                      {selectedItem.status}
+                      {getRiskLabel(selectedItem.status)}
                     </span>
                   </div>
 
-                  <div className="mail-meta">
+                  <div className="classification-meta">
                     <p>
                       <strong>분류 설명 :</strong>{' '}
                       {selectedItem.description}
@@ -243,13 +251,13 @@ function ClassificationPage({
 
                     <p>
                       <strong>적용 상태 :</strong>{' '}
-                      {selectedItem.status}
+                      {getRiskLabel(selectedItem.status)}
                     </p>
                   </div>
 
-                  <div className="mail-divider" />
+                  <div className="classification-divider" />
 
-                  <div className="mail-body">
+                  <div className="classification-body">
                     <p>
                       URL GUARD는 수집된 URL 데이터를 기반으로
                       위험도를 분석하고 내부 기준에 따라 자동 분류합니다.
