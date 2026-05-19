@@ -30,7 +30,10 @@ import jakarta.mail.internet.InternetAddress;
 @Transactional(readOnly = true)
 public class EmailAccountService {
 
+<<<<<<< HEAD
     // 최초 동기화 때 가져올 메일 개수
+=======
+>>>>>>> origin/backend-dev
     private static final int FIRST_SYNC_LIMIT = 100;
 
     // 이후 동기화 때 확인할 최신 메일 개수
@@ -158,10 +161,17 @@ public class EmailAccountService {
             // 비밀번호 복호화 후 접속
             String secret = cryptoUtil.decrypt(account.getSecretEnc());
 
+<<<<<<< HEAD
             System.out.println("[DEBUG] host=" + account.getImapHost()
                     + ", port=" + account.getImapPort()
                     + ", loginId=" + account.getLoginId()
                     + ", secretLen=" + (secret == null ? "null" : secret.length()));
+=======
+            // System.out.println("[DEBUG] host=" + account.getImapHost()
+            // + ", port=" + account.getImapPort()
+            // + ", loginId=" + account.getLoginId()
+            // + ", secretLen=" + (secret == null ? "null" : secret.length()));
+>>>>>>> origin/backend-dev
 
             store.connect(account.getImapHost(), account.getLoginId(), secret);
 
@@ -197,8 +207,8 @@ public class EmailAccountService {
 
             Message[] messages = inbox.getMessages();
 
-            System.out.println("[SYNC] totalMessages = " + messages.length);
-            System.out.println("[SYNC] lastSyncedAt = " + lastSyncedAt);
+            // System.out.println("[SYNC] totalMessages = " + messages.length);
+            // System.out.println("[SYNC] lastSyncedAt = " + lastSyncedAt);
 
             // 마지막 동기화 시간이 없으면 최초 동기화로 판단
             boolean isFirstSync = (lastSyncedAt == null);
@@ -222,7 +232,7 @@ public class EmailAccountService {
 
                 Message msg = messages[i];
 
-                System.out.println("[SYNC] processing subject = " + msg.getSubject());
+                // System.out.println("[SYNC] processing subject = " + msg.getSubject());
 
                 collectedEmailCount++;
 
@@ -233,7 +243,11 @@ public class EmailAccountService {
                         : LocalDateTime.now();
 
                 /*
+<<<<<<< HEAD
                  * 최초 동기화가 아닌 경우, 마지막 동기화 시각 이전 메일은 저장하지 않음
+=======
+                 * /
+>>>>>>> origin/backend-dev
                  * if (lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
                  * skippedEmailCount++;
                  * continue;
@@ -242,10 +256,14 @@ public class EmailAccountService {
 
                 String messageUid = buildMessageUid(msg);
 
+<<<<<<< HEAD
                 System.out.println("[SYNC] messageUid = " + messageUid);
 
+=======
+                // System.out.println("[SYNC] messageUid = " + messageUid);
+>>>>>>> origin/backend-dev
                 boolean exists = emailRepository.existsByMessageUid(messageUid);
-                System.out.println("[SYNC] exists = " + exists);
+                // System.out.println("[SYNC] exists = " + exists);
 
                 // 이미 저장된 메일이면 중복 저장하지 않고 skip
                 if (exists) {
@@ -255,6 +273,7 @@ public class EmailAccountService {
 
                 String subject = msg.getSubject();
 
+<<<<<<< HEAD
                 // HTML 본문과 텍스트 본문을 따로 추출
                 EmailBody emailBody = getEmailBody(msg);
 
@@ -265,6 +284,10 @@ public class EmailAccountService {
                 List<String> extractedUrls = extractUrls(
                         (bodyText != null ? bodyText : "") + " " + (bodyHtml != null ? bodyHtml : ""));
 
+=======
+                List<String> extractedUrls = extractUrls(bodyText);
+
+>>>>>>> origin/backend-dev
                 // 메일 1건 처리 실패가 sync 전체를 죽이지 않게 try-catch로 감쌈
                 try {
                     int savedUrlCount = emailSaveService.saveEmailAndUrls(
@@ -276,12 +299,20 @@ public class EmailAccountService {
                             account.getEmail(),
                             subject,
                             bodyText,
+<<<<<<< HEAD
                             bodyHtml,
                             receivedAt,
                             extractedUrls);
 
                     System.out.println("[SYNC] email saved, savedUrlCount = " + savedUrlCount);
 
+=======
+                            receivedAt,
+                            extractedUrls);
+
+                    // System.out.println("[SYNC] email saved, savedUrlCount = " + savedUrlCount);
+
+>>>>>>> origin/backend-dev
                     savedEmailCount++;
                     extractedUrlCount += savedUrlCount;
                 } catch (Exception perMailEx) {
@@ -290,7 +321,7 @@ public class EmailAccountService {
                     perMailEx.printStackTrace();
                 }
 
-                System.out.println("[SYNC] processing = " + msg.getSubject());
+                // System.out.println("[SYNC] processing = " + msg.getSubject());
 
             }
 
@@ -391,16 +422,21 @@ public class EmailAccountService {
     private record EmailBody(String bodyText, String bodyHtml) {
     }
 
+<<<<<<< HEAD
     // 이메일 본문 추출
     private EmailBody getEmailBody(Part part) throws Exception {
 
         // 일반 텍스트 메일
+=======
+        // 일반 텍스트 메일이면 그대로 반환
+>>>>>>> origin/backend-dev
         if (part.isMimeType("text/plain")) {
             Object content = part.getContent();
             String text = content != null ? content.toString() : "";
             return new EmailBody(text, null);
         }
 
+<<<<<<< HEAD
         // HTML 메일
         if (part.isMimeType("text/html")) {
             Object content = part.getContent();
@@ -417,10 +453,24 @@ public class EmailAccountService {
 
             String bodyText = "";
             String bodyHtml = "";
+=======
+        // HTML 메일이면 태그 제거 후 텍스트만 반환
+        if (part.isMimeType("text/html")) {
+            Object content = part.getContent();
+            return content != null ? htmlToText(content.toString()) : "";
+        }
+
+        // multipart 메일이면 text/plain을 우선 사용하고, 없으면 text/html을 텍스트로 변환
+        if (part.isMimeType("multipart/*")) {
+            Multipart multipart = (Multipart) part.getContent();
+
+            String htmlText = "";
+>>>>>>> origin/backend-dev
 
             for (int i = 0; i < multipart.getCount(); i++) {
                 BodyPart bodyPart = multipart.getBodyPart(i);
 
+<<<<<<< HEAD
                 EmailBody childBody = getEmailBody(bodyPart);
 
                 // text/plain 본문 저장
@@ -444,6 +494,21 @@ public class EmailAccountService {
             }
 
             return new EmailBody(bodyText, bodyHtml);
+=======
+                if (bodyPart.isMimeType("text/plain")) {
+                    String text = getText(bodyPart);
+                    if (text != null && !text.isBlank()) {
+                        return text;
+                    }
+                }
+
+                if (bodyPart.isMimeType("text/html")) {
+                    htmlText = getText(bodyPart);
+                }
+            }
+
+            return htmlText;
+>>>>>>> origin/backend-dev
         }
 
         return new EmailBody("", null);
@@ -460,6 +525,41 @@ public class EmailAccountService {
                 .replaceAll("(?i)<br\\s*/?>", "\n")
                 .replaceAll("(?i)</p>", "\n")
                 .replaceAll("<[^>]*>", "")
+                .trim();
+    }
+
+    // HTML 태그 제거
+    private String htmlToText(String html) {
+        if (html == null || html.isBlank()) {
+            return "";
+        }
+
+        return html
+                // 줄바꿈 태그 먼저 처리
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</p>", "\n")
+                .replaceAll("(?i)</div>", "\n")
+                .replaceAll("(?i)</li>", "\n")
+
+                // style/script 제거
+                .replaceAll("(?is)<style.*?>.*?</style>", " ")
+                .replaceAll("(?is)<script.*?>.*?</script>", " ")
+
+                // 나머지 HTML 태그 제거
+                .replaceAll("(?is)<[^>]+>", " ")
+
+                // HTML 엔티티 변환
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("&amp;", "&")
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("&quot;", "\"")
+                .replaceAll("&#39;", "'")
+
+                // 줄바꿈 유지하면서 공백만 정리
+                .replaceAll("[ \\t\\x0B\\f\\r]+", " ")
+                .replaceAll("\\n{3,}", "\n\n")
+
                 .trim();
     }
 
