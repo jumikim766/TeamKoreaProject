@@ -45,7 +45,16 @@ type AuthPagesProps = {
 
 function EyeIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -54,7 +63,16 @@ function EyeIcon() {
 
 function EyeOffIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
       <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
       <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
@@ -84,10 +102,12 @@ function AuthPages({
   const [signupName, setSignupName] = useState("");
   const [signupId, setSignupId] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
+  const [signupPhone, setSignupPhone] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [showSignupPasswordConfirm, setShowSignupPasswordConfirm] = useState(false);
+  const [showSignupPasswordConfirm, setShowSignupPasswordConfirm] =
+    useState(false);
 
   const [idCheckMessage, setIdCheckMessage] = useState("");
   const [emailCheckMessage, setEmailCheckMessage] = useState("");
@@ -96,7 +116,10 @@ function AuthPages({
 
   const passwordRules = useMemo(
     () => [
-      { label: "영문 대/소문자 포함", valid: /(?=.*[a-z])(?=.*[A-Z])/.test(signupPassword) },
+      {
+        label: "영문 대/소문자 포함",
+        valid: /(?=.*[a-z])(?=.*[A-Z])/.test(signupPassword),
+      },
       { label: "숫자 포함", valid: /[0-9]/.test(signupPassword) },
       { label: "특수문자 포함", valid: /[^A-Za-z0-9]/.test(signupPassword) },
       { label: "8자 이상", valid: signupPassword.length >= 8 },
@@ -104,8 +127,17 @@ function AuthPages({
     [signupPassword]
   );
 
-  const isPasswordValid = passwordRules.every((rule) => rule.valid) && signupPassword.length <= 20;
-  const isPasswordSame = signupPasswordConfirm.length > 0 && signupPassword === signupPasswordConfirm;
+  const isPasswordValid =
+    passwordRules.every((rule) => rule.valid) &&
+    signupPassword.length >= 8 &&
+    signupPassword.length <= 20;
+
+  const isPasswordSame =
+    signupPasswordConfirm.length > 0 &&
+    signupPassword === signupPasswordConfirm;
+
+  const onlyPhoneNumber = signupPhone.replace(/-/g, "");
+  const isPhoneValid = /^010\d{8}$/.test(onlyPhoneNumber);
 
   const canLogin = loginEmail.trim() !== "" && loginPassword.trim() !== "";
 
@@ -113,6 +145,7 @@ function AuthPages({
     signupName.trim() !== "" &&
     signupId.trim() !== "" &&
     signupEmail.trim() !== "" &&
+    signupPhone.trim() !== "" &&
     signupPassword.trim() !== "" &&
     signupPasswordConfirm.trim() !== "";
 
@@ -151,10 +184,14 @@ function AuthPages({
       const res = await checkUsername(username);
       const available = Boolean(res.data.data?.available);
       setIsIdAvailable(available);
-      setIdCheckMessage(available ? "사용 가능한 아이디입니다." : "이미 사용 중인 아이디입니다.");
+      setIdCheckMessage(
+        available ? "사용 가능한 아이디입니다." : "이미 사용 중인 아이디입니다."
+      );
     } catch (error) {
       setIsIdAvailable(false);
-      setIdCheckMessage(getErrorMessage(error, "아이디 중복 확인에 실패했습니다."));
+      setIdCheckMessage(
+        getErrorMessage(error, "아이디 중복 확인에 실패했습니다.")
+      );
     }
   };
 
@@ -171,10 +208,14 @@ function AuthPages({
       const res = await checkEmail(email);
       const available = Boolean(res.data.data?.available);
       setIsEmailAvailable(available);
-      setEmailCheckMessage(available ? "사용 가능한 이메일입니다." : "이미 사용 중인 이메일입니다.");
+      setEmailCheckMessage(
+        available ? "사용 가능한 이메일입니다." : "이미 사용 중인 이메일입니다."
+      );
     } catch (error) {
       setIsEmailAvailable(false);
-      setEmailCheckMessage(getErrorMessage(error, "이메일 중복 확인에 실패했습니다."));
+      setEmailCheckMessage(
+        getErrorMessage(error, "이메일 중복 확인에 실패했습니다.")
+      );
     }
   };
 
@@ -182,6 +223,21 @@ function AuthPages({
     event.preventDefault();
 
     if (!isSignupFilled) return;
+
+    if (!/^[A-Za-z0-9_]{4,20}$/.test(signupId.trim())) {
+      alert("아이디는 4~20자, 영문/숫자/_ 만 사용할 수 있습니다.");
+      return;
+    }
+
+    if (signupName.length > 30 || /\s/.test(signupName)) {
+      alert("이름은 최대 30자이며 공백을 사용할 수 없습니다.");
+      return;
+    }
+
+    if (!isPhoneValid) {
+      alert("전화번호는 010으로 시작하는 총 11자리 숫자여야 합니다.");
+      return;
+    }
 
     if (!isIdAvailable) {
       alert("아이디 중복 확인을 완료해주세요.");
@@ -209,6 +265,7 @@ function AuthPages({
         email: signupEmail.trim(),
         password: signupPassword,
         name: signupName.replace(/\s/g, ""),
+        phone: signupPhone.replace(/-/g, ""),
       });
 
       alert("회원가입이 완료되었습니다. 로그인해주세요.");
@@ -237,24 +294,24 @@ function AuthPages({
       <main className="login-page-main">
         <section className="login-card">
           <div className="login-social-area">
-  <button
-    type="button"
-    className="login-social-button"
-    onClick={() => goSocialLogin("google")}
-  >
-    <span className="google-icon">G</span>
-    Google로 {isLogin ? "로그인" : "회원가입"}
-  </button>
+            <button
+              type="button"
+              className="login-social-button"
+              onClick={() => goSocialLogin("google")}
+            >
+              <span className="google-icon">G</span>
+              Google로 {isLogin ? "로그인" : "회원가입"}
+            </button>
 
-  <button
-    type="button"
-    className="login-social-button"
-    onClick={() => goSocialLogin("naver")}
-  >
-    <span className="naver-icon">N</span>
-    Naver로 {isLogin ? "로그인" : "회원가입"}
-  </button>
-</div>
+            <button
+              type="button"
+              className="login-social-button"
+              onClick={() => goSocialLogin("naver")}
+            >
+              <span className="naver-icon">N</span>
+              Naver로 {isLogin ? "로그인" : "회원가입"}
+            </button>
+          </div>
 
           <div className="login-divider">
             <span>또는 이메일로 계속</span>
@@ -287,7 +344,11 @@ function AuthPages({
                     }}
                     placeholder="비밀번호를 입력해주세요"
                   />
-                  <button type="button" className="login-eye-button" onClick={() => setShowLoginPassword((prev) => !prev)}>
+                  <button
+                    type="button"
+                    className="login-eye-button"
+                    onClick={() => setShowLoginPassword((prev) => !prev)}
+                  >
                     {showLoginPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
@@ -299,7 +360,11 @@ function AuthPages({
 
               {loginError && <p className="login-error-text">{loginError}</p>}
 
-              <button type="submit" className={`login-submit-button ${canLogin ? "active" : ""}`} disabled={!canLogin}>
+              <button
+                type="submit"
+                className={`login-submit-button ${canLogin ? "active" : ""}`}
+                disabled={!canLogin}
+              >
                 로그인
               </button>
 
@@ -317,7 +382,9 @@ function AuthPages({
                 <input
                   type="text"
                   value={signupName}
-                  onChange={(event) => setSignupName(event.target.value.replace(/\s/g, ""))}
+                  onChange={(event) =>
+                    setSignupName(event.target.value.replace(/\s/g, ""))
+                  }
                   placeholder="이름을 입력해주세요"
                   maxLength={30}
                 />
@@ -326,41 +393,73 @@ function AuthPages({
               <label className="login-field">
                 <span>아이디</span>
                 <div className="login-check-row">
-  <input
-    type="text"
-    value={signupId}
-    onChange={(event) => {
-      setSignupId(event.target.value);
-      setIsIdAvailable(false);
-      setIdCheckMessage("");
-    }}
-    placeholder="아이디를 입력해주세요"
-  />
-  <button type="button" onClick={handleCheckId}>
-    중복 확인
-  </button>
-</div>
-                {idCheckMessage && <p className={isIdAvailable ? "login-success-text" : "login-error-text"}>{idCheckMessage}</p>}
+                  <input
+                    type="text"
+                    value={signupId}
+                    onChange={(event) => {
+                      setSignupId(event.target.value.replace(/\s/g, ""));
+                      setIsIdAvailable(false);
+                      setIdCheckMessage("");
+                    }}
+                    placeholder="아이디를 입력해주세요"
+                    maxLength={20}
+                  />
+                  <button type="button" onClick={handleCheckId}>
+                    중복 확인
+                  </button>
+                </div>
+                {idCheckMessage && (
+                  <p
+                    className={
+                      isIdAvailable ? "login-success-text" : "login-error-text"
+                    }
+                  >
+                    {idCheckMessage}
+                  </p>
+                )}
               </label>
 
               <label className="login-field">
                 <span>이메일</span>
                 <div className="login-check-row">
-  <input
-    type="email"
-    value={signupEmail}
-    onChange={(event) => {
-      setSignupEmail(event.target.value);
-      setIsEmailAvailable(false);
-      setEmailCheckMessage("");
-    }}
-    placeholder="이메일을 입력해주세요"
-  />
-  <button type="button" onClick={handleCheckEmail}>
-    중복 확인
-  </button>
-</div>
-                {emailCheckMessage && <p className={isEmailAvailable ? "login-success-text" : "login-error-text"}>{emailCheckMessage}</p>}
+                  <input
+                    type="email"
+                    value={signupEmail}
+                    onChange={(event) => {
+                      setSignupEmail(event.target.value.replace(/\s/g, ""));
+                      setIsEmailAvailable(false);
+                      setEmailCheckMessage("");
+                    }}
+                    placeholder="이메일을 입력해주세요"
+                  />
+                  <button type="button" onClick={handleCheckEmail}>
+                    중복 확인
+                  </button>
+                </div>
+                {emailCheckMessage && (
+                  <p
+                    className={
+                      isEmailAvailable
+                        ? "login-success-text"
+                        : "login-error-text"
+                    }
+                  >
+                    {emailCheckMessage}
+                  </p>
+                )}
+              </label>
+
+              <label className="login-field">
+                <span>전화번호</span>
+                <input
+                  type="tel"
+                  value={signupPhone}
+                  onChange={(event) =>
+                    setSignupPhone(event.target.value.replace(/\s/g, ""))
+                  }
+                  placeholder="01012345678"
+                  maxLength={13}
+                />
               </label>
 
               <label className="login-field">
@@ -373,18 +472,22 @@ function AuthPages({
                     placeholder="비밀번호를 입력해주세요"
                     maxLength={20}
                   />
-                  <button type="button" className="login-eye-button" onClick={() => setShowSignupPassword((prev) => !prev)}>
+                  <button
+                    type="button"
+                    className="login-eye-button"
+                    onClick={() => setShowSignupPassword((prev) => !prev)}
+                  >
                     {showSignupPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
 
                 <ul className="login-password-rules">
-  {passwordRules.map((rule) => (
-    <li key={rule.label} className={rule.valid ? "active" : ""}>
-      {rule.label}
-    </li>
-  ))}
-</ul>
+                  {passwordRules.map((rule) => (
+                    <li key={rule.label} className={rule.valid ? "active" : ""}>
+                      {rule.label}
+                    </li>
+                  ))}
+                </ul>
               </label>
 
               <label className="login-field">
@@ -393,23 +496,45 @@ function AuthPages({
                   <input
                     type={showSignupPasswordConfirm ? "text" : "password"}
                     value={signupPasswordConfirm}
-                    onChange={(event) => setSignupPasswordConfirm(event.target.value)}
+                    onChange={(event) =>
+                      setSignupPasswordConfirm(event.target.value)
+                    }
                     placeholder="비밀번호를 한 번 더 입력해주세요"
                     maxLength={20}
                   />
-                  <button type="button" className="login-eye-button" onClick={() => setShowSignupPasswordConfirm((prev) => !prev)}>
+                  <button
+                    type="button"
+                    className="login-eye-button"
+                    onClick={() =>
+                      setShowSignupPasswordConfirm((prev) => !prev)
+                    }
+                  >
                     {showSignupPasswordConfirm ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
 
                 {signupPasswordConfirm && (
-                  <p className={isPasswordSame ? "login-success-text" : "login-error-text"}>
-                    {isPasswordSame ? "비밀번호가 일치합니다." : "비밀번호가 다릅니다."}
+                  <p
+                    className={
+                      isPasswordSame
+                        ? "login-success-text"
+                        : "login-error-text"
+                    }
+                  >
+                    {isPasswordSame
+                      ? "비밀번호가 일치합니다."
+                      : "비밀번호가 다릅니다."}
                   </p>
                 )}
               </label>
 
-              <button type="submit" className={`login-submit-button ${isSignupFilled ? "active" : ""}`} disabled={!isSignupFilled}>
+              <button
+                type="submit"
+                className={`login-submit-button ${
+                  isSignupFilled ? "active" : ""
+                }`}
+                disabled={!isSignupFilled}
+              >
                 회원가입
               </button>
 

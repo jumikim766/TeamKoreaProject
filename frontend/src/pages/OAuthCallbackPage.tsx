@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { reissue } from "../api/authApi";
-import { saveAccessToken } from "../utils/token";
+import { clearAccessToken, saveAccessToken } from "../utils/token";
 
 type OAuthCallbackPageProps = {
   onSuccess: () => void;
@@ -33,12 +33,13 @@ function OAuthCallbackPage({ onSuccess, onFail }: OAuthCallbackPageProps) {
         alert("로그인이 성공되었습니다.");
         window.location.replace("/");
       } catch (error) {
-        // reissue 실패 = refreshToken 쿠키가 없거나 만료/유효하지 않은 상태
-        onFail();
+ clearAccessToken();
 
-        alert("로그인에 실패했습니다.");
-        window.location.replace("/login");
-      }
+  onFail();
+
+  alert("로그인에 실패했습니다.");
+  window.location.replace("/login");
+}
     };
 
     handleOAuthCallback();
