@@ -9,12 +9,9 @@ import java.time.LocalDateTime;
 @Setter // 관리자 기능 등에서 상태(status) 변경 처리를 위해 유지
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builderpublic ReportBuilder url(User existingUrl) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'url'");
-    }
+@Builder
 @Table(name = "reports")
-public class Report { // 클래스명을 Reports -> Report 로 변경 완료
+public class Report { 
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -65,10 +62,5 @@ public class Report { // 클래스명을 Reports -> Report 로 변경 완료
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
-    }
-
-    public static Object builder() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'builder'");
     }
 }

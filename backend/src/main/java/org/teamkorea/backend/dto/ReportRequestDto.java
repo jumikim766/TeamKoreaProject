@@ -20,7 +20,7 @@ public class ReportRequestDto {
         throw new UnsupportedOperationException("Unimplemented method 'getReportedUrl'");
     }
 
-    public Object getUrlId() {
+    public Long getUrlId() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getUrlId'");
     }
