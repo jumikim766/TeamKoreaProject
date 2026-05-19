@@ -1,7 +1,16 @@
 import { useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
-import { login, signup } from "../api/authApi";
+import "../styles/AuthPage.css";
+
+import {
+  checkEmail,
+  checkUsername,
+  goSocialLogin,
+  login,
+  signup,
+} from "../api/authApi";
 import { saveAccessToken } from "../utils/token";
 import { getErrorMessage } from "../api/errorMessage";
 import "../styles/Dashboard.css";
@@ -34,6 +43,26 @@ type AuthPagesProps = {
   onLoginSuccess: (name?: string) => void;
 };
 
+function EyeIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+      <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+      <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+      <path d="m2 2 20 20" />
+    </svg>
+  );
+}
+
 function AuthPages({
   mode,
   theme,
@@ -50,7 +79,6 @@ function AuthPages({
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [loginEmailTouched, setLoginEmailTouched] = useState(false);
   const [loginError, setLoginError] = useState("");
 
   const [signupName, setSignupName] = useState("");
@@ -58,10 +86,8 @@ function AuthPages({
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
-
   const [showSignupPassword, setShowSignupPassword] = useState(false);
-  const [showSignupPasswordConfirm, setShowSignupPasswordConfirm] =
-    useState(false);
+  const [showSignupPasswordConfirm, setShowSignupPasswordConfirm] = useState(false);
 
   const [idCheckMessage, setIdCheckMessage] = useState("");
   const [emailCheckMessage, setEmailCheckMessage] = useState("");
@@ -70,123 +96,127 @@ function AuthPages({
 
   const passwordRules = useMemo(
     () => [
-      {
-        label: "영문 대/소문자 포함",
-        valid: /(?=.*[a-z])(?=.*[A-Z])/.test(signupPassword),
-      },
-      {
-        label: "숫자 포함",
-        valid: /[0-9]/.test(signupPassword),
-      },
-      {
-        label: "특수문자 포함",
-        valid: /[!@#$%^&*(),.?":{}|<>_\-\\[\];'/+=`~]/.test(signupPassword),
-      },
-      {
-        label: "8자 이상",
-        valid: signupPassword.length >= 8,
-      },
+      { label: "영문 대/소문자 포함", valid: /(?=.*[a-z])(?=.*[A-Z])/.test(signupPassword) },
+      { label: "숫자 포함", valid: /[0-9]/.test(signupPassword) },
+      { label: "특수문자 포함", valid: /[^A-Za-z0-9]/.test(signupPassword) },
+      { label: "8자 이상", valid: signupPassword.length >= 8 },
     ],
     [signupPassword]
   );
 
-  const isPasswordValid = passwordRules.every((rule) => rule.valid);
-  const isPasswordSame =
-    signupPasswordConfirm.length > 0 &&
-    signupPassword === signupPasswordConfirm;
+  const isPasswordValid = passwordRules.every((rule) => rule.valid) && signupPassword.length <= 20;
+  const isPasswordSame = signupPasswordConfirm.length > 0 && signupPassword === signupPasswordConfirm;
 
   const canLogin = loginEmail.trim() !== "" && loginPassword.trim() !== "";
 
-  const canSignup =
+  const isSignupFilled =
     signupName.trim() !== "" &&
     signupId.trim() !== "" &&
     signupEmail.trim() !== "" &&
-    isIdAvailable &&
-    isEmailAvailable &&
-    isPasswordValid &&
-    isPasswordSame;
+    signupPassword.trim() !== "" &&
+    signupPasswordConfirm.trim() !== "";
 
-  const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canLogin) return;
 
-  setLoginEmailTouched(true);
+    try {
+      const res = await login(loginEmail.trim(), loginPassword);
+      const data = res.data.data;
 
-  if (!loginEmail.trim() || !loginPassword.trim()) {
-    setLoginError("");
-    return;
-  }
+      if (!data?.accessToken) {
+        setLoginError("로그인 응답이 올바르지 않습니다.");
+        return;
+      }
 
-  try {
-    const res = await login(loginEmail.trim(), loginPassword);
-    const data = res.data.data;
-
-    if (!data?.accessToken) {
-      setLoginError("로그인 응답이 올바르지 않습니다.");
-      return;
+      saveAccessToken(data.accessToken);
+      localStorage.setItem("userName", data.user?.name ?? "");
+      setLoginError("");
+      onLoginSuccess(data.user?.name);
+    } catch (error) {
+      setLoginError(getErrorMessage(error, "로그인에 실패했습니다."));
     }
-
-    saveAccessToken(data.accessToken);
-    localStorage.setItem("userName", data.user.name);
-
-    setLoginError("");
-    onLoginSuccess(data.user.name);
-  } catch (error) {
-    setLoginError(getErrorMessage(error, "로그인에 실패했습니다."));
-  }
-};
-
-  const handleCheckId = () => {
-    if (!signupId.trim()) {
-      setIsIdAvailable(false);
-      setIdCheckMessage("아이디를 입력해주세요.");
-      return;
-    }
-
-    if (signupId.trim().toLowerCase() === "minseo") {
-      setIsIdAvailable(false);
-      setIdCheckMessage("이미 사용 중인 아이디입니다.");
-      return;
-    }
-
-    setIsIdAvailable(true);
-    setIdCheckMessage("사용 가능한 아이디입니다.");
   };
 
-  const handleCheckEmail = () => {
-    if (!signupEmail.trim()) {
+  const handleCheckId = async () => {
+    const username = signupId.trim();
+
+    if (!/^[A-Za-z0-9_]{4,20}$/.test(username)) {
+      setIsIdAvailable(false);
+      setIdCheckMessage("아이디는 영문, 숫자, _ 포함 4~20자로 입력해주세요.");
+      return;
+    }
+
+    try {
+      const res = await checkUsername(username);
+      const available = Boolean(res.data.data?.available);
+      setIsIdAvailable(available);
+      setIdCheckMessage(available ? "사용 가능한 아이디입니다." : "이미 사용 중인 아이디입니다.");
+    } catch (error) {
+      setIsIdAvailable(false);
+      setIdCheckMessage(getErrorMessage(error, "아이디 중복 확인에 실패했습니다."));
+    }
+  };
+
+  const handleCheckEmail = async () => {
+    const email = signupEmail.trim();
+
+    if (!email) {
       setIsEmailAvailable(false);
       setEmailCheckMessage("이메일을 입력해주세요.");
       return;
     }
 
-    if (signupEmail.trim().toLowerCase() === "minseo@example.com") {
+    try {
+      const res = await checkEmail(email);
+      const available = Boolean(res.data.data?.available);
+      setIsEmailAvailable(available);
+      setEmailCheckMessage(available ? "사용 가능한 이메일입니다." : "이미 사용 중인 이메일입니다.");
+    } catch (error) {
       setIsEmailAvailable(false);
-      setEmailCheckMessage("이미 사용 중인 이메일입니다.");
+      setEmailCheckMessage(getErrorMessage(error, "이메일 중복 확인에 실패했습니다."));
+    }
+  };
+
+  const handleSignupSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!isSignupFilled) return;
+
+    if (!isIdAvailable) {
+      alert("아이디 중복 확인을 완료해주세요.");
       return;
     }
 
-    setIsEmailAvailable(true);
-    setEmailCheckMessage("사용 가능한 이메일입니다.");
+    if (!isEmailAvailable) {
+      alert("이메일 중복 확인을 완료해주세요.");
+      return;
+    }
+
+    if (!isPasswordValid) {
+      alert("비밀번호 조건을 모두 만족해주세요.");
+      return;
+    }
+
+    if (!isPasswordSame) {
+      alert("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    try {
+      await signup({
+        username: signupId.trim(),
+        email: signupEmail.trim(),
+        password: signupPassword,
+        name: signupName.replace(/\s/g, ""),
+      });
+
+      alert("회원가입이 완료되었습니다. 로그인해주세요.");
+      onGoLogin();
+    } catch (error) {
+      alert(getErrorMessage(error, "회원가입에 실패했습니다."));
+    }
   };
-
-  const handleSignupSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-
-  if (!canSignup) return;
-
-  try {
-    await signup({
-      username: signupId.trim(),
-      email: signupEmail.trim(),
-      password: signupPassword,
-      name: signupName.trim(),
-    });
-
-    onGoLogin();
-  } catch (error) {
-    setEmailCheckMessage(getErrorMessage(error, "회원가입에 실패했습니다."));
-  }
-};
 
   return (
     <div className="dashboard-shell">
@@ -204,276 +234,193 @@ function AuthPages({
 
       <Navbar onNavigate={onNavigate} />
 
-      <main className="auth-main auth-main-centered">
-        <section className="auth-layout auth-layout-centered">
-          <div className="auth-card auth-card-centered">
-            <div className="auth-card-head">
-              <p className="eyebrow">
-                {isLogin ? "WELCOME BACK" : "JOIN URL GUARD"}
-              </p>
-              <h2>{isLogin ? "로그인" : "회원가입"}</h2>
-              <p>
-                {isLogin
-                  ? "이메일과 비밀번호를 입력해 로그인할 수 있습니다."
-                  : "이름, 아이디, 이메일, 비밀번호를 입력해 회원가입할 수 있습니다."}
-              </p>
-            </div>
+      <main className="login-page-main">
+        <section className="login-card">
+          <div className="login-social-area">
+  <button
+    type="button"
+    className="login-social-button"
+    onClick={() => goSocialLogin("google")}
+  >
+    <span className="google-icon">G</span>
+    Google로 {isLogin ? "로그인" : "회원가입"}
+  </button>
 
-            <div className="social-button-group">
-              <button
-                type="button"
-                className="google-button"
-                onClick={() => {
-                  window.location.href =
-                    "http://localhost:8080/oauth2/authorization/google";
-                }}
-              >
-                <span className="google-mark">G</span>
-                Google로 {isLogin ? "로그인" : "회원가입"} 계속하기
-              </button>
+  <button
+    type="button"
+    className="login-social-button"
+    onClick={() => goSocialLogin("naver")}
+  >
+    <span className="naver-icon">N</span>
+    Naver로 {isLogin ? "로그인" : "회원가입"}
+  </button>
+</div>
 
-              <button
-                type="button"
-                className="naver-button"
-                onClick={() => {
-                  window.location.href =
-                    "http://localhost:8080/oauth2/authorization/naver";
-                }}
-              >
-                <span className="naver-mark">N</span>
-                naver로 {isLogin ? "로그인" : "회원가입"} 계속하기
-              </button>
-            </div>
+          <div className="login-divider">
+            <span>또는 이메일로 계속</span>
+          </div>
 
-            <div className="auth-divider">
-              <span>또는 이메일로 계속</span>
-            </div>
+          {isLogin ? (
+            <form className="login-form" onSubmit={handleLoginSubmit}>
+              <label className="login-field">
+                <span>이메일</span>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(event) => {
+                    setLoginEmail(event.target.value);
+                    setLoginError("");
+                  }}
+                  placeholder="jumi@example.com"
+                />
+              </label>
 
-            {isLogin ? (
-              <form className="auth-form" onSubmit={handleLoginSubmit}>
-                <label className="auth-field">
-                  <span>이메일</span>
+              <label className="login-field">
+                <span>비밀번호</span>
+                <div className="login-password-wrap">
                   <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(event) => setLoginEmail(event.target.value)}
-                    onBlur={() => setLoginEmailTouched(true)}
+                    type={showLoginPassword ? "text" : "password"}
+                    value={loginPassword}
+                    onChange={(event) => {
+                      setLoginPassword(event.target.value);
+                      setLoginError("");
+                    }}
+                    placeholder="비밀번호를 입력해주세요"
                   />
-                  {loginEmailTouched && !loginEmail.trim() && (
-                    <p className="field-error">
-                      이메일을 입력하지 않았습니다.
-                    </p>
-                  )}
-                </label>
-
-                <label className="auth-field">
-                  <span>비밀번호</span>
-                  <div className="password-field">
-                    <input
-                      type={showLoginPassword ? "text" : "password"}
-                      value={loginPassword}
-                      onChange={(event) =>
-                        setLoginPassword(event.target.value)
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="password-eye-button"
-                      onClick={() =>
-                        setShowLoginPassword((prevValue) => !prevValue)
-                      }
-                    >
-                      {showLoginPassword ? "🙈" : "👁"}
-                    </button>
-                  </div>
-                </label>
-
-                <div className="auth-inline-actions">
-                  <button type="button" className="auth-text-button">
-                    비밀번호 찾기
+                  <button type="button" className="login-eye-button" onClick={() => setShowLoginPassword((prev) => !prev)}>
+                    {showLoginPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
+              </label>
 
-                {loginError && (
-                  <p className="auth-error-message">{loginError}</p>
-                )}
+              <button type="button" className="find-password-button">
+                비밀번호 찾기
+              </button>
 
-                <button
-                  type="submit"
-                  className="primary-button auth-submit"
-                  disabled={!canLogin}
-                >
-                  로그인
-                </button>
+              {loginError && <p className="login-error-text">{loginError}</p>}
 
-                <div className="auth-footer">
-                  <span>아직 계정이 없나요?</span>
-                  <button
-                    type="button"
-                    className="auth-switch"
-                    onClick={onGoSignup}
-                  >
-                    회원가입
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form className="auth-form" onSubmit={handleSignupSubmit}>
-                <label className="auth-field">
-                  <span>이름</span>
-                  <input
-                    type="text"
-                    value={signupName}
-                    onChange={(event) => setSignupName(event.target.value)}
-                  />
-                </label>
+              <button type="submit" className={`login-submit-button ${canLogin ? "active" : ""}`} disabled={!canLogin}>
+                로그인
+              </button>
 
-                <label className="auth-field">
-                  <span>아이디</span>
-                  <div className="auth-check-row">
-                    <input
-                      type="text"
-                      value={signupId}
-                      onChange={(event) => {
-                        setSignupId(event.target.value);
-                        setIsIdAvailable(false);
-                        setIdCheckMessage("");
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="check-button"
-                      onClick={handleCheckId}
-                    >
-                      중복 확인
-                    </button>
-                  </div>
-                  {idCheckMessage && (
-                    <p
-                      className={
-                        isIdAvailable ? "field-success" : "field-error"
-                      }
-                    >
-                      {idCheckMessage}
-                    </p>
-                  )}
-                </label>
-
-                <label className="auth-field">
-                  <span>이메일</span>
-                  <div className="auth-check-row">
-                    <input
-                      type="email"
-                      value={signupEmail}
-                      onChange={(event) => {
-                        setSignupEmail(event.target.value);
-                        setIsEmailAvailable(false);
-                        setEmailCheckMessage("");
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="check-button"
-                      onClick={handleCheckEmail}
-                    >
-                      중복 확인
-                    </button>
-                  </div>
-                  {emailCheckMessage && (
-                    <p
-                      className={
-                        isEmailAvailable ? "field-success" : "field-error"
-                      }
-                    >
-                      {emailCheckMessage}
-                    </p>
-                  )}
-                </label>
-
-                <label className="auth-field">
-                  <span>비밀번호</span>
-                  <div className="password-field">
-                    <input
-                      type={showSignupPassword ? "text" : "password"}
-                      value={signupPassword}
-                      onChange={(event) =>
-                        setSignupPassword(event.target.value)
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="password-eye-button"
-                      onClick={() =>
-                        setShowSignupPassword((prevValue) => !prevValue)
-                      }
-                    >
-                      {showSignupPassword ? "🙈" : "👁"}
-                    </button>
-                  </div>
-
-                  <ul className="password-rule-list">
-                    {passwordRules.map((rule) => (
-                      <li
-                        key={rule.label}
-                        className={rule.valid ? "is-valid" : ""}
-                      >
-                        {rule.label}
-                      </li>
-                    ))}
-                  </ul>
-                </label>
-
-                <label className="auth-field">
-                  <span>비밀번호 확인</span>
-                  <div className="password-field">
-                    <input
-                      type={showSignupPasswordConfirm ? "text" : "password"}
-                      value={signupPasswordConfirm}
-                      onChange={(event) =>
-                        setSignupPasswordConfirm(event.target.value)
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="password-eye-button"
-                      onClick={() =>
-                        setShowSignupPasswordConfirm((prevValue) => !prevValue)
-                      }
-                    >
-                      {showSignupPasswordConfirm ? "🙈" : "👁"}
-                    </button>
-                  </div>
-
-                  {signupPasswordConfirm.length > 0 && !isPasswordSame && (
-                    <p className="field-error">비밀번호가 다릅니다.</p>
-                  )}
-
-                  {signupPasswordConfirm.length > 0 && isPasswordSame && (
-                    <p className="field-success">비밀번호가 일치합니다.</p>
-                  )}
-                </label>
-
-                <button
-                  type="submit"
-                  className="primary-button auth-submit"
-                  disabled={!canSignup}
-                >
+              <div className="login-bottom-text">
+                <span>아직 계정이 없나요?</span>
+                <button type="button" onClick={onGoSignup}>
                   회원가입
                 </button>
+              </div>
+            </form>
+          ) : (
+            <form className="login-form" onSubmit={handleSignupSubmit}>
+              <label className="login-field">
+                <span>이름</span>
+                <input
+                  type="text"
+                  value={signupName}
+                  onChange={(event) => setSignupName(event.target.value.replace(/\s/g, ""))}
+                  placeholder="이름을 입력해주세요"
+                  maxLength={30}
+                />
+              </label>
 
-                <div className="auth-footer">
-                  <span>이미 계정이 있나요?</span>
-                  <button
-                    type="button"
-                    className="auth-switch"
-                    onClick={onGoLogin}
-                  >
-                    로그인
+              <label className="login-field">
+                <span>아이디</span>
+                <div className="login-check-row">
+  <input
+    type="text"
+    value={signupId}
+    onChange={(event) => {
+      setSignupId(event.target.value);
+      setIsIdAvailable(false);
+      setIdCheckMessage("");
+    }}
+    placeholder="아이디를 입력해주세요"
+  />
+  <button type="button" onClick={handleCheckId}>
+    중복 확인
+  </button>
+</div>
+                {idCheckMessage && <p className={isIdAvailable ? "login-success-text" : "login-error-text"}>{idCheckMessage}</p>}
+              </label>
+
+              <label className="login-field">
+                <span>이메일</span>
+                <div className="login-check-row">
+  <input
+    type="email"
+    value={signupEmail}
+    onChange={(event) => {
+      setSignupEmail(event.target.value);
+      setIsEmailAvailable(false);
+      setEmailCheckMessage("");
+    }}
+    placeholder="이메일을 입력해주세요"
+  />
+  <button type="button" onClick={handleCheckEmail}>
+    중복 확인
+  </button>
+</div>
+                {emailCheckMessage && <p className={isEmailAvailable ? "login-success-text" : "login-error-text"}>{emailCheckMessage}</p>}
+              </label>
+
+              <label className="login-field">
+                <span>비밀번호</span>
+                <div className="login-password-wrap">
+                  <input
+                    type={showSignupPassword ? "text" : "password"}
+                    value={signupPassword}
+                    onChange={(event) => setSignupPassword(event.target.value)}
+                    placeholder="비밀번호를 입력해주세요"
+                    maxLength={20}
+                  />
+                  <button type="button" className="login-eye-button" onClick={() => setShowSignupPassword((prev) => !prev)}>
+                    {showSignupPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
-              </form>
-            )}
-          </div>
+
+                <ul className="login-password-rules">
+  {passwordRules.map((rule) => (
+    <li key={rule.label} className={rule.valid ? "active" : ""}>
+      {rule.label}
+    </li>
+  ))}
+</ul>
+              </label>
+
+              <label className="login-field">
+                <span>비밀번호 확인</span>
+                <div className="login-password-wrap">
+                  <input
+                    type={showSignupPasswordConfirm ? "text" : "password"}
+                    value={signupPasswordConfirm}
+                    onChange={(event) => setSignupPasswordConfirm(event.target.value)}
+                    placeholder="비밀번호를 한 번 더 입력해주세요"
+                    maxLength={20}
+                  />
+                  <button type="button" className="login-eye-button" onClick={() => setShowSignupPasswordConfirm((prev) => !prev)}>
+                    {showSignupPasswordConfirm ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+
+                {signupPasswordConfirm && (
+                  <p className={isPasswordSame ? "login-success-text" : "login-error-text"}>
+                    {isPasswordSame ? "비밀번호가 일치합니다." : "비밀번호가 다릅니다."}
+                  </p>
+                )}
+              </label>
+
+              <button type="submit" className={`login-submit-button ${isSignupFilled ? "active" : ""}`} disabled={!isSignupFilled}>
+                회원가입
+              </button>
+
+              <div className="login-bottom-text">
+                <span>이미 계정이 있나요?</span>
+                <button type="button" onClick={onGoLogin}>
+                  로그인
+                </button>
+              </div>
+            </form>
+          )}
         </section>
       </main>
     </div>
