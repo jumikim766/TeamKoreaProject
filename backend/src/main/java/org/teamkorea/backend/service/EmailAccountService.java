@@ -30,16 +30,18 @@ import jakarta.mail.internet.InternetAddress;
 @Transactional(readOnly = true)
 public class EmailAccountService {
 
-
+    // 최초 동기화 때 가져올 메일 개수
     private static final int FIRST_SYNC_LIMIT = 100;
-    private static final int NEXT_SYNC_LIMIT = 10;
+
+    // 이후 동기화 때 확인할 최신 메일 개수
+    // private static final int NEXT_SYNC_LIMIT = 20;
 
     private final EmailAccountRepository emailAccountRepository;
     private final UserRepository userRepository;
     private final EmailRepository emailRepository;
     private final CryptoUtil cryptoUtil;
     private final EmailSaveService emailSaveService;
-    
+
     // 이메일 계정 등록
     @Transactional
     public EmailAccountResponseDto createEmailAccount(Long userId, EmailAccountRequestDto request) {
@@ -60,8 +62,7 @@ public class EmailAccountService {
         byte[] secretEnc;
         try {
             secretEnc = cryptoUtil.encrypt(request.getSecret());
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "이메일 비밀번호 암호화 중 오류가 발생했습니다.");
         }
 
@@ -158,16 +159,36 @@ public class EmailAccountService {
             String secret = cryptoUtil.decrypt(account.getSecretEnc());
 
             System.out.println("[DEBUG] host=" + account.getImapHost()
-            + ", port=" + account.getImapPort()
-            + ", loginId=" + account.getLoginId()
-            + ", secretLen=" + (secret == null ? "null" : secret.length()));
-            
+                    + ", port=" + account.getImapPort()
+                    + ", loginId=" + account.getLoginId()
+                    + ", secretLen=" + (secret == null ? "null" : secret.length()));
+
             store.connect(account.getImapHost(), account.getLoginId(), secret);
 
+            // IMAP에서 접근 가능한 폴더 목록 확인
+            Folder defaultFolder = store.getDefaultFolder();
+            Folder[] folders = defaultFolder.list("*");
+
+            for (Folder folder : folders) {
+                try {
+                    folder.open(Folder.READ_ONLY);
+
+                    System.out.println(
+                            "[IMAP FOLDER] "
+                                    + folder.getFullName()
+                                    + " / messageCount = "
+                                    + folder.getMessageCount());
+
+                    folder.close(false);
+
+                } catch (Exception ignored) {
+                }
+            }
+
             // store.connect(
-            //         account.getImapHost(),
-            //         account.getLoginId(),
-            //         secret
+            // account.getImapHost(),
+            // account.getLoginId(),
+            // secret
             // );
 
             // INBOX 열기
@@ -179,16 +200,24 @@ public class EmailAccountService {
             System.out.println("[SYNC] totalMessages = " + messages.length);
             System.out.println("[SYNC] lastSyncedAt = " + lastSyncedAt);
 
+            // 마지막 동기화 시간이 없으면 최초 동기화로 판단
             boolean isFirstSync = (lastSyncedAt == null);
-            int syncLimit = isFirstSync ? FIRST_SYNC_LIMIT : NEXT_SYNC_LIMIT;
+
+            // 최초 동기화는 최대 100개, 이후 동기화는 전체 메일 확인
+            int syncLimit = isFirstSync ? FIRST_SYNC_LIMIT : messages.length;
+
+            // IMAP 메시지는 보통 오래된 메일 -> 최신 메일 순서로 들어오기 때문에 뒤에서부터 최신 메일을 확인
             int startIndex = messages.length - 1;
+
+            // 가져올 범위의 마지막 index 계산
+            // 예: 전체 200개, limit 100이면 index 199부터 100까지 총 100개 처리
             int endIndex = Math.max(0, messages.length - syncLimit);
 
             // System.out.println("[SYNC] firstSync = " + isFirstSync);
-            // System.out.println("[SYNC] syncLimit = " + syncLimit);
-            // System.out.println("[SYNC] totalMessages = " + messages.length);
+            System.out.println("[SYNC] syncLimit = " + syncLimit);
+            System.out.println("[SYNC] totalMessages = " + messages.length);
 
-            // sync 시작 - 100개 / 이후 10개
+            // sync 시작 - 최초 최대 100개 / 이후 전체 메일 확인
             for (int i = startIndex; i >= endIndex; i--) {
 
                 Message msg = messages[i];
@@ -199,51 +228,60 @@ public class EmailAccountService {
 
                 LocalDateTime receivedAt = msg.getReceivedDate() != null
                         ? LocalDateTime.ofInstant(
-                        msg.getReceivedDate().toInstant(),
-                        ZoneId.systemDefault()
-                        )
+                                msg.getReceivedDate().toInstant(),
+                                ZoneId.systemDefault())
                         : LocalDateTime.now();
 
-                /*/
-                if (lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
-                    skippedEmailCount++;
-                    continue;
-                }*/
-                
+                /*
+                 * 최초 동기화가 아닌 경우, 마지막 동기화 시각 이전 메일은 저장하지 않음
+                 * if (lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
+                 * skippedEmailCount++;
+                 * continue;
+                 * }
+                 */
+
                 String messageUid = buildMessageUid(msg);
 
                 System.out.println("[SYNC] messageUid = " + messageUid);
+
                 boolean exists = emailRepository.existsByMessageUid(messageUid);
                 System.out.println("[SYNC] exists = " + exists);
 
-                if (emailRepository.existsByMessageUid(messageUid)) {
+                // 이미 저장된 메일이면 중복 저장하지 않고 skip
+                if (exists) {
                     skippedEmailCount++;
                     continue;
                 }
 
                 String subject = msg.getSubject();
-                String bodyText = getText(msg);
 
+                // HTML 본문과 텍스트 본문을 따로 추출
+                EmailBody emailBody = getEmailBody(msg);
 
-                List<String> extractedUrls = extractUrls(bodyText);
+                String bodyText = emailBody.bodyText();
+                String bodyHtml = emailBody.bodyHtml();
 
-                 // 메일 1건 처리 실패가 sync 전체를 죽이지 않게 try-catch로 감쌈
+                // URL은 텍스트 본문 + HTML 본문 둘 다에서 추출
+                List<String> extractedUrls = extractUrls(
+                        (bodyText != null ? bodyText : "") + " " + (bodyHtml != null ? bodyHtml : ""));
+
+                // 메일 1건 처리 실패가 sync 전체를 죽이지 않게 try-catch로 감쌈
                 try {
                     int savedUrlCount = emailSaveService.saveEmailAndUrls(
-                        userId,
-                        account,
-                        messageUid,
-                        extractSenderName(msg),
-                        extractSenderEmail(msg),
-                        account.getEmail(),
-                        subject,
-                        bodyText,
-                        receivedAt,
-                        extractedUrls
-                    );
+                            userId,
+                            account,
+                            messageUid,
+                            extractSenderName(msg),
+                            extractSenderEmail(msg),
+                            account.getEmail(),
+                            subject,
+                            bodyText,
+                            bodyHtml,
+                            receivedAt,
+                            extractedUrls);
 
                     System.out.println("[SYNC] email saved, savedUrlCount = " + savedUrlCount);
-                    
+
                     savedEmailCount++;
                     extractedUrlCount += savedUrlCount;
                 } catch (Exception perMailEx) {
@@ -332,7 +370,7 @@ public class EmailAccountService {
 
             default:
                 throw new BusinessException(ErrorCode.INVALID_INPUT, "지원하지 않는 provider입니다.");
-            }
+        }
     }
 
     // 응답 DTO 변환
@@ -349,27 +387,80 @@ public class EmailAccountService {
                 .build();
     }
 
-    // 이메일 본문 추출
-    private String getText(Part part) throws Exception {
+    // 이메일 본문 추출 결과를 담는 record
+    private record EmailBody(String bodyText, String bodyHtml) {
+    }
 
-        if (part.isMimeType("text/plain") || part.isMimeType("text/html")) {
+    // 이메일 본문 추출
+    private EmailBody getEmailBody(Part part) throws Exception {
+
+        // 일반 텍스트 메일
+        if (part.isMimeType("text/plain")) {
             Object content = part.getContent();
-            return content != null ? content.toString() : "";
+            String text = content != null ? content.toString() : "";
+            return new EmailBody(text, null);
         }
 
+        // HTML 메일
+        if (part.isMimeType("text/html")) {
+            Object content = part.getContent();
+            String html = content != null ? content.toString() : "";
+            String text = htmlToText(html);
+
+            // HTML 원본은 bodyHtml에 저장
+            return new EmailBody(text, html);
+        }
+
+        // multipart 메일
         if (part.isMimeType("multipart/*")) {
             Multipart multipart = (Multipart) part.getContent();
 
-            for (int i = 0; i < multipart.getCount(); i++) {
-                String text = getText(multipart.getBodyPart(i));
+            String bodyText = "";
+            String bodyHtml = "";
 
-                if (text != null && !text.isBlank()) {
-                    return text;
+            for (int i = 0; i < multipart.getCount(); i++) {
+                BodyPart bodyPart = multipart.getBodyPart(i);
+
+                EmailBody childBody = getEmailBody(bodyPart);
+
+                // text/plain 본문 저장
+                if (bodyText.isBlank()
+                        && childBody.bodyText() != null
+                        && !childBody.bodyText().isBlank()) {
+                    bodyText = childBody.bodyText();
+                }
+
+                // text/html 본문 저장
+                if (bodyHtml.isBlank()
+                        && childBody.bodyHtml() != null
+                        && !childBody.bodyHtml().isBlank()) {
+                    bodyHtml = childBody.bodyHtml();
                 }
             }
+
+            // text/plain이 없고 HTML만 있으면, HTML을 텍스트로 바꿔서 bodyText에도 저장
+            if (bodyText.isBlank() && !bodyHtml.isBlank()) {
+                bodyText = htmlToText(bodyHtml);
+            }
+
+            return new EmailBody(bodyText, bodyHtml);
         }
 
-        return "";
+        return new EmailBody("", null);
+    }
+
+    // HTML 태그 제거 후 텍스트 변환
+    private String htmlToText(String html) {
+
+        if (html == null) {
+            return "";
+        }
+
+        return html
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</p>", "\n")
+                .replaceAll("<[^>]*>", "")
+                .trim();
     }
 
     // 본문에서 URL 추출
@@ -443,7 +534,6 @@ public class EmailAccountService {
         }
     }
 
-    
     // 이메일 중복 방지용 ID 생성
     private String buildMessageUid(Message msg) throws Exception {
 

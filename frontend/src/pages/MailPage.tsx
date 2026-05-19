@@ -366,7 +366,15 @@ function MailPage({
                         <div className="mail-divider" />
 
                         <div className="mail-body">
-                          <p>{selectedEmailDetail?.bodyText}</p>
+                          {/* HTML 본문이 있으면 HTML로 보여주고, 없으면 기존 텍스트 본문 표시 */}
+                          {selectedEmailDetail?.bodyHtml ? (
+                            <div
+                              className="mail-body-html"
+                              dangerouslySetInnerHTML={{ __html: selectedEmailDetail.bodyHtml }}
+                            />
+                          ) : (
+                            <p>{selectedEmailDetail?.bodyText}</p>
+                          )}
                           <p>
                             <strong>보낸 사람 :</strong>{" "}
                             {selectedEmailDetail?.senderName} (

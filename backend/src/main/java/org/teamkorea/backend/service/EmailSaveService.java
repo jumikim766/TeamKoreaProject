@@ -39,6 +39,7 @@ public class EmailSaveService {
             String receiverEmail,
             String subject,
             String bodyText,
+            String bodyHtml,
             LocalDateTime receivedAt,
             List<String> extractedUrls) {
         // 1. emails 테이블에 이메일 저장
@@ -50,6 +51,7 @@ public class EmailSaveService {
                         .senderEmail(senderEmail)
                         .receiverEmail(receiverEmail)
                         .subject(subject)
+                        .bodyHtml(bodyHtml) // HTML 본문 원본 저장
                         .bodyText(bodyText)
                         .receivedAt(receivedAt)
                         .build());

@@ -18,9 +18,10 @@ public class EmailDetailResponseDto {
     private String receiverEmail;
     private String subject;
     private String bodyText;
+    private String bodyHtml; // HTML 본문 응답용
     private LocalDateTime receivedAt;
     private LocalDateTime createdAt;
     private int urlCount;
     private String riskLevel;
-    
+
 }

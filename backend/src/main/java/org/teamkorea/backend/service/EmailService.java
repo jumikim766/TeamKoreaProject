@@ -73,6 +73,7 @@ public class EmailService {
                 .receiverEmail(email.getReceiverEmail())
                 .subject(email.getSubject() != null ? email.getSubject() : "")
                 .bodyText(email.getBodyText() != null ? email.getBodyText() : "")
+                .bodyHtml(email.getBodyHtml()) // HTML 본문 응답 추가
                 .receivedAt(email.getReceivedAt())
                 .createdAt(email.getCreatedAt())
                 .urlCount(urlCount)
@@ -116,7 +117,7 @@ public class EmailService {
         String riskLevel = urlAnalysisRepository
                 .findTopByUrl_UrlIdOrderByAnalyzedAtDesc(url.getUrlId())
                 .map(analysis -> analysis.getRiskLevel().name())
-                .orElse("UNKNOWN");
+                .orElse("SAFE");
 
         return EmailUrlResponseDto.builder()
                 .urlId(url.getUrlId())

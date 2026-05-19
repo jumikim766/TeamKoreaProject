@@ -65,6 +65,7 @@ export interface EmailDetail {
   receiverEmail: string | null;
   subject: string | null;
   bodyText: string | null;
+  bodyHtml: string | null;
   receivedAt: string;
   createdAt: string;
   urlCount: number;
