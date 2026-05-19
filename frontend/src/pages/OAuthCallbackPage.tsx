@@ -1,38 +1,47 @@
-import { useEffect, useRef } from 'react';
-import { saveAccessToken } from '../utils/token';
+import { useEffect, useRef } from "react";
+import { reissue } from "../api/authApi";
+import { saveAccessToken } from "../utils/token";
 
 type OAuthCallbackPageProps = {
   onSuccess: () => void;
   onFail: () => void;
 };
 
-function OAuthCallbackPage({
-  onSuccess,
-  onFail,
-}: OAuthCallbackPageProps) {
+function OAuthCallbackPage({ onSuccess, onFail }: OAuthCallbackPageProps) {
   const handledRef = useRef(false);
 
   useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
 
-    const params = new URLSearchParams(window.location.search);
+    const handleOAuthCallback = async () => {
+      try {
+        // 백엔드가 OAuth 성공 시 refreshToken을 HttpOnly 쿠키로 내려줌
+        // 프론트는 쿠키를 직접 읽지 않고 reissue()로 accessToken만 재발급받음
+        const response = await reissue();
 
-    const accessToken = params.get('accessToken');
+        const accessToken = response.data.data?.accessToken;
 
-    if (accessToken) {
-      saveAccessToken(accessToken);
+        if (!accessToken) {
+          throw new Error("accessToken이 없습니다.");
+        }
 
-      onSuccess();
+        saveAccessToken(accessToken);
 
-      alert('로그인이 성공되었습니다.');
-      window.location.replace('/');
-    } else {
-      onFail();
+        onSuccess();
 
-      alert('로그인에 실패했습니다.');
-      window.location.replace('/');
-    }
+        alert("로그인이 성공되었습니다.");
+        window.location.replace("/");
+      } catch (error) {
+        // reissue 실패 = refreshToken 쿠키가 없거나 만료/유효하지 않은 상태
+        onFail();
+
+        alert("로그인에 실패했습니다.");
+        window.location.replace("/login");
+      }
+    };
+
+    handleOAuthCallback();
   }, [onSuccess, onFail]);
 
   return <div>로그인 처리 중...</div>;
