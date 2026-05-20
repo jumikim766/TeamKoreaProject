@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "users")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)// JPA 기본 생성자 보호
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA 기본 생성자 보호
 @AllArgsConstructor
 @Builder
 public class User {
@@ -65,22 +65,27 @@ public class User {
 
     @PrePersist
     public void prePersist() {
-        if (this.createdAt == null) this.createdAt = LocalDateTime.now();// 저장 전 생성 시각 자동 입력
-        if (this.role     == null) this.role       = "USER";
-        if (this.status   == null) this.status     = "ACTIVE";
-        if (this.provider == null) this.provider   = "LOCAL";
+        if (this.createdAt == null)
+            this.createdAt = LocalDateTime.now();// 저장 전 생성 시각 자동 입력
+        if (this.role == null)
+            this.role = "USER";
+        if (this.status == null)
+            this.status = "ACTIVE";
+        if (this.provider == null)
+            this.provider = "LOCAL";
     }
 
     /** 소셜 로그인 사용자 정보 설정/갱신 */
     public void updateOAuthInfo(String username, String email, String name,
-                                String provider, String providerId) {
-        if (this.username == null) this.username = username;
-        this.email      = email;
-        this.name       = name;
-        this.provider   = provider;
+            String provider, String providerId) {
+        if (this.username == null)
+            this.username = username;
+        this.email = email;
+        this.name = name;
+        this.provider = provider;
         this.providerId = providerId;
-        this.role       = "USER";
-        this.status     = "ACTIVE";
+        this.role = "USER";
+        this.status = "ACTIVE";
         this.lastLoginAt = LocalDateTime.now();
     }
 
@@ -91,16 +96,22 @@ public class User {
 
     /** 프로필(전화번호/이름/성별/나이) 수정 */
     public void updateProfile(byte[] phoneEnc, String name, String gender, Integer age) {
-        if (phoneEnc != null)                      this.phoneEnc = phoneEnc;
-        if (name     != null && !name.isBlank())   this.name     = name;
-        if (gender   != null && !gender.isBlank()) this.gender   = gender;
-        if (age      != null)                      this.age      = age;
+        if (phoneEnc != null)
+            this.phoneEnc = phoneEnc;
+        if (name != null && !name.isBlank())
+            this.name = name;
+        if (gender != null && !gender.isBlank())
+            this.gender = gender;
+        if (age != null)
+            this.age = age;
     }
 
     /** 아이디/이메일 수정 (LOCAL 계정 전용) */
     public void updateAccountInfo(String username, String email) {
-        if (username != null && !username.isBlank()) this.username = username;
-        if (email    != null && !email.isBlank())    this.email    = email;
+        if (username != null && !username.isBlank())
+            this.username = username;
+        if (email != null && !email.isBlank())
+            this.email = email;
     }
 
     /** 비밀번호 변경 */
@@ -115,12 +126,8 @@ public class User {
 
     /** soft delete */
     public void withdraw() {
-        this.status    = "DELETED";
+        this.status = "DELETED";
         this.deletedAt = LocalDateTime.now();
     }
 
-    public String getNormalizedUrl() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getNormalizedUrl'");
-    }
 }

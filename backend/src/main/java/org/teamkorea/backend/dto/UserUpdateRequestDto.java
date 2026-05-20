@@ -12,7 +12,7 @@ public class UserUpdateRequestDto {
     @Pattern(regexp = "^(?!\\s)(?!.*\\s$).{1,30}$", message = "이름은 앞뒤 공백 없이 1자 이상 30자 이하로 입력해주세요.")
     private String name;
 
-    @Pattern(regexp = "^(?=.*[a-zA-Z])[a-zA-Z0-9]{4,20}$", message = "아이디는 영문 또는 영문+숫자 조합의 4~20자여야 합니다.")
+    @Pattern(regexp = "^(?=.*[a-zA-Z])[a-zA-Z0-9]{4,20}$", message = "아이디는 영문을 1자 이상 포함한 4~20자의 영문 또는 영문+숫자 조합이어야 합니다.")
     private String username;
 
     @Pattern(regexp = "^010\\d{8}$", message = "전화번호는 010으로 시작하는 11자리 숫자여야 합니다.")

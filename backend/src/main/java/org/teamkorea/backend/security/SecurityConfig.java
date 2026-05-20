@@ -63,12 +63,17 @@ public class SecurityConfig {
                                                                 "/login/**",
                                                                 "/error",
                                                                 "/api/auth/signup",
+                                                                "/api/auth/signup/send-code",
                                                                 "/api/auth/login",
                                                                 "/api/auth/reissue",
                                                                 "/api/auth/logout",
                                                                 "/api/hello",
                                                                 "/api/users/check-username",
-                                                                "/api/users/check-email")
+                                                                "/api/users/check-email",
+                                                                "/api/auth/find-username/send-code",
+                                                                "/api/auth/find-username/verify-code",
+                                                                "/api/auth/password-reset/send-code",
+                                                                "/api/auth/password-reset")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 .oauth2Login(oauth -> oauth

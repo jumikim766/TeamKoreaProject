@@ -32,6 +32,15 @@ public class AuthController {
         @Value("${app.cookie.domain:}")
         private String cookieDomain;
 
+        @PostMapping("/signup/send-code")
+        public ResponseEntity<BaseResponse<Void>> sendSignupCode(
+                        @Valid @RequestBody SignupSendCodeRequestDto request) {
+                authService.sendSignupCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("회원가입 인증번호가 이메일로 발송되었습니다.", null));
+        }
+
         @PostMapping("/signup")
         public ResponseEntity<BaseResponse<SignupResponseDto>> signup(
                         @Valid @RequestBody SignupRequestDto requestDto) {
@@ -112,5 +121,41 @@ public class AuthController {
                 }
 
                 return cookieBuilder.build().toString();
+        }
+
+        @PostMapping("/find-username/send-code")
+        public ResponseEntity<BaseResponse<Void>> sendFindUsernameCode(
+                        @Valid @RequestBody FindUsernameSendCodeRequestDto request) {
+                authService.sendFindUsernameCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("인증번호가 이메일로 발송되었습니다.", null));
+        }
+
+        @PostMapping("/find-username/verify-code")
+        public ResponseEntity<BaseResponse<FindUsernameResponseDto>> verifyFindUsernameCode(
+                        @Valid @RequestBody VerifyCodeRequestDto request) {
+                FindUsernameResponseDto response = authService.verifyFindUsernameCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("아이디 찾기에 성공했습니다.", response));
+        }
+
+        @PostMapping("/password-reset/send-code")
+        public ResponseEntity<BaseResponse<Void>> sendPasswordResetCode(
+                        @Valid @RequestBody PasswordResetSendCodeRequestDto request) {
+                authService.sendPasswordResetCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("인증번호가 이메일로 발송되었습니다.", null));
+        }
+
+        @PostMapping("/password-reset")
+        public ResponseEntity<BaseResponse<Void>> resetPassword(
+                        @Valid @RequestBody PasswordResetRequestDto request) {
+                authService.resetPassword(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("비밀번호가 재설정되었습니다.", null));
         }
 }

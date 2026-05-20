@@ -18,8 +18,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // [유지] 중복 체크 기능
     boolean existsByEmail(String email);
+
     boolean existsByUsername(String username);
 
     // [유지] 상태값(ACTIVE 등) 기준 조회
     Optional<User> findByUserIdAndStatus(Long userId, String status);
+
+    // 이름 + 이메일로 사용자 조회 (아이디 찾기용)
+    Optional<User> findByNameAndEmail(String name, String email);
+
+    // 아이디(username) + 이메일로 사용자 조회 (비밀번호 찾기용)
+    Optional<User> findByUsernameAndEmail(String username, String email);
 }

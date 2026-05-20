@@ -16,7 +16,6 @@ import org.teamkorea.backend.exception.BusinessException;
 import org.teamkorea.backend.exception.ErrorCode;
 import org.teamkorea.backend.repository.RefreshTokenRepository;
 import org.teamkorea.backend.repository.UserRepository;
-import java.util.UUID;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -85,16 +84,35 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         User user = userRepository
                 .findByProviderAndProviderId(provider, providerId)
-                .orElseGet(() -> userRepository.findByEmail(email).orElseGet(() -> User.builder()
-                        .username(generateUsername(email))
-                        .email(email)
-                        .name(name)
-                        .passwordHash(null)
-                        .role("USER")
-                        .status("ACTIVE")
-                        .provider(provider)
-                        .providerId(providerId)
-                        .build()));
+                .orElseGet(() -> {
+
+                    User existingUser = userRepository.findByEmail(email).orElse(null);
+
+                    // 같은 이메일의 LOCAL 계정이 있으면 소셜 로그인 차단
+                    if (existingUser != null && "LOCAL".equals(existingUser.getProvider())) {
+                        try {
+                            response.sendRedirect(frontRedirectUri + "?error=DUPLICATE_EMAIL");
+                            return null;
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    return User.builder()
+                            .username(generateUsername(email))
+                            .email(email)
+                            .name(name)
+                            .passwordHash(null)
+                            .role("USER")
+                            .status("ACTIVE")
+                            .provider(provider)
+                            .providerId(providerId)
+                            .build();
+                });
+
+        if (user == null) {
+            return;
+        }
 
         user.updateOAuthInfo(user.getUsername(), email, name, provider, providerId);
         user.updateLastLoginAt();
@@ -143,7 +161,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         int randomNumber = (int) (Math.random() * 9000) + 1000;
 
         // 최대 길이 고려
-        int maxBaseLength = 16;
+        int maxBaseLength = 15;
 
         if (base.length() > maxBaseLength) {
             base = base.substring(0, maxBaseLength);

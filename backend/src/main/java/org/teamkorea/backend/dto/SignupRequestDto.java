@@ -17,11 +17,11 @@ import jakarta.validation.constraints.Min;
 public class SignupRequestDto {
 
     @NotBlank(message = "아이디는 필수입니다.")
-    @Pattern(regexp = "^(?=.*[a-zA-Z])[a-zA-Z0-9]{4,20}$", message = "아이디는 영문 또는 영문+숫자 조합의 4~20자여야 합니다.")
+    @Pattern(regexp = "^(?=.*[a-zA-Z])[a-zA-Z0-9]{4,20}$", message = "아이디는 영문을 1자 이상 포함한 4~20자의 영문 또는 영문+숫자 조합이어야 합니다.")
     private String username;
 
     @NotBlank(message = "비밀번호는 필수입니다.")
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{8,20}$", message = "비밀번호는 영문 대문자, 소문자, 숫자, 특수문자를 포함한 8~20자여야 합니다.")
+    @ValidPassword
     private String password;
 
     @NotBlank(message = "이름은 필수입니다.")
@@ -32,8 +32,11 @@ public class SignupRequestDto {
     @Email(message = "올바른 이메일 형식이 아닙니다.")
     private String email;
 
-    // @NotBlank(message = "전화번호는 필수입니다.")
-    @Pattern(regexp = "^010\\d{8}$", message = "전화번호는 010으로 시작하는 11자리 숫자여야 합니다.")
+    @NotBlank(message = "이메일 인증번호는 필수입니다.")
+    private String code;
+
+    // null은 통과하고, 빈 문자열("") 또는 입력값이 있을 경우에는 010으로 시작하는 11자리만 허용합니다.
+    @Pattern(regexp = "^$|^010\\d{8}$", message = "전화번호는 010으로 시작하는 11자리 숫자여야 합니다.")
     private String phone;
 
     @Pattern(regexp = "^(MALE|FEMALE|OTHER)?$", message = "성별은 MALE, FEMALE, OTHER 중 하나여야 합니다.")
