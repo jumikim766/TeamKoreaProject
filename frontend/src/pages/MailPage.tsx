@@ -11,6 +11,7 @@ import {
   deleteEmailAccount,
   getEmail,
   getEmailDetail,
+  syncEmailAccount,
 } from "../api/mailApi";
 
 import type {
@@ -67,9 +68,13 @@ function MailPage({
   onGoMyPage,
   onNavigate,
 }: MailPageProps) {
-  const [selectedAccount, setSelectedAccount] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
+    null,
+  );
   const [selectedMailId, setSelectedMailId] = useState<number | null>(null);
   const [connectEmail, setConnectEmail] = useState("");
+  const [loginId, setLoginId] = useState("");
+  const [secret, setSecret] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<
     "GMAIL" | "NAVER" | "DAUM" | "OUTLOOK" | "CUSTOM"
   >("GMAIL");
@@ -79,6 +84,9 @@ function MailPage({
   const [emails, setEmails] = useState<EmailListItem[]>([]);
   const [selectedEmailDetail, setSelectedEmailDetail] =
     useState<EmailDetail | null>(null);
+  const [imapHost, setImapHost] = useState("");
+  const [imapPort, setImapPort] = useState("");
+  const [syncingAccountId, setSyncingAccountId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchEmailAccounts = async () => {
@@ -91,7 +99,9 @@ function MailPage({
         const accountEmails = accounts.map((account) => account.email);
         setConnectedEmails(accountEmails);
 
-        setSelectedAccount((prev) => prev || accountEmails[0] || "");
+        if (accounts.length > 0) {
+          setSelectedAccountId(accounts[0].accountId);
+        }
       } catch (error) {
         console.error("이메일 계정 목록 조회 실패:", error);
       }
@@ -100,16 +110,29 @@ function MailPage({
   }, []);
 
   useEffect(() => {
+    if (selectedAccountId === null) {
+      return;
+    }
+
     const fetchEmails = async () => {
       try {
-        const data: EmailListResponse = await getEmail({ page: 0, size: 20 });
-        setEmails(data.emails);
+        const data: EmailListResponse = await getEmail({
+          accountId: selectedAccountId,
+          page: 0,
+          size: 20,
+        });
+
+        setEmails(data.emails ?? []);
+        setSelectedMailId(null);
+        setSelectedEmailDetail(null);
       } catch (error) {
         console.error("이메일 목록 조회 실패:", error);
+        setEmails([]);
       }
     };
+
     fetchEmails();
-  }, []);
+  }, [selectedAccountId]);
 
   useEffect(() => {
     if (selectedMailId === null) return;
@@ -128,15 +151,17 @@ function MailPage({
   const filteredMessages = emails;
 
   const selectedMail =
-    filteredMessages.find((message) => message.emailId === selectedMailId) ??
-    filteredMessages[0] ??
-    null;
+    selectedMailId !== null
+      ? (filteredMessages.find(
+          (message) => message.emailId === selectedMailId,
+        ) ?? null)
+      : null;
 
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(connectEmail);
   const canConnect = isValidEmail && !connectedEmails.includes(connectEmail);
 
-  const handleDuplicateCheck = () => {
-    if (!connectEmail.trim()) {
+  const handleDuplicateCheck = async () => {
+    if (!connectEmail.trim() || !isValidEmail) {
       setConnectEmailError("이메일 주소를 정확하게 입력해 주세요.");
       return;
     }
@@ -146,14 +171,22 @@ function MailPage({
       return;
     }
 
-    if (connectedEmails.includes(connectEmail)) {
-      setConnectEmailError("");
-      alert("이미 연동된 이메일입니다.");
-      return;
-    }
+    try {
+      const accounts = await getEmailAccount();
 
-    setConnectEmailError("");
-    alert("연동 가능한 이메일입니다.");
+      const isDuplicate = accounts.some(
+        (account) => account.email === connectEmail,
+      );
+
+      if (isDuplicate) {
+        alert("이미 연동된 이메일입니다.");
+        return;
+      }
+
+      alert("연동 가능한 이메일입니다.");
+    } catch (error) {
+      console.error("중복 확인 실패:", error);
+    }
   };
 
   const handleConnectEmail = async () => {
@@ -162,18 +195,16 @@ function MailPage({
       return;
     }
 
-    if (connectedEmails.includes(connectEmail)) {
-      setConnectEmailError("");
-      alert("이미 연동된 이메일입니다.");
-      return;
-    }
-
     try {
       const request: CreateEmailAccountRequest = {
         provider: selectedProvider,
         email: connectEmail,
-        loginId: connectEmail,
-        secret: "temp-password",
+        loginId,
+        secret,
+        ...(selectedProvider === "CUSTOM" && {
+          imapHost,
+          imapPort: Number(imapPort),
+        }),
       };
 
       await createEmailAccount(request);
@@ -183,13 +214,77 @@ function MailPage({
 
       const accountEmails = accounts.map((account) => account.email);
       setConnectedEmails(accountEmails);
-      setSelectedAccount((prev) => prev || connectEmail);
+
+      const connectedAccount = accounts.find(
+        (account) => account.email === connectEmail,
+      );
+
+      setSelectedAccountId(
+        connectedAccount?.accountId ?? accounts[0]?.accountId ?? null,
+      );
 
       setConnectEmail("");
+      setLoginId("");
+      setSecret("");
+      setImapHost("");
+      setImapPort("");
       setConnectEmailError("");
       alert("이메일이 연동되었습니다.");
     } catch (error) {
       console.error("이메일 연동 실패:", error);
+    }
+  };
+
+  const handleSyncEmail = async (email: string) => {
+    const targetAccount = emailAccounts.find(
+      (account) => account.email === email,
+    );
+
+    if (!targetAccount) {
+      alert("계정 정보를 찾을 수 없습니다.");
+      return;
+    }
+
+    try {
+      setSyncingAccountId(targetAccount.accountId);
+
+      await syncEmailAccount(targetAccount.accountId);
+
+      const data: EmailListResponse = await getEmail({
+        accountId: targetAccount.accountId,
+        page: 0,
+        size: 20,
+      });
+      setEmails(data.emails);
+
+      alert("이메일 동기화 완료");
+    } catch (error: unknown) {
+      if (typeof error === "object" && error !== null && "response" in error) {
+        const err = error as {
+          response?: {
+            status?: number;
+            data?: {
+              message?: string;
+              error?: string;
+            };
+          };
+        };
+
+        console.error("이메일 동기화 실패:", err);
+        console.error("응답 상태:", err.response?.status);
+        console.error("응답 데이터:", err.response?.data);
+
+        alert(
+          err.response?.data?.message ||
+            err.response?.data?.error ||
+            "이메일 동기화에 실패했습니다.",
+        );
+      } else {
+        console.error("알 수 없는 오류:", error);
+        alert("이메일 동기화에 실패했습니다.");
+      }
+    } finally {
+      setSyncingAccountId(null);
     }
   };
 
@@ -205,19 +300,27 @@ function MailPage({
         (account) => account.email === email,
       );
 
+      if (!targetAccount) {
+        alert("이메일 계정을 찾을 수 없습니다.");
+        return;
+      }
+
       if (targetAccount) {
         await deleteEmailAccount(targetAccount.accountId);
       }
-      const nextConnectedEmails = connectedEmails.filter(
-        (item) => item !== email,
-      );
 
-      setConnectedEmails(nextConnectedEmails);
+      const accounts = await getEmailAccount();
+      setEmailAccounts(accounts);
 
-      if (selectedAccount === email) {
-        const nextAccount = nextConnectedEmails[0] ?? "";
-        setSelectedAccount(nextAccount);
+      const accountEmails = accounts.map((account) => account.email);
+      setConnectedEmails(accountEmails);
+
+      if (selectedAccountId === targetAccount.accountId) {
+        const nextAccountId = accounts[0]?.accountId ?? null;
+
+        setSelectedAccountId(nextAccountId);
         setSelectedMailId(null);
+        setSelectedEmailDetail(null);
       }
 
       alert("연동 해제했습니다.");
@@ -285,16 +388,20 @@ function MailPage({
                 <div className="mail-top-bar">
                   <select
                     className="mail-account-select"
-                    value={selectedAccount}
+                    value={selectedAccountId ?? ""}
                     onChange={(event) => {
-                      setSelectedAccount(event.target.value);
+                      setSelectedAccountId(Number(event.target.value));
                       setSelectedMailId(null);
+                      setSelectedEmailDetail(null);
                     }}
                   >
-                    {connectedEmails.length > 0 ? (
-                      connectedEmails.map((email) => (
-                        <option key={email} value={email}>
-                          {email}
+                    {emailAccounts.length > 0 ? (
+                      emailAccounts.map((account) => (
+                        <option
+                          key={account.accountId}
+                          value={account.accountId}
+                        >
+                          {account.email}
                         </option>
                       ))
                     ) : (
@@ -326,6 +433,7 @@ function MailPage({
                         >
                           <span>
                             <strong>{message.senderName}</strong>
+                            <small>{message.senderEmail}</small>
                           </span>
                           <span>{message.subject}</span>
                           <span>{message.previewText}</span>
@@ -370,7 +478,9 @@ function MailPage({
                           {selectedEmailDetail?.bodyHtml ? (
                             <div
                               className="mail-body-html"
-                              dangerouslySetInnerHTML={{ __html: selectedEmailDetail.bodyHtml }}
+                              dangerouslySetInnerHTML={{
+                                __html: selectedEmailDetail.bodyHtml,
+                              }}
                             />
                           ) : (
                             <p>{selectedEmailDetail?.bodyText}</p>
@@ -410,45 +520,79 @@ function MailPage({
                 </div>
 
                 <div className="mail-connect-box">
-                  <select
-                    className="mail-provider-select"
-                    value={selectedProvider}
-                    onChange={(event) =>
-                      setSelectedProvider(
-                        event.target.value as
-                          | "GMAIL"
-                          | "NAVER"
-                          | "DAUM"
-                          | "OUTLOOK"
-                          | "CUSTOM",
-                      )
-                    }
-                  >
-                    <option value="GMAIL">GMAIL</option>
-                    <option value="NAVER">NAVER</option>
-                    <option value="DAUM">DAUM</option>
-                    <option value="OUTLOOK">OUTLOOK</option>
-                    <option value="CUSTOM">CUSTOM</option>
-                  </select>
+                  <div className="mail-connect-first-row">
+                    <select
+                      className="mail-provider-select"
+                      value={selectedProvider}
+                      onChange={(event) =>
+                        setSelectedProvider(
+                          event.target.value as
+                            | "GMAIL"
+                            | "NAVER"
+                            | "DAUM"
+                            | "OUTLOOK"
+                            | "CUSTOM",
+                        )
+                      }
+                    >
+                      <option value="GMAIL">GMAIL</option>
+                      <option value="NAVER">NAVER</option>
+                      <option value="DAUM">DAUM</option>
+                      <option value="OUTLOOK">OUTLOOK</option>
+                      <option value="CUSTOM">CUSTOM</option>
+                    </select>
 
+                    <input
+                      className="mail-connect-input"
+                      placeholder="연동하실 이메일을 입력하세요."
+                      type="email"
+                      value={connectEmail}
+                      onChange={(event) => {
+                        setConnectEmail(event.target.value);
+                        setConnectEmailError("");
+                      }}
+                    />
+
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={handleDuplicateCheck}
+                    >
+                      중복 확인
+                    </button>
+                  </div>
                   <input
-                    className="mail-connect-input"
-                    placeholder="연동하실 이메일을 입력하세요."
-                    type="email"
-                    value={connectEmail}
-                    onChange={(event) => {
-                      setConnectEmail(event.target.value);
-                      setConnectEmailError("");
-                    }}
+                    className="mail-auth-input"
+                    placeholder="로그인 ID"
+                    type="text"
+                    value={loginId}
+                    onChange={(event) => setLoginId(event.target.value)}
+                  />
+                  <input
+                    className="mail-auth-input"
+                    placeholder="비밀번호"
+                    type="password"
+                    value={secret}
+                    onChange={(event) => setSecret(event.target.value)}
                   />
 
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={handleDuplicateCheck}
-                  >
-                    중복 확인
-                  </button>
+                  {selectedProvider === "CUSTOM" && (
+                    <>
+                      <input
+                        className="mail-auth-input"
+                        placeholder="imap host"
+                        value={imapHost}
+                        onChange={(event) => setImapHost(event.target.value)}
+                      />
+
+                      <input
+                        className="mail-auth-input"
+                        placeholder="imap port"
+                        value={imapPort}
+                        onChange={(event) => setImapPort(event.target.value)}
+                      />
+                    </>
+                  )}
 
                   <button
                     className={`primary-button ${!canConnect ? "is-disabled" : ""}`}
@@ -470,18 +614,44 @@ function MailPage({
                   <h2>연동된 이메일</h2>
 
                   <div className="connected-mail-list">
-                    {connectedEmails.map((email) => (
-                      <div key={email} className="connected-mail-row">
-                        <span>{email}</span>
-                        <button
-                          className="secondary-button small-button"
-                          onClick={() => handleDisconnectEmail(email)}
-                          type="button"
-                        >
-                          연동 해제
-                        </button>
-                      </div>
-                    ))}
+                    {connectedEmails.length > 0 ? (
+                      connectedEmails.map((email) => (
+                        <div key={email} className="connected-mail-row">
+                          <span>{email}</span>
+                          <div className="mail-button-group">
+                            <button
+                              className="secondary-button small-button"
+                              onClick={() => handleSyncEmail(email)}
+                              disabled={
+                                syncingAccountId ===
+                                emailAccounts.find(
+                                  (account) => account.email === email,
+                                )?.accountId
+                              }
+                              type="button"
+                            >
+                              {syncingAccountId ===
+                              emailAccounts.find(
+                                (account) => account.email === email,
+                              )?.accountId
+                                ? "동기화 중..."
+                                : "동기화"}
+                            </button>
+                            <button
+                              className="secondary-button small-button"
+                              onClick={() => handleDisconnectEmail(email)}
+                              type="button"
+                            >
+                              연동 해제
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="connected-mail-empty">
+                        연동된 이메일이 없습니다.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
