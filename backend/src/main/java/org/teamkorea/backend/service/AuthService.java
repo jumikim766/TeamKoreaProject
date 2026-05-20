@@ -69,15 +69,15 @@ public class AuthService {
                 .build();
     }
 
-    public LoginResponseDto login(String email, String password) {
+    public LoginResponseDto login(String username, String password) {
 
         log.info("로그인 요청");
 
-        validateLoginRequest(email, password);
+        validateLoginRequest(username, password);
 
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BusinessException(
-                        ErrorCode.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."));
+                        ErrorCode.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."));
 
         if (!"LOCAL".equals(user.getProvider())) {
             throw new BusinessException(
@@ -89,7 +89,7 @@ public class AuthService {
             log.warn("로그인 실패");
 
             throw new BusinessException(
-                    ErrorCode.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
+                    ErrorCode.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다.");
         }
 
         String accessToken = jwtUtil.generateAccessToken(user);
@@ -186,9 +186,9 @@ public class AuthService {
     }
 
     // ===== private 검증 메서드 =====
-    private void validateLoginRequest(String email, String password) {
-        if (email == null || email.isBlank()) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일은 필수입니다.");
+    private void validateLoginRequest(String username, String password) {
+        if (username == null || username.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "아이디는 필수입니다.");
         }
         if (password == null || password.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "비밀번호는 필수입니다.");
@@ -203,5 +203,5 @@ public class AuthService {
             throw new BusinessException(ErrorCode.CONFLICT, "이미 사용 중인 이메일입니다.");
         }
     }
-    
+
 }

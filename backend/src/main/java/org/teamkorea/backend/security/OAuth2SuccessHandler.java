@@ -127,13 +127,29 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     private String generateUsername(String email) {
+        // 이메일 앞부분에서 영문/숫자만 추출
         String base = email.split("@")[0]
                 .replaceAll("[^a-zA-Z0-9]", "");
 
-        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        // 영문이 하나도 없으면 기본값 부여
+        if (!base.matches(".*[a-zA-Z].*")) {
+            base = "user";
+        }
 
-        String username = base + "_" + suffix;
+        // 소문자 통일
+        base = base.toLowerCase();
 
-        return username.length() > 20 ? username.substring(0, 20) : username;
+        // 랜덤 숫자 4자리
+        int randomNumber = (int) (Math.random() * 9000) + 1000;
+
+        // 최대 길이 고려
+        int maxBaseLength = 16;
+
+        if (base.length() > maxBaseLength) {
+            base = base.substring(0, maxBaseLength);
+        }
+
+        // 최종 username 생성
+        return base + randomNumber;
     }
 }

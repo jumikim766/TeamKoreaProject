@@ -46,7 +46,7 @@ public class AuthController {
         public ResponseEntity<BaseResponse<LoginResponseDto>> login(
                         @Valid @RequestBody LoginRequestDto requestDto) {
                 LoginResponseDto loginResponse = authService.login(
-                                requestDto.getEmail(),
+                                requestDto.getUsername(),
                                 requestDto.getPassword());
 
                 String setCookie = buildRefreshCookie(
