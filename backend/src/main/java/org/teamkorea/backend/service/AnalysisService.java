@@ -25,12 +25,10 @@ public class AnalysisService {
     private final UrlAnalysisRepository urlAnalysisRepository;
     private final AnalysisHistoryRepository analysisHistoryRepository;
     private final NotificationRepository notificationRepository;
-    private final DomainReputationRepository domainReputationRepository; // 평판 조회용 레포지토리 추가
+    private final DomainReputationRepository domainReputationRepository;
 
-    // LLM 팀과 협의 전 사용할 1차 규칙 버전
-    private static final String CURRENT_RULE_VERSION = "ruleset-1.1.0";
+    private static final String CURRENT_RULE_VERSION = "ruleset-1.2.0"; // 점수 보정 버전 업
 
-    // 규칙 1: 도메인 대신 IP 주소(예: 192.168.0.1)를 직접 사용하는지 검사하는 정규식
     private static final Pattern IP_PATTERN = Pattern.compile(
             "^([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\." +
             "([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\." +
@@ -38,13 +36,12 @@ public class AnalysisService {
             "([01]?\\d\\d?|2[0-4]\\d|25[0-5])$"
     );
 
-    // 규칙 2: 피싱에 자주 악용되는 의심스러운 TLD (수정 및 확장 가능)
     private static final List<String> SUSPICIOUS_TLDS = Arrays.asList(
             ".top", ".xyz", ".club", ".biz", ".info", ".tk", ".ml", ".ga", ".cf", ".gq"
     );
 
     /**
-     * URL 분석 실행 및 저장 (규칙 기반 엔진 가동)
+     * URL 분석 실행 및 저장 (점수 보정 메커니즘 적용)
      */
     public UrlAnalysis analyzeAndSave(Long userId, Long urlId) {
         User user = userRepository.findById(userId)
@@ -55,16 +52,13 @@ public class AnalysisService {
         String rawUrl = url.getNormalizedUrl();
         String extractedDomain = extractDomain(rawUrl);
 
-        // ==============================================================
-        // 🚨 규칙 기반 분석 엔진 가동 (Risk Score 계산)
-        // ==============================================================
         int riskScore = 0;
         List<String> reasonList = new ArrayList<>();
 
-        // 1. 도메인 평판 조회 (DB)
+        // 1. 도메인 평판 데이터 조회
         DomainReputation reputation = domainReputationRepository.findByDomain(extractedDomain).orElse(null);
 
-        // [최우선 규칙] 블랙리스트/화이트리스트 즉시 판별
+        // [우선순위 1] 블랙리스트 / 화이트리스트 필터링
         if (reputation != null && Boolean.TRUE.equals(reputation.getIsBlacklisted())) {
             riskScore = 100;
             reasonList.add("블랙리스트에 등록된 악성 도메인");
@@ -72,41 +66,41 @@ public class AnalysisService {
             riskScore = 0;
             reasonList.add("안전이 검증된 화이트리스트 도메인");
         } else {
-            // [규칙 A] IP 기반 URL 검사 (+40점)
+            // [보정 규칙 A] IP 기반 URL 검사 (베이스 50점 부여로 위험도 상향 조정)
             if (IP_PATTERN.matcher(extractedDomain).matches()) {
-                riskScore += 40;
-                reasonList.add("도메인 대신 IP 주소 직접 사용");
+                riskScore += 50;
+                reasonList.add("도메인 대신 IP 주소 직접 사용 (피싱 징후 유력)");
             }
 
-            // [규칙 B] URL 길이 검사 (난독화 목적으로 75자 초과 시 +20점)
+            // [보정 규칙 B] URL 길이 검사 (난독화 패턴 탐지)
             if (rawUrl.length() > 75) {
                 riskScore += 20;
                 reasonList.add("비정상적으로 긴 URL 구조 (" + rawUrl.length() + "자)");
             }
 
-            // [규칙 C] 의심스러운 TLD 검사 (+30점)
+            // [보정 규칙 C] 의심스러운 저가형 TLD 검사
             boolean hasSuspiciousTld = SUSPICIOUS_TLDS.stream().anyMatch(extractedDomain::endsWith);
             if (hasSuspiciousTld) {
-                riskScore += 30;
-                reasonList.add("피싱 악용 빈도가 높은 최상위 도메인(TLD) 포함");
+                riskScore += 25;
+                reasonList.add("피싱 악용 빈도가 높은 최상위 도메인(TLD) 사용");
             }
 
-            // [규칙 D] 도메인 신뢰도 점수(Trust Score) 반영 (40점 미만 시 +20점)
+            // [보정 규칙 D] 도메인 신뢰 스코어 반영
             if (reputation != null && reputation.getTrustScoreValue() < 40.0) {
-                riskScore += 20;
-                reasonList.add("도메인 평판(신뢰도) 점수 낮음");
+                riskScore += 15;
+                reasonList.add("도메인 평판 신뢰 점수 미달");
             }
         }
 
-        // 점수 보정 (최대 100점을 넘지 않도록)
+        // 점수 보정 최댓값 제한
         riskScore = Math.min(riskScore, 100);
 
         // ==============================================================
-        // 📊 최종 위험도(RiskLevel) 등급 판별
+        // 📊 보정된 등급 판별 스펙 규칙
         // ==============================================================
         RiskLevel riskLevel;
         if (riskScore >= 80) riskLevel = RiskLevel.CRITICAL;
-        else if (riskScore >= 60) riskLevel = RiskLevel.DANGER;
+        else if (riskScore >= 55) riskLevel = RiskLevel.DANGER;
         else if (riskScore >= 30) riskLevel = RiskLevel.WARNING;
         else riskLevel = RiskLevel.SAFE;
 
@@ -115,9 +109,7 @@ public class AnalysisService {
         }
         String finalReasonSummary = String.join(" / ", reasonList);
 
-        // ==============================================================
-        // 💾 분석 결과 영속화 (DB 저장)
-        // ==============================================================
+        // 2. UrlAnalysis 엔티티 빌드 및 저장
         UrlAnalysis analysis = UrlAnalysis.builder()
                 .url(url)
                 .domain(extractedDomain)
@@ -136,10 +128,10 @@ public class AnalysisService {
 
         UrlAnalysis savedAnalysis = urlAnalysisRepository.save(analysis);
         
-        // 히스토리 기록
+        // 히스토리 저장
         analysisHistoryRepository.save(AnalysisHistory.createHistory(user, savedAnalysis, "MAIL"));
 
-        // DANGER 이상일 경우에만 알림 생성 및 디스코드 전송
+        // DANGER(55점) 이상일 경우 실시간 알림 트리거 활성화
         if (riskLevel == RiskLevel.DANGER || riskLevel == RiskLevel.CRITICAL) {
             createRiskNotification(user, savedAnalysis); 
             sendDiscordAlert(savedAnalysis); 
