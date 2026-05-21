@@ -82,12 +82,12 @@ function SecurityContactPage({
           </aside>
 
           <section className="page-content-card">
-            <div className="mail-section">
-              <div className="mypage-head">
+            <div className="security-section">
+              <div className="page-head">
                 <h1>보안 문의</h1>
               </div>
 
-              <div className="mail-connect-box">
+              <div className="security-connect-box">
                 <button
                   className="primary-button"
                   type="button"
@@ -97,27 +97,27 @@ function SecurityContactPage({
                 </button>
               </div>
 
-              <div className="mail-connect-divider" />
+              <div className="security-connect-divider" />
 
-              <div className="connected-mail-section">
+              <div className="security-connected-section">
                 <h2>문의 내용</h2>
 
                 <textarea
-                  className="mail-connect-input"
+                  className="security-connect-input"
                   style={{ minHeight: "160px", resize: "vertical" }}
                   placeholder="문의 내용을 입력해주세요."
                   value={inquiryContent}
                   onChange={(event) => setInquiryContent(event.target.value)}
                 />
 
-                <div className="connected-mail-list">
-                  <div className="connected-mail-row">
+                <div className="security-connected-list">
+                  <div className="security-connected-row">
                     <span>보안 취약점 제보</span>
                   </div>
-                  <div className="connected-mail-row">
+                  <div className="security-connected-row">
                     <span>의심스러운 동작 문의</span>
                   </div>
-                  <div className="connected-mail-row">
+                  <div className="security-connected-row">
                     <span>기타 보안 관련 문의</span>
                   </div>
                 </div>

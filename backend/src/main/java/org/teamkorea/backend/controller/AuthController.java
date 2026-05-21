@@ -18,96 +18,144 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+        private final AuthService authService;
 
-    @Value("${jwt.refresh-token-expiration}")
-    private long refreshTokenExpirationMillis;
+        @Value("${jwt.refresh-token-expiration}")
+        private long refreshTokenExpirationMillis;
 
-    @Value("${app.cookie.secure:false}")
-    private boolean cookieSecure;
+        @Value("${app.cookie.secure:false}")
+        private boolean cookieSecure;
 
-    @Value("${app.cookie.same-site:Lax}")
-    private String cookieSameSite;
+        @Value("${app.cookie.same-site:Lax}")
+        private String cookieSameSite;
 
-    @Value("${app.cookie.domain:}")
-    private String cookieDomain;
+        @Value("${app.cookie.domain:}")
+        private String cookieDomain;
 
-    @PostMapping("/signup")
-    public ResponseEntity<BaseResponse<SignupResponseDto>> signup(
-            @Valid @RequestBody SignupRequestDto requestDto
-    ) {
-        SignupResponseDto response = authService.signup(requestDto);
+        @PostMapping("/signup/send-code")
+        public ResponseEntity<BaseResponse<Void>> sendSignupCode(
+                        @Valid @RequestBody SignupSendCodeRequestDto request) {
+                authService.sendSignupCode(request);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(BaseResponse.success("회원가입이 완료되었습니다.", response));
-    }
+                return ResponseEntity.ok(
+                                BaseResponse.success("회원가입 인증번호가 이메일로 발송되었습니다.", null));
+        }
 
-    /** 일반 로그인: accessToken은 바디로, refreshToken은 HttpOnly 쿠키로 */
-    @PostMapping("/login")
-    public ResponseEntity<BaseResponse<LoginResponseDto>> login(
-            @Valid @RequestBody LoginRequestDto requestDto
-    ) {
-        LoginResponseDto loginResponse = authService.login(
-                requestDto.getEmail(),
-                requestDto.getPassword()
-        );
+        @PostMapping("/signup")
+        public ResponseEntity<BaseResponse<SignupResponseDto>> signup(
+                        @Valid @RequestBody SignupRequestDto requestDto) {
+                SignupResponseDto response = authService.signup(requestDto);
 
-        String setCookie = buildRefreshCookie(
-                loginResponse.getRefreshToken(),
-                Duration.ofMillis(refreshTokenExpirationMillis)
-        );
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(BaseResponse.success("회원가입이 완료되었습니다.", response));
+        }
 
-        LoginResponseDto responseBody = LoginResponseDto.builder()
-                .accessToken(loginResponse.getAccessToken())
-                .refreshToken(null)
-                .tokenType(loginResponse.getTokenType())
-                .user(loginResponse.getUser())
-                .build();
+        /** 일반 로그인: accessToken은 바디로, refreshToken은 HttpOnly 쿠키로 */
+        @PostMapping("/login")
+        public ResponseEntity<BaseResponse<LoginResponseDto>> login(
+                        @Valid @RequestBody LoginRequestDto requestDto) {
+                LoginResponseDto loginResponse = authService.login(
+                                requestDto.getUsername(),
+                                requestDto.getPassword());
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, setCookie)
-                .body(BaseResponse.success("로그인에 성공했습니다.", responseBody));
-    }
+                String setCookie = buildRefreshCookie(
+                                loginResponse.getRefreshToken(),
+                                Duration.ofMillis(refreshTokenExpirationMillis));
+
+                LoginResponseDto responseBody = LoginResponseDto.builder()
+                                .accessToken(loginResponse.getAccessToken())
+                                .refreshToken(null)
+                                .tokenType(loginResponse.getTokenType())
+                                .user(loginResponse.getUser())
+                                .build();
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.SET_COOKIE, setCookie)
+                                .body(BaseResponse.success("로그인에 성공했습니다.", responseBody));
+        }
 
         /** 쿠키의 refreshToken을 사용해 accessToken 재발급 */
         @PostMapping("/reissue")
         public ResponseEntity<BaseResponse<ReissueResponseDto>> reissue(
-                @CookieValue(name = "refreshToken", required = false) String refreshToken
-        ) {
-                ReissueResponseDto response = authService.reissue(refreshToken);
+                        @CookieValue(name = "refreshToken", required = false) String refreshToken) {
+                ReissueResponseDto reissueResponse = authService.reissue(refreshToken);
 
-                return ResponseEntity.ok(
-                        BaseResponse.success("토큰이 재발급되었습니다.", response)
-                );
+                String setCookie = buildRefreshCookie(
+                                reissueResponse.getRefreshToken(),
+                                Duration.ofMillis(refreshTokenExpirationMillis));
+
+                ReissueResponseDto responseBody = ReissueResponseDto.builder()
+                                .accessToken(reissueResponse.getAccessToken())
+                                .refreshToken(null)
+                                .tokenType(reissueResponse.getTokenType())
+                                .build();
+
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.SET_COOKIE, setCookie)
+                                .body(BaseResponse.success("토큰이 재발급되었습니다.", responseBody));
         }
 
         /** 쿠키의 refreshToken을 받아 무효화하고, 쿠키도 만료 */
         @PostMapping("/logout")
         public ResponseEntity<BaseResponse<Void>> logout(
-                @CookieValue(name = "refreshToken", required = false) String refreshToken
-        ) {
+                        @CookieValue(name = "refreshToken", required = false) String refreshToken) {
                 authService.logout(refreshToken);
 
                 String expiredCookie = buildRefreshCookie("", Duration.ZERO);
 
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.SET_COOKIE, expiredCookie)
-                        .body(BaseResponse.success("로그아웃되었습니다.", null));
+                                .header(HttpHeaders.SET_COOKIE, expiredCookie)
+                                .body(BaseResponse.success("로그아웃되었습니다.", null));
         }
 
-    private String buildRefreshCookie(String value, Duration maxAge) {
-        ResponseCookie.ResponseCookieBuilder cookieBuilder =
-                ResponseCookie.from("refreshToken", value)
-                        .httpOnly(true)
-                        .secure(cookieSecure)
-                        .sameSite(cookieSameSite)
-                        .path("/")
-                        .maxAge(maxAge);
+        private String buildRefreshCookie(String value, Duration maxAge) {
+                ResponseCookie.ResponseCookieBuilder cookieBuilder = ResponseCookie.from("refreshToken", value)
+                                .httpOnly(true)
+                                .secure(cookieSecure)
+                                .sameSite(cookieSameSite)
+                                .path("/")
+                                .maxAge(maxAge);
 
-        if (cookieDomain != null && !cookieDomain.isBlank()) {
-            cookieBuilder.domain(cookieDomain);
+                if (cookieDomain != null && !cookieDomain.isBlank()) {
+                        cookieBuilder.domain(cookieDomain);
+                }
+
+                return cookieBuilder.build().toString();
         }
 
-        return cookieBuilder.build().toString();
-    }
+        @PostMapping("/find-username/send-code")
+        public ResponseEntity<BaseResponse<Void>> sendFindUsernameCode(
+                        @Valid @RequestBody FindUsernameSendCodeRequestDto request) {
+                authService.sendFindUsernameCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("인증번호가 이메일로 발송되었습니다.", null));
+        }
+
+        @PostMapping("/find-username/verify-code")
+        public ResponseEntity<BaseResponse<FindUsernameResponseDto>> verifyFindUsernameCode(
+                        @Valid @RequestBody VerifyCodeRequestDto request) {
+                FindUsernameResponseDto response = authService.verifyFindUsernameCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("아이디 찾기에 성공했습니다.", response));
+        }
+
+        @PostMapping("/password-reset/send-code")
+        public ResponseEntity<BaseResponse<Void>> sendPasswordResetCode(
+                        @Valid @RequestBody PasswordResetSendCodeRequestDto request) {
+                authService.sendPasswordResetCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("인증번호가 이메일로 발송되었습니다.", null));
+        }
+
+        @PostMapping("/password-reset")
+        public ResponseEntity<BaseResponse<Void>> resetPassword(
+                        @Valid @RequestBody PasswordResetRequestDto request) {
+                authService.resetPassword(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("비밀번호가 재설정되었습니다.", null));
+        }
 }

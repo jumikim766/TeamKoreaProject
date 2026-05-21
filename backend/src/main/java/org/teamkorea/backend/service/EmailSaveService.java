@@ -11,6 +11,13 @@ import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlRepository;
 import org.teamkorea.backend.service.AnalysisService;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import java.net.IDN;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +35,17 @@ public class EmailSaveService {
     private final EmailUrlRepository emailUrlRepository;
     private final AnalysisService analysisService;
 
+    // URL 정규화 시 제거할 광고/추적 파라미터 목록
+    private static final Set<String> TRACKING_PARAMS = Set.of(
+            "gclid",
+            "fbclid",
+            "msclkid",
+            "yclid",
+            "mc_eid",
+            "mc_cid",
+            "igshid"
+    );
+
     // 이메일 1개 저장 + 해당 이메일에서 추출된 URL 저장
     @Transactional
     public int saveEmailAndUrls(
@@ -39,6 +57,7 @@ public class EmailSaveService {
             String receiverEmail,
             String subject,
             String bodyText,
+            String bodyHtml,
             LocalDateTime receivedAt,
             List<String> extractedUrls) {
         // 1. emails 테이블에 이메일 저장
@@ -50,6 +69,7 @@ public class EmailSaveService {
                         .senderEmail(senderEmail)
                         .receiverEmail(receiverEmail)
                         .subject(subject)
+                        .bodyHtml(bodyHtml) // HTML 본문 원본 저장
                         .bodyText(bodyText)
                         .receivedAt(receivedAt)
                         .build());
@@ -98,8 +118,17 @@ public class EmailSaveService {
                         .build();
             }
 
-            // 4. urls 테이블 저장
-            Url savedUrl = urlRepository.save(url);
+                        // 4. urls 테이블 저장
+            // 같은 URL이 동시에 저장될 경우 unique 제약 조건 충돌이 날 수 있어서 대비
+            Url savedUrl;
+
+            try {
+                savedUrl = urlRepository.save(url);
+            } catch (DataIntegrityViolationException e) {
+                // 이미 다른 동기화 작업에서 같은 URL을 먼저 저장한 경우 다시 조회
+                savedUrl = urlRepository.findByUrlHash(urlHash)
+                        .orElseThrow(() -> e);
+            }
 
             // 5. email_urls 테이블에 이메일-URL 연결 저장
             emailUrlRepository.save(
@@ -147,17 +176,19 @@ public class EmailSaveService {
         }
     }
 
-    // URL 정규화
+        // URL 정규화
     private String cleanUrl(String rawUrl) {
+
         if (rawUrl == null || rawUrl.isBlank()) {
             return null;
         }
 
         try {
+            // 앞뒤 공백 제거
             String cleaned = rawUrl.trim();
 
-            // 이메일/HTML에서 URL 뒤에 붙는 닫는 문자 제거
-            cleaned = cleaned.replaceAll("[\\)\\]\\}\\>,\\.\"']+$", "");
+            // 이메일 본문에서 URL 뒤에 붙은 불필요한 문장부호 제거
+            cleaned = stripTrailingPunctuation(cleaned);
 
             URI uri = new URI(cleaned);
 
@@ -168,43 +199,58 @@ public class EmailSaveService {
                 return null;
             }
 
+            // http, https만 저장
             scheme = scheme.toLowerCase();
-            host = host.toLowerCase();
+
+            if (!scheme.equals("http") && !scheme.equals("https")) {
+                return null;
+            }
+
+            // 도메인 소문자 변환 + 한글 도메인 대응
+            host = IDN.toASCII(host.toLowerCase());
 
             // www. 제거
             if (host.startsWith("www.")) {
                 host = host.substring(4);
             }
 
-            // http, https만 저장
-            if (!scheme.equals("http") && !scheme.equals("https")) {
-                return null;
+            // 기본 포트 제거
+            int port = uri.getPort();
+
+            if (scheme.equals("http") && port == 80) {
+                port = -1;
             }
 
+            if (scheme.equals("https") && port == 443) {
+                port = -1;
+            }
+
+            // path 정리
             String path = uri.getRawPath();
-            String query = uri.getRawQuery();
 
-            if (path == null || path.isBlank()) {
+            if (path == null || path.isBlank() || path.equals("/")) {
                 path = "";
+            } else {
+                // 연속 슬래시 정리
+                path = path.replaceAll("/{2,}", "/");
+
+                // 경로 끝의 / 제거
+                if (path.endsWith("/") && path.length() > 1) {
+                    path = path.substring(0, path.length() - 1);
+                }
             }
 
-            // 경로 끝의 / 제거
-            if (path.endsWith("/") && path.length() > 1) {
-                path = path.substring(0, path.length() - 1);
-            }
-
-            // 루트 경로 / 제거
-            if (path.equals("/")) {
-                path = "";
-            }
+            // query 정리: 트래킹 파라미터 제거 + 파라미터 정렬
+            String query = normalizeQuery(uri.getRawQuery());
 
             StringBuilder normalized = new StringBuilder();
+
             normalized.append(scheme)
                     .append("://")
                     .append(host);
 
-            if (uri.getPort() != -1) {
-                normalized.append(":").append(uri.getPort());
+            if (port != -1) {
+                normalized.append(":").append(port);
             }
 
             normalized.append(path);
@@ -213,13 +259,92 @@ public class EmailSaveService {
                 normalized.append("?").append(query);
             }
 
-            return normalized.toString();
+            // fragment(#...)는 중복 방지를 위해 저장하지 않음
+            String result = normalized.toString();
+
+            /*
+            // 너무 긴 URL은 저장하지 않음
+            if (result.length() > 8192) {
+                return null;
+            }*/
+
+            return result;
 
         } catch (Exception e) {
             return null;
         }
     }
 
+        // URL 끝에 붙은 불필요한 문장부호 제거
+    private String stripTrailingPunctuation(String url) {
+
+        if (url == null || url.isBlank()) {
+            return url;
+        }
+
+        String cleaned = url;
+
+        // 쉼표, 마침표, 따옴표, 대괄호, 중괄호 등 제거
+        cleaned = cleaned.replaceAll("[\\]\\}\\>,\\.\"']+$", "");
+
+        // 닫는 괄호는 여는 괄호보다 많을 때만 제거
+        // 예: https://test.com) -> 제거
+        // 예: https://en.wikipedia.org/wiki/Foo_(bar) -> 유지
+        while (cleaned.endsWith(")") && countChar(cleaned, '(') < countChar(cleaned, ')')) {
+            cleaned = cleaned.substring(0, cleaned.length() - 1);
+        }
+
+        return cleaned;
+    }
+
+    // 특정 문자 개수 세기
+    private int countChar(String text, char target) {
+
+        int count = 0;
+
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == target) {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    // query 파라미터 정규화
+    private String normalizeQuery(String rawQuery) {
+
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return null;
+        }
+
+        String normalizedQuery = Arrays.stream(rawQuery.split("&"))
+                .filter(param -> param != null && !param.isBlank())
+                .map(param -> {
+                    int eqIndex = param.indexOf("=");
+
+                    String key = eqIndex < 0
+                            ? param
+                            : param.substring(0, eqIndex);
+
+                    return new String[]{key, param};
+                })
+                // utm_ 계열 광고 파라미터 제거
+                .filter(pair -> !pair[0].toLowerCase().startsWith("utm_"))
+                // gclid, fbclid 등 추적 파라미터 제거
+                .filter(pair -> !TRACKING_PARAMS.contains(pair[0].toLowerCase()))
+                // 파라미터 키 기준 정렬
+                .sorted(Comparator.comparing(pair -> pair[0]))
+                .map(pair -> pair[1])
+                .collect(Collectors.joining("&"));
+
+        if (normalizedQuery.isBlank()) {
+            return null;
+        }
+
+        return normalizedQuery;
+    }
+    
     // URL 중복 체크용 SHA-256 해시 생성
     private String sha256(String input) {
         try {

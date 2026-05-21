@@ -14,7 +14,8 @@ import PrivacyPage from "./pages/PrivacyPage";
 import UrlPage from "./pages/UrlPage";
 import SecurityContactPage from "./pages/SecurityContactPage";
 import "./styles/Dashboard.css";
-import { clearTokens, getAccessToken } from "./utils/token";
+import { clearAccessToken, getAccessToken } from "./utils/token";
+import { logout } from "./api/authApi";
 
 type ThemeMode = "light" | "dark";
 
@@ -181,12 +182,19 @@ function App() {
     handleNavigate("mypage");
   };
 
-  const handleLogout = () => {
-    clearTokens();
+  const handleLogout = async () => {
+  try {
+    await logout();
+  } catch (error) {
+    console.error("로그아웃 실패:", error);
+  } finally {
+    clearAccessToken();
+    localStorage.removeItem("userName");
     setIsLoggedIn(false);
-    setUserName("사용자");
-    handleNavigate("dashboard");
-  };
+
+    window.history.pushState(null, "", "/login");
+  }
+};
 
   const sharedProps = {
     theme,
@@ -212,7 +220,7 @@ function App() {
           handleNavigate("dashboard", true);
         }}
         onFail={() => {
-          clearTokens();
+          clearAccessToken();
           setIsLoggedIn(false);
           setUserName("사용자");
           handleNavigate("login", true);

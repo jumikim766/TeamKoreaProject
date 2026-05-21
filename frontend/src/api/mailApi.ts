@@ -41,6 +41,7 @@ export interface EmailListParams {
 export interface EmailListItem {
   emailId: number;
   senderName: string | null;
+  senderEmail: string | null;
   subject: string | null;
   previewText: string | null;
   receivedAt: string;
@@ -65,6 +66,7 @@ export interface EmailDetail {
   receiverEmail: string | null;
   subject: string | null;
   bodyText: string | null;
+  bodyHtml: string | null;
   receivedAt: string;
   createdAt: string;
   urlCount: number;
