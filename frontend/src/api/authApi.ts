@@ -63,3 +63,66 @@ export const goSocialLogin = (provider: "google" | "naver") => {
   const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
   window.location.href = `${BASE}/oauth2/authorization/${provider}`;
 };
+
+// ===== 아이디 찾기 =====
+
+// 아이디 찾기 인증번호 발송
+export interface FindUsernameSendCodeRequest {
+  name: string;
+  email: string;
+}
+
+// 인증번호 검증 요청
+export interface VerifyCodeRequest {
+  email: string;
+  code: string;
+}
+
+// 아이디 찾기 응답
+export interface FindUsernameResponse {
+  username: string;
+}
+
+// ===== 비밀번호 재설정 =====
+
+// 비밀번호 재설정 인증번호 발송 요청
+export interface PasswordResetSendCodeRequest {
+  username: string;
+  email: string;
+}
+
+// 비밀번호 재설정 요청
+export interface PasswordResetRequest {
+  username: string;
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+// 아이디 찾기 인증번호 발송
+export const sendFindUsernameCode = (data: FindUsernameSendCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/find-username/send-code",
+    data
+  );
+
+// 아이디 찾기 인증번호 검증
+export const verifyFindUsernameCode = (data: VerifyCodeRequest) =>
+  apiClient.post<BaseResponse<FindUsernameResponse>>(
+    "/api/auth/find-username/verify-code",
+    data
+  );
+
+// 비밀번호 재설정 인증번호 발송
+export const sendPasswordResetCode = (data: PasswordResetSendCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/password-reset/send-code",
+    data
+  );
+
+// 비밀번호 재설정
+export const resetPassword = (data: PasswordResetRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/password-reset",
+    data
+  );
