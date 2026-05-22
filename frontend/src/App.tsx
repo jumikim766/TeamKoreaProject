@@ -27,6 +27,7 @@ export type ViewMode =
   | "my-mailbox"
   | "mail-connect"
   | "my-url"
+  | "url-statistics"
   | "url-library"
   | "notifications"
   | "notification-settings"
@@ -47,6 +48,7 @@ const viewToPath: Record<ViewMode, string> = {
   mypage: "/mypage",
   "my-mailbox": "/my-mailbox",
   "mail-connect": "/mail-connect",
+  "url-statistics": "/url-statistics",
   "my-url": "/my-url",
   "url-library": "/url-library",
   notifications: "/notifications",
@@ -255,9 +257,13 @@ function App() {
     return <MailPage {...sharedProps} {...authProps} currentView={view} />;
   }
 
-  if (view === "my-url" || view === "url-library") {
-    return <UrlPage {...sharedProps} {...authProps} currentView={view} />;
-  }
+  if (
+  view === "url-statistics" ||
+  view === "my-url" ||
+  view === "url-library"
+) {
+  return <UrlPage {...sharedProps} {...authProps} currentView={view} />;
+}
 
   if (view === "notifications" || view === "notification-settings") {
     return (
