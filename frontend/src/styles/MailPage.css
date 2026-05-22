@@ -20,9 +20,7 @@
 }
 
 .mail-content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
-  gap: 20px;
+  width: 100%;
 }
 
 .mail-list-card {
@@ -35,26 +33,26 @@
 .mail-table,
 .mail-table-row {
   display: grid;
-  grid-template-columns: 0.9fr 1.2fr 2.2fr 0.8fr;
+  grid-template-columns: 0.8fr 2fr 1fr;
   align-items: stretch;
 }
 
 .mail-table-header {
   display: grid;
-  grid-template-columns: 0.9fr 1.2fr 2.2fr 0.8fr;
+  grid-template-columns: 0.8fr 2fr 1fr;
   background: #f8fbff;
 }
 
 .mail-table-header span,
 .mail-table-row span {
-  padding: 20px 18px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   justify-content: center;
   text-align: center;
-  min-height: 88px;
+  min-height: 60px;
 }
 
 .mail-table-header span:not(:last-child),
@@ -68,8 +66,8 @@
 }
 
 .mail-table-row {
-  border-top: none;
   border-bottom: none;
+  border-top: 1px solid var(--line);
   background: #ffffff;
   cursor: pointer;
 }
@@ -162,24 +160,29 @@
   white-space: nowrap;
 }
 
-.risk-매우\ 위험 {
-  background: rgba(255, 107, 87, 0.14);
-  color: #c2410c;
+.risk-critical {
+  background: #ff1212 !important;
+  color: #ffffff !important;
 }
 
-.risk-위험 {
-  background: rgba(245, 158, 11, 0.16);
-  color: #b45309;
+.risk-danger {
+  background: #ff7012 !important;
+  color: #ffffff !important;
 }
 
-.risk-주의 {
-  background: rgba(59, 130, 246, 0.14);
-  color: #1d4ed8;
+.risk-warning {
+  background: #ffbb00 !important;
+  color: #ffffff !important;
 }
 
-.risk-안전 {
-  background: rgba(34, 197, 94, 0.16);
-  color: #15803d;
+.risk-suspicious {
+  background: #fff612 !important;
+  color: #ffffff !important;
+}
+
+.risk-safe {
+  background: #2478ff !important;
+  color: #ffffff !important;
 }
 
 .mail-connect-box {
@@ -408,5 +411,35 @@
 .mail-body-html a {
   font-weight: 700;
   color: #dc2626;
+  text-decoration: underline;
+}
+
+.mail-title-button {
+  border: none;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mail-title-button:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.mail-back-button {
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: none;
+  background: #eef4ff;
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mail-back-button:hover {
+  transform: translateY(-1px);
   text-decoration: underline;
 }
