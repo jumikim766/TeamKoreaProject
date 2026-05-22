@@ -385,67 +385,21 @@ function MailPage({
           <section className="page-content-card">
             {currentView === "my-mailbox" ? (
               <div className="mail-section">
-                <div className="mail-top-bar">
-                  <select
-                    className="mail-account-select"
-                    value={selectedAccountId ?? ""}
-                    onChange={(event) => {
-                      setSelectedAccountId(Number(event.target.value));
-                      setSelectedMailId(null);
-                      setSelectedEmailDetail(null);
-                    }}
-                  >
-                    {emailAccounts.length > 0 ? (
-                      emailAccounts.map((account) => (
-                        <option
-                          key={account.accountId}
-                          value={account.accountId}
-                        >
-                          {account.email}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">연동된 이메일이 없습니다.</option>
-                    )}
-                  </select>
-                </div>
-
                 <div className="mail-content-grid">
-                  <section className="mail-list-card">
-                    <div className="mail-table mail-table-header">
-                      <span>보낸 사람</span>
-                      <span>메일 제목</span>
-                      <span>메일 본문 미리보기</span>
-                      <span>날짜 / 시간</span>
-                    </div>
+                  {selectedMail ? (
+                    <>
+                      <button
+                        className="mail-back-button"
+                        type="button"
+                        onClick={() => {
+                          setSelectedMailId(null);
+                          setSelectedEmailDetail(null);
+                        }}
+                      >
+                        ← 목록으로
+                      </button>
 
-                    <div className="mail-table-body">
-                      {filteredMessages.map((message) => (
-                        <button
-                          key={message.emailId}
-                          className={
-                            selectedMail?.emailId === message.emailId
-                              ? "mail-table-row is-active"
-                              : "mail-table-row"
-                          }
-                          onClick={() => setSelectedMailId(message.emailId)}
-                          type="button"
-                        >
-                          <span>
-                            <strong>{message.senderName}</strong>
-                            <small>{message.senderEmail}</small>
-                          </span>
-                          <span>{message.subject}</span>
-                          <span>{message.previewText}</span>
-                          <span>{message.receivedAt}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="mail-detail-card">
-                    {selectedMail ? (
-                      <>
+                      <section className="mail-detail-card">
                         <div className="mail-detail-head">
                           <h2>{selectedMail.subject}</h2>
                           <span
@@ -474,7 +428,6 @@ function MailPage({
                         <div className="mail-divider" />
 
                         <div className="mail-body">
-                          {/* HTML 본문이 있으면 HTML로 보여주고, 없으면 기존 텍스트 본문 표시 */}
                           {selectedEmailDetail?.bodyHtml ? (
                             <div
                               className="mail-body-html"
@@ -485,31 +438,72 @@ function MailPage({
                           ) : (
                             <p>{selectedEmailDetail?.bodyText}</p>
                           )}
-                          <p>
-                            <strong>보낸 사람 :</strong>{" "}
-                            {selectedEmailDetail?.senderName} (
-                            {selectedEmailDetail?.senderEmail})
-                          </p>
-                          <p>
-                            <strong>받는 사람 :</strong>{" "}
-                            {selectedEmailDetail?.receiverEmail}
-                          </p>
-                          <p>
-                            <strong>날짜 :</strong>{" "}
-                            {selectedEmailDetail?.receivedAt}
-                          </p>
                         </div>
-                      </>
-                    ) : (
-                      <div className="mail-empty-state">
-                        <h3>메일이 없습니다.</h3>
-                        <p>
-                          선택한 계정의 메일이 없으면 이 영역에 빈 상태가
-                          표시됩니다.
-                        </p>
+                      </section>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mail-top-bar">
+                        <select
+                          className="mail-account-select"
+                          value={selectedAccountId ?? ""}
+                          onChange={(event) => {
+                            setSelectedAccountId(Number(event.target.value));
+                            setSelectedMailId(null);
+                            setSelectedEmailDetail(null);
+                          }}
+                        >
+                          {emailAccounts.length > 0 ? (
+                            emailAccounts.map((account) => (
+                              <option
+                                key={account.accountId}
+                                value={account.accountId}
+                              >
+                                {account.email}
+                              </option>
+                            ))
+                          ) : (
+                            <option value="">연동된 이메일이 없습니다.</option>
+                          )}
+                        </select>
                       </div>
-                    )}
-                  </section>
+                      <section className="mail-list-card">
+                        <div className="mail-table mail-table-header">
+                          <span>보낸 사람</span>
+                          <span>메일 제목</span>
+                          <span>날짜 / 시간</span>
+                        </div>
+
+                        <div className="mail-table-body">
+                          {filteredMessages.map((message) => (
+                            <div
+                              key={message.emailId}
+                              className="mail-table-row"
+                            >
+                              <span>
+                                <strong>{message.senderName}</strong>
+                                <small>{message.senderEmail}</small>
+                              </span>
+
+                              <span>
+                                <button
+                                  className="mail-title-button"
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedMailId(message.emailId)
+                                  }
+                                >
+                                  {message.subject}
+                                </button>
+                              </span>
+
+                              <span>{message.receivedAt}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    </>
+                  )}
                 </div>
               </div>
             ) : (
