@@ -14,6 +14,15 @@ import org.teamkorea.backend.dto.*;
 import org.teamkorea.backend.service.AnalysisService;
 import org.teamkorea.backend.service.NotificationService;
 
+import org.teamkorea.backend.ai.LlmAnalysisService;
+import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
+import org.teamkorea.backend.domain.RiskLevel;
+import org.teamkorea.backend.domain.Url;
+import org.teamkorea.backend.repository.UrlAnalysisRepository;
+import org.teamkorea.backend.repository.UrlRepository;
+
+import java.math.BigDecimal;
+
 @RestController
 @RequestMapping("/api/url-analysis")
 @RequiredArgsConstructor
@@ -21,7 +30,9 @@ public class UrlAnalysisController {
 
     private final AnalysisService analysisService;
     private final NotificationService notificationService; // 알림 서비스 주입
-
+    private final UrlRepository urlRepository;
+    private final UrlAnalysisRepository urlAnalysisRepository;
+    private final LlmAnalysisService llmAnalysisService;
     /**
      * 1. URL 분석 실행
      */
@@ -84,4 +95,65 @@ public class UrlAnalysisController {
         NotificationResponseDto response = notificationService.markAsRead(notificationId, userDetails.getUser());
         return ResponseEntity.ok(BaseResponse.success("알림 읽음 처리가 완료되었습니다.", response));
     }
+    @GetMapping("/llm/url/{urlId}")
+public ResponseEntity<BaseResponse<LlmAnalysisResponse>> analyzeUrlWithLlm(
+        @PathVariable Long urlId
+) {
+
+     System.out.println("===== LLM URL 분석 API 진입 ===== urlId = " + urlId);
+
+    Url url = urlRepository.findById(urlId)
+            .orElseThrow(() ->
+                    new IllegalArgumentException("해당 URL을 찾을 수 없습니다. urlId=" + urlId));
+
+    LlmAnalysisResponse response = llmAnalysisService.analyze(
+            url.getNormalizedUrl(),
+            url.getDomain(),
+            null,
+            0.0,
+            false,
+            false
+    );
+
+   UrlAnalysis analysis = UrlAnalysis.builder()
+        .url(url)
+        .domain(
+                url.getDomain() != null
+                        ? url.getDomain()
+                        : "unknown-domain"
+        )
+        .sourceType("LLM")
+        .riskLevel(convertRiskLevel(response.getRisk()))
+        .riskType("PHISHING")
+        .score(BigDecimal.valueOf(response.getScore()))
+        .reasonSummary(response.getReasonSummary())
+        .featuresJson(
+        "{\"rules\": \"" +
+                String.join(", ", response.getDetectedRules())
+                + "\"}"
+)
+        .build();
+
+    urlAnalysisRepository.save(analysis);
+
+    return ResponseEntity.ok(
+            BaseResponse.success(
+                    "LLM 분석 및 저장이 완료되었습니다.",
+                    response
+            )
+    );
+}
+
+private RiskLevel convertRiskLevel(String risk) {
+
+    if ("DANGER".equals(risk)) {
+        return RiskLevel.DANGER;
+    }
+
+    if ("WARNING".equals(risk)) {
+        return RiskLevel.WARNING;
+    }
+
+    return RiskLevel.SAFE;
+}
 }
