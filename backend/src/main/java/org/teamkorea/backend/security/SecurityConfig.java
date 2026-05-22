@@ -73,7 +73,10 @@ public class SecurityConfig {
                                                                 "/api/auth/find-username/send-code",
                                                                 "/api/auth/find-username/verify-code",
                                                                 "/api/auth/password-reset/send-code",
-                                                                "/api/auth/password-reset")
+                                                                "/api/auth/password-reset",
+                                                                "/api/llm/test",
+                                                                "/api/url-analysis/llm/url/**",
+                                                                "/api/llm/url/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 .oauth2Login(oauth -> oauth
