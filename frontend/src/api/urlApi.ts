@@ -23,7 +23,13 @@ export interface UrlListItem {
   urlId: number;
   normalizedUrl: string;
   domain: string;
+
   riskLevel: string;
+
+  score?: number | null;
+  detectedRules?: string[] | null;
+  reasonSummary?: string | null;
+
   isAnalyzed: boolean;
   createdAt: string;
 }
@@ -77,6 +83,8 @@ export interface MyUrlItem {
   isAnalyzed: boolean;
   receivedAt: string | null;
   createdAt: string;
+  score?: number | null;
+detectedRules?: string[] | null;
 }
 
 // 나의 URL 목록 조회 응답 타입

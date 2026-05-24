@@ -1,6 +1,5 @@
 package org.teamkorea.backend.ai;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -9,18 +8,23 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@RequiredArgsConstructor
 public class LlmClient {
 
-    @Value("${openai.api-key}")
+    @Value("${openai.api-key:}")
     private String apiKey;
 
-    @Value("${openai.model}")
+    @Value("${openai.model:gpt-4o-mini}")
     private String model;
 
     private final RestClient restClient = RestClient.create();
 
     public String call(String prompt) {
+
+        if (apiKey == null || apiKey.isBlank()) {
+            System.out.println("OpenAI API KEY가 설정되지 않아 fallback 설명을 사용합니다.");
+            return "OpenAI API 키가 설정되지 않아 규칙 기반 분석 결과를 우선 참고해 주세요.";
+        }
+
         try {
             Map<String, Object> requestBody = Map.of(
                     "model", model,

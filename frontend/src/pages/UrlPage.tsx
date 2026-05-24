@@ -1,9 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ChartBox from '../components/ChartBox';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import '../styles/UrlPage.css';
-import { getRiskClassName, getRiskLabel, type RiskLevelLabel } from '../utils/riskLevel';
+import { getRiskClassName, getRiskLabel } from '../utils/riskLevel';
+import {
+  getMyUrls,
+  getUrls,
+  getUrlStatistics,
+  type MyUrlItem,
+  type UrlListItem,
+  type UrlStatistics,
+} from '../api/urlApi';
 
 type ThemeMode = 'light' | 'dark';
 type UrlViewMode = 'url-statistics' | 'my-url' | 'url-library';
@@ -31,7 +39,7 @@ interface UrlItem {
   link: string;
   date: string;
   time: string;
-  risk: RiskLevelLabel;
+  risk: string;
   reason: string[];
 }
 
@@ -84,14 +92,6 @@ const urlLibraryItems: UrlItem[] = Array.from({ length: 33 }, (_, index) => ({
   ],
 }));
 
-const chartData = [
-  { name: '심각', value: 1234 },
-  { name: '위험', value: 984 },
-  { name: '주의', value: 765 },
-  { name: '의심', value: 432 },
-  { name: '안전', value: 3200 },
-];
-
 const pageInfo = {
   'url-statistics': {
     title: 'URL 통계',
@@ -138,19 +138,75 @@ function UrlPage({
   onGoMyPage,
   onNavigate,
 }: UrlPageProps) {
-  const [selectedAccount, setSelectedAccount] = useState('1234@5678.com');
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+const [currentPage, setCurrentPage] = useState(1);
+const [myUrls, setMyUrls] = useState<MyUrlItem[]>([]);
+const [allUrls, setAllUrls] = useState<UrlListItem[]>([]);
+const [myStats, setMyStats] = useState<UrlStatistics | null>(null);
+const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
+const [loading, setLoading] = useState(false);
+const [selectedAccount, setSelectedAccount] = useState('전체 계정');
+
+useEffect(() => {
+  const fetchUrlData = async () => {
+    try {
+      setLoading(true);
+
+      if (currentView === 'my-url') {
+        const data = await getMyUrls({
+          page: currentPage - 1,
+          size: PAGE_SIZE,
+        });
+
+        setMyUrls(data.urls ?? []);
+      }
+
+      if (currentView === 'url-library') {
+        const data = await getUrls({
+          page: currentPage - 1,
+          size: PAGE_SIZE,
+        });
+
+        setAllUrls(data.urls ?? []);
+      }
+
+      if (currentView === 'url-statistics') {
+        const my = await getUrlStatistics({ scope: 'MY' });
+        const all = await getUrlStatistics({ scope: 'ALL' });
+
+        setMyStats(my);
+        setAllStats(all);
+      }
+    } catch (error) {
+      console.error('URL 분석 결과 조회 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchUrlData();
+}, [currentView, currentPage]);
+
+const chartData = (stats: UrlStatistics | null) => [
+  { name: 'CRITICAL', value: stats?.criticalCount ?? 0 },
+  { name: 'DANGER', value: stats?.dangerCount ?? 0 },
+  { name: 'WARNING', value: stats?.warningCount ?? 0 },
+  { name: 'SUSPICIOUS', value: stats?.suspiciousCount ?? 0 },
+  { name: 'SAFE', value: stats?.safeCount ?? 0 },
+];
 
   const isStatistics = currentView === 'url-statistics';
   const isMyUrl = currentView === 'my-url';
 
   const urlItems = useMemo(() => {
-    const items = isMyUrl ? myUrlItems : urlLibraryItems;
-    return [...items].sort((a, b) => b.id - a.id);
-  }, [isMyUrl]);
+  const items = isMyUrl ? myUrls : allUrls;
+  return [...items].sort((a, b) => b.urlId - a.urlId);
+}, [isMyUrl, myUrls, allUrls]);
 
-  const totalPages = Math.ceil(urlItems.length / PAGE_SIZE);
+const totalPages = Math.max(
+  1,
+  Math.ceil(urlItems.length / PAGE_SIZE)
+);
 
   const pagedUrlItems = useMemo(() => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
@@ -237,14 +293,14 @@ function UrlPage({
 </div>
 
                   <div className="url-stat-chart">
-                    <ChartBox title="내 URL 위험도 통계" caption="이메일 링크 분석 기준" total="1,248개" data={chartData} />
+                    <ChartBox title="내 URL 위험도 통계" caption="이메일 링크 분석 기준" total="1,248개" data={chartData(myStats)} />
                   </div>
                   <div className="url-stat-chart">
   <ChartBox
     title="전체 URL 위험도 통계"
     caption="전체 회원 링크 분석 기준"
     total="6,615개"
-    data={chartData}
+    data={chartData(allStats)}
   />
 </div>
                 </section>
@@ -281,42 +337,61 @@ function UrlPage({
 
                     <div className="url-table-body">
                       {pagedUrlItems.map((item, index) => {
-                        const isOpened = openedUrlId === item.id;
+                        const isOpened = openedUrlId === item.urlId
                         const displayNumber = urlItems.length - ((currentPage - 1) * PAGE_SIZE + index);
 
                         return (
-                          <div className="url-row-block" key={item.id}>
+                          <div className="url-row-block" key={item.urlId}>
                             <div className={isMyUrl ? 'url-table-grid url-table-data-row' : 'url-table-grid url-library-table-grid url-table-data-row'}>
                               <span className="url-number-text">{displayNumber}</span>
 
                               {isMyUrl && (
                                 <span>
-                                  <strong>{item.sender}</strong>
+                                  <strong>
+                                    {String('senderName' in item && item.senderName ? item.senderName : item.domain)}
+                                  </strong>
                                 </span>
                               )}
 
-                              <span className="url-link-text">{item.link}</span>
-
-                              <span>
-                                {item.date} {item.time}
+                              <span className="url-link-text">
+                                 {'normalizedUrl' in item ? item.normalizedUrl : ''}
                               </span>
 
                               <span>
-                                <span className={`risk-badge ${getRiskClassName(item.risk)}`}>
-                                  {getRiskLabel(item.risk)}
+                                {item.createdAt?.slice(0, 10)} {item.createdAt?.slice(11, 16)}
+                              </span>
+
+                              <span>
+                                <span className={`risk-badge ${getRiskClassName(item.riskLevel)}`}>
+                                  {getRiskLabel(item.riskLevel)}
                                 </span>
                               </span>
 
-                              <button className="url-detail-toggle" onClick={() => handleToggleReason(item.id)} type="button" aria-label={isOpened ? 'URL 설명 닫기' : 'URL 설명 열기'}>
+                              <button className="url-detail-toggle" onClick={() => handleToggleReason(item.urlId)} type="button" aria-label={isOpened ? 'URL 설명 닫기' : 'URL 설명 열기'}>
                                 {isOpened ? <MinusIcon /> : <PlusIcon />}
                               </button>
                             </div>
 
                             {isOpened && (
                               <div className="url-risk-reason-box">
-                                <strong>위험 분석 사유</strong>
-                                {item.reason.map((reason) => (
-                                  <p key={reason}>· {reason}</p>
+                                <strong>위험 분석 결과</strong>
+
+                                <p>· 위험도: {getRiskLabel(item.riskLevel)}</p>
+
+                                <p>
+                                  · 점수:{' '}
+                                  {item.score != null ? item.score : '-'}
+                                </p>
+
+                                <p>
+                                  · 설명:{' '}
+                                  {item.reasonSummary
+                                    ? item.reasonSummary
+                                    : '분석 설명이 아직 없습니다.'}
+                                </p>
+
+                                {item.detectedRules?.map((rule) => (
+                                  <p key={rule}>· 탐지 규칙: {rule}</p>
                                 ))}
                               </div>
                             )}
