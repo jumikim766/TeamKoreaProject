@@ -10,7 +10,6 @@ import org.teamkorea.backend.domain.Url;
 import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlRepository;
-import org.teamkorea.backend.service.AnalysisService;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.net.IDN;
@@ -33,7 +32,6 @@ public class EmailSaveService {
     private final EmailRepository emailRepository;
     private final UrlRepository urlRepository;
     private final EmailUrlRepository emailUrlRepository;
-    private final AnalysisService analysisService;
 
     // URL 정규화 시 제거할 광고/추적 파라미터 목록
     private static final Set<String> TRACKING_PARAMS = Set.of(
@@ -43,8 +41,7 @@ public class EmailSaveService {
             "yclid",
             "mc_eid",
             "mc_cid",
-            "igshid"
-    );
+            "igshid");
 
     // 이메일 1개 저장 + 해당 이메일에서 추출된 URL 저장
     @Transactional
@@ -61,6 +58,11 @@ public class EmailSaveService {
             LocalDateTime receivedAt,
             List<String> extractedUrls) {
         // 1. emails 테이블에 이메일 저장
+        // 이미 저장된 메일이면 insert를 시도하지 않고 바로 skip
+        if (emailRepository.existsByMessageUid(messageUid)) {
+            return 0;
+        }
+
         Email savedEmail = emailRepository.save(
                 Email.builder()
                         .account(account)
@@ -118,14 +120,16 @@ public class EmailSaveService {
                         .build();
             }
 
-                        // 4. urls 테이블 저장
+            // 4. urls 테이블 저장
             // 같은 URL이 동시에 저장될 경우 unique 제약 조건 충돌이 날 수 있어서 대비
             Url savedUrl;
 
             try {
                 savedUrl = urlRepository.save(url);
+
             } catch (DataIntegrityViolationException e) {
-                // 이미 다른 동기화 작업에서 같은 URL을 먼저 저장한 경우 다시 조회
+
+                // 같은 URL이 동시에 저장된 경우 다시 조회
                 savedUrl = urlRepository.findByUrlHash(urlHash)
                         .orElseThrow(() -> e);
             }
@@ -139,14 +143,14 @@ public class EmailSaveService {
                             .linkText(null)
                             .build());
 
-            // 6. URL 분석 결과 저장
-            // 분석 실패해도 이메일/URL 저장과 sync 자체는 실패하지 않도록 처리
-            try {
-                analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
-            } catch (Exception e) {
-                // TODO: 추후 log.warn으로 변경
-                System.out.println("[ANALYSIS ERROR] urlId = " + savedUrl.getUrlId());
-            }
+            // // 6. URL 분석 결과 저장
+            // // 분석 실패해도 이메일/URL 저장과 sync 자체는 실패하지 않도록 처리
+            // try {
+            // analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
+            // } catch (Exception e) {
+            // // TODO: 추후 log.warn으로 변경
+            // System.out.println("[ANALYSIS ERROR] urlId = " + savedUrl.getUrlId());
+            // }
 
             // 실제 저장/연결 처리된 URL 개수 증가
             extractedUrlCount++;
@@ -160,7 +164,9 @@ public class EmailSaveService {
     private String extractDomain(String url) {
         try {
             URI uri = new URI(url);
-            return uri.getHost() != null ? uri.getHost().toLowerCase() : null;
+
+            // PM 피드백 반영: domain 소문자화 제거
+            return uri.getHost() != null ? uri.getHost() : null;
         } catch (Exception e) {
             return null;
         }
@@ -176,7 +182,7 @@ public class EmailSaveService {
         }
     }
 
-        // URL 정규화
+    // URL 정규화
     private String cleanUrl(String rawUrl) {
 
         if (rawUrl == null || rawUrl.isBlank()) {
@@ -206,8 +212,9 @@ public class EmailSaveService {
                 return null;
             }
 
-            // 도메인 소문자 변환 + 한글 도메인 대응
-            host = IDN.toASCII(host.toLowerCase());
+            // domain 소문자화 제거
+            // 한글 도메인 대응만 유지
+            host = IDN.toASCII(host);
 
             // www. 제거
             if (host.startsWith("www.")) {
@@ -263,10 +270,11 @@ public class EmailSaveService {
             String result = normalized.toString();
 
             /*
-            // 너무 긴 URL은 저장하지 않음
-            if (result.length() > 8192) {
-                return null;
-            }*/
+             * // 너무 긴 URL은 저장하지 않음
+             * if (result.length() > 8192) {
+             * return null;
+             * }
+             */
 
             return result;
 
@@ -275,7 +283,7 @@ public class EmailSaveService {
         }
     }
 
-        // URL 끝에 붙은 불필요한 문장부호 제거
+    // URL 끝에 붙은 불필요한 문장부호 제거
     private String stripTrailingPunctuation(String url) {
 
         if (url == null || url.isBlank()) {
@@ -327,7 +335,7 @@ public class EmailSaveService {
                             ? param
                             : param.substring(0, eqIndex);
 
-                    return new String[]{key, param};
+                    return new String[] { key, param };
                 })
                 // utm_ 계열 광고 파라미터 제거
                 .filter(pair -> !pair[0].toLowerCase().startsWith("utm_"))
@@ -344,7 +352,7 @@ public class EmailSaveService {
 
         return normalizedQuery;
     }
-    
+
     // URL 중복 체크용 SHA-256 해시 생성
     private String sha256(String input) {
         try {
