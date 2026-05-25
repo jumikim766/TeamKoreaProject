@@ -46,12 +46,11 @@ const navItems: { title: string; links: { label: string; view: NavTarget }[] }[]
     ],
   },
   {
-    title: '분류기준',
-    links: [
-      { label: '분류 방법', view: 'classification-method' },
-      { label: '분류 기준', view: 'classification-criteria' },
-    ],
-  },
+  title: '분류기준',
+  links: [
+    { label: '분류 기준', view: 'classification-criteria' },
+  ],
+},
 ];
 
 function Navbar({ onNavigate }: NavbarProps) {

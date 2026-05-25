@@ -148,21 +148,30 @@ function App() {
     setUserName(hasToken ? getSavedUserName() : "사용자");
   };
 
-  const handleNavigate = (nextView: ViewMode, replace = false) => {
-    refreshLoginState();
+  const protectedViews: ViewMode[] = ["notifications", "notification-settings"];
 
-    const nextPath = viewToPath[nextView];
+const handleNavigate = (nextView: ViewMode, replace = false) => {
+  refreshLoginState();
 
-    if (window.location.pathname !== nextPath) {
-      if (replace) {
-        window.history.replaceState(null, "", nextPath);
-      } else {
-        window.history.pushState(null, "", nextPath);
-      }
+  const hasToken = Boolean(getAccessToken());
+
+  if (protectedViews.includes(nextView) && !hasToken) {
+    alert("로그인이 필요한 메뉴입니다.");
+    nextView = "login";
+  }
+
+  const nextPath = viewToPath[nextView];
+
+  if (window.location.pathname !== nextPath) {
+    if (replace) {
+      window.history.replaceState(null, "", nextPath);
+    } else {
+      window.history.pushState(null, "", nextPath);
     }
+  }
 
-    setView(nextView);
-  };
+  setView(nextView);
+};
 
   const handleToggleTheme = () => {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
