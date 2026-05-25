@@ -64,6 +64,7 @@ public class SecurityConfig {
                                                                 "/error",
                                                                 "/api/auth/signup",
                                                                 "/api/auth/signup/send-code",
+                                                                "/api/auth/signup/verify-code",
                                                                 "/api/auth/login",
                                                                 "/api/auth/reissue",
                                                                 "/api/auth/logout",
