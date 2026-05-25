@@ -80,7 +80,19 @@ public class AuthService {
     public SignupResponseDto signup(SignupRequestDto requestDto) {
         validateDuplicate(requestDto);
 
-        verifySignupCode(requestDto.getEmail(), requestDto.getCode());
+        EmailVerificationCode verificationCode = emailVerificationCodeRepository
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(
+                        requestDto.getEmail(),
+                        "SIGNUP")
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.INVALID_INPUT,
+                        "이메일 인증이 필요합니다."));
+
+        if (!verificationCode.isVerified()) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "이메일 인증이 필요합니다.");
+        }
 
         byte[] phoneEnc = null;
         if (requestDto.getPhone() != null && !requestDto.getPhone().isBlank()) {
@@ -118,9 +130,9 @@ public class AuthService {
     }
 
     // ===== 회원가입 인증번호 검증 =====
-    private void verifySignupCode(String email, String code) {
+    public void verifySignupCode(VerifyCodeRequestDto request) {
         EmailVerificationCode verificationCode = emailVerificationCodeRepository
-                .findTopByEmailAndPurposeOrderByCreatedAtDesc(email, "SIGNUP")
+                .findTopByEmailAndPurposeOrderByCreatedAtDesc(request.getEmail(), "SIGNUP")
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.INVALID_INPUT,
                         "회원가입 인증번호가 일치하지 않습니다."));
@@ -128,7 +140,7 @@ public class AuthService {
         if (verificationCode.isVerified()) {
             throw new BusinessException(
                     ErrorCode.INVALID_INPUT,
-                    "이미 사용된 인증번호입니다.");
+                    "이미 인증이 완료된 인증번호입니다.");
         }
 
         if (verificationCode.isExpired()) {
@@ -137,7 +149,7 @@ public class AuthService {
                     "회원가입 인증번호가 만료되었습니다.");
         }
 
-        if (!verificationCode.getCode().equals(code)) {
+        if (!verificationCode.getCode().equals(request.getCode())) {
             throw new BusinessException(
                     ErrorCode.INVALID_INPUT,
                     "회원가입 인증번호가 일치하지 않습니다.");

@@ -22,8 +22,8 @@ export interface LoginData {
   user: LoginUser;
 }
 
-export const login = (email: string, password: string) =>
-  apiClient.post<BaseResponse<LoginData>>("/api/auth/login", { email, password });
+export const login = (username: string, password: string) =>
+  apiClient.post<BaseResponse<LoginData>>("/api/auth/login", { username, password });
 
 // 회원가입: name 공백 불가, phone은 하이픈 제거 후 전송, 빈값이면 필드 자체를 안 보내는 게 안전
 export interface SignupPayload {
@@ -124,5 +124,23 @@ export const sendPasswordResetCode = (data: PasswordResetSendCodeRequest) =>
 export const resetPassword = (data: PasswordResetRequest) =>
   apiClient.post<BaseResponse<null>>(
     "/api/auth/password-reset",
+    data
+  );
+
+//회원가입 인증번호 발송
+export interface SignupSendCodeRequest {
+  email: string;
+}
+
+export const sendSignupCode = (data: SignupSendCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/signup/send-code",
+    data
+  );
+
+//회원가입 인증번호 검증
+export const verifySignupCode = (data: VerifyCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/signup/verify-code",
     data
   );

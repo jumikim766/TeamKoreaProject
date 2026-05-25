@@ -38,8 +38,8 @@ public class Url {
     @Column(name = "scheme", length = 10)
     private String scheme;
 
-    @Column(name = "domain_created_at")
-    private LocalDateTime domainCreatedAt;
+    // @Column(name = "domain_created_at")
+    // private LocalDateTime domainCreatedAt;
 
     @Column(name = "first_seen_at", nullable = false)
     private LocalDateTime firstSeenAt;
