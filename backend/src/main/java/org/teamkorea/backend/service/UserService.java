@@ -175,6 +175,11 @@ public class UserService {
         if (email == null || email.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_INPUT, "이메일을 입력해주세요.");
         }
+
+        if (!email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "올바른 이메일 형식이 아닙니다.");
+        }
+
         return new DuplicateCheckResponseDto(!userRepository.existsByEmail(email));
     }
 
