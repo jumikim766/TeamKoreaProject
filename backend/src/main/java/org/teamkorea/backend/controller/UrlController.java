@@ -37,28 +37,26 @@ public class UrlController {
     // URL 위험도 통계 조회
     @GetMapping("/statistics")
     public ResponseEntity<BaseResponse<UrlStatisticsResponseDto>> getUrlStatistics(
-            @RequestParam(defaultValue = "ALL") String scope,
-            @RequestParam(required = false) Long accountId,
-            @RequestParam(required = false) String domain,
-            @RequestParam(required = false) Boolean isAnalyzed,
-            Authentication authentication) {
-        Long userId = getLoginUserId(authentication);
+        @RequestParam(defaultValue = "ALL") String scope,
+        @RequestParam(required = false) Long accountId,
+        @RequestParam(required = false) String domain,
+        @RequestParam(required = false) Boolean isAnalyzed,
+        @RequestParam(defaultValue = "ALL") String period,
+        Authentication authentication) {
 
-        // scope=MY이면 현재 로그인한 사용자의 URL 기준으로 통계 조회
-        if ("MY".equalsIgnoreCase(scope)) {
-            userId = getLoginUserId(authentication);
-        }
+    Long userId = getLoginUserId(authentication);
 
-        UrlStatisticsResponseDto response = urlService.getUrlStatistics(
-                userId,
-                scope,
-                accountId,
-                domain,
-                isAnalyzed);
+    UrlStatisticsResponseDto response = urlService.getUrlStatistics(
+            userId,
+            scope,
+            accountId,
+            domain,
+            isAnalyzed,
+            period);
 
-        return ResponseEntity.ok(
-                BaseResponse.success("URL 위험도 통계 조회에 성공했습니다.", response));
-    }
+    return ResponseEntity.ok(
+            BaseResponse.success("URL 위험도 통계 조회에 성공했습니다.", response));
+}
 
     // URL 상세 조회
     @GetMapping("/{urlId}")
