@@ -77,7 +77,7 @@ function AuthPages({
 }: AuthPagesProps) {
   const isLogin = mode === "login";
 
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -94,7 +94,6 @@ function AuthPages({
   const [idCheckMessage, setIdCheckMessage] = useState("");
   const [emailCheckMessage, setEmailCheckMessage] = useState("");
   const [isIdAvailable, setIsIdAvailable] = useState(false);
-  const [isEmailAvailable, setIsEmailAvailable] = useState(false);
 
   const [isEmailVerifyModalOpen, setIsEmailVerifyModalOpen] = useState(false);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -140,7 +139,7 @@ function AuthPages({
   const onlyPhoneNumber = signupPhone.replace(/-/g, "");
   const isPhoneValid = /^010\d{8}$/.test(onlyPhoneNumber);
 
-  const canLogin = loginEmail.trim() !== "" && loginPassword.trim() !== "";
+  const canLogin = loginUsername.trim() !== "" && loginPassword.trim() !== "";
 
   const isSignupFilled =
     signupName.trim() !== "" &&
@@ -155,7 +154,7 @@ function AuthPages({
     if (!canLogin) return;
 
     try {
-      const res = await login(loginEmail.trim(), loginPassword);
+      const res = await login(loginUsername.trim(), loginPassword);
       const data = res.data.data;
 
       if (!data?.accessToken) {
@@ -196,13 +195,13 @@ function AuthPages({
     const email = signupEmail.trim();
 
     if (!email) {
-      setIsEmailAvailable(false);
+      setIsEmailVerified(false);
       setEmailCheckMessage("이메일을 입력해주세요.");
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setIsEmailAvailable(false);
+      setIsEmailVerified(false);
       setEmailCheckMessage("올바른 이메일 형식으로 입력해주세요.");
       return;
     }
@@ -210,14 +209,13 @@ function AuthPages({
     try {
       await sendSignupCode({ email });
 
-      setIsEmailAvailable(false);
       setIsEmailVerified(false);
       setEmailVerifyCode("");
       setEmailVerifyTimeLeft(180);
       setEmailCheckMessage("인증코드가 발송되었습니다.");
       setIsEmailVerifyModalOpen(true);
     } catch (error) {
-      setIsEmailAvailable(false);
+      setIsEmailVerified(false);
       setEmailCheckMessage(getErrorMessage(error, "인증코드 발송에 실패했습니다."));
     }
   };
@@ -227,7 +225,6 @@ function AuthPages({
       await sendSignupCode({ email: signupEmail.trim() });
 
       setIsEmailVerified(false);
-      setIsEmailAvailable(false);
       setEmailVerifyCode("");
       setEmailVerifyTimeLeft(180);
       setEmailCheckMessage("인증코드가 재발송되었습니다.");
@@ -240,16 +237,13 @@ function AuthPages({
     try {
       await verifySignupCode({
         email: signupEmail.trim(),
-        code: emailVerifyCode,
+        code: emailVerifyCode.trim(),
       });
 
       setIsEmailVerified(true);
-      setIsEmailAvailable(true);
       setEmailCheckMessage("이메일 인증이 완료되었습니다.");
-
-      setTimeout(() => {
-        setIsEmailVerifyModalOpen(false);
-      }, 800);
+      alert("이메일 인증이 완료되었습니다.");
+      setIsEmailVerifyModalOpen(false);
     } catch (error) {
       setIsEmailVerified(false);
       alert(getErrorMessage(error, "인증코드가 올바르지 않습니다."));
@@ -281,7 +275,7 @@ function AuthPages({
       return;
     }
 
-    if (!isEmailAvailable) {
+    if (!isEmailVerified) {
       alert("이메일 인증을 완료해주세요.");
       return;
     }
@@ -349,15 +343,15 @@ function AuthPages({
           {isLogin ? (
             <form className="login-form" onSubmit={handleLoginSubmit}>
               <label className="login-field">
-                <span>이메일</span>
+                <span>아이디</span>
                 <input
-                  type="email"
-                  value={loginEmail}
+                  type="text"
+                  value={loginUsername}
                   onChange={(event) => {
-                    setLoginEmail(event.target.value);
+                    setLoginUsername(event.target.value.replace(/\s/g, ""));
                     setLoginError("");
                   }}
-                  placeholder="jumi@example.com"
+                  placeholder="아이디를 입력해주세요"
                 />
               </label>
 
@@ -442,7 +436,6 @@ function AuthPages({
                     value={signupEmail}
                     onChange={(event) => {
                       setSignupEmail(event.target.value.replace(/\s/g, ""));
-                      setIsEmailAvailable(false);
                       setEmailCheckMessage("");
                       setIsEmailVerified(false);
                       setEmailVerifyCode("");
@@ -455,7 +448,7 @@ function AuthPages({
                 </div>
 
                 {emailCheckMessage && (
-                  <p className={isEmailAvailable ? "login-success-text" : "login-error-text"}>
+                  <p className={isEmailVerified ? "login-success-text" : "login-error-text"}>
                     {emailCheckMessage}
                   </p>
                 )}
