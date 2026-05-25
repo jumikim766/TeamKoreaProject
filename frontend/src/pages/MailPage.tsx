@@ -3,6 +3,8 @@ import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/MailPage.css";
 import { getRiskClassName, getRiskLabel } from "../utils/riskLevel";
+// 백엔드에서 내려준 에러 message를 화면에 보여주기 위한 공통 함수
+import { getErrorMessage } from "../api/errorMessage";
 
 // API 함수
 import {
@@ -119,7 +121,7 @@ function MailPage({
         const data: EmailListResponse = await getEmail({
           accountId: selectedAccountId,
           page: 0,
-          size: 20,
+          size: 100,
         });
 
         setEmails(data.emails ?? []);
@@ -207,21 +209,29 @@ function MailPage({
         }),
       };
 
+            // 이메일 연동 요청
       await createEmailAccount(request);
 
-      const accounts = await getEmailAccount();
-      setEmailAccounts(accounts);
+      // 연동 성공 후 목록 다시 조회
+      try {
+        const accounts = await getEmailAccount();
 
-      const accountEmails = accounts.map((account) => account.email);
-      setConnectedEmails(accountEmails);
+        setEmailAccounts(accounts);
 
-      const connectedAccount = accounts.find(
-        (account) => account.email === connectEmail,
-      );
+        const accountEmails = accounts.map((account) => account.email);
+        setConnectedEmails(accountEmails);
 
-      setSelectedAccountId(
-        connectedAccount?.accountId ?? accounts[0]?.accountId ?? null,
-      );
+        const connectedAccount = accounts.find(
+          (account) => account.email === connectEmail,
+        );
+
+        setSelectedAccountId(
+          connectedAccount?.accountId ?? accounts[0]?.accountId ?? null,
+        );
+      } catch (refreshError) {
+        // 목록 새로고침 실패는 콘솔만 출력
+        console.error("이메일 계정 목록 새로고침 실패:", refreshError);
+      }
 
       setConnectEmail("");
       setLoginId("");
@@ -230,8 +240,16 @@ function MailPage({
       setImapPort("");
       setConnectEmailError("");
       alert("이메일이 연동되었습니다.");
-    } catch (error) {
+      } catch (error) {
       console.error("이메일 연동 실패:", error);
+
+      const message = getErrorMessage(
+        error,
+        "이메일 연동에 실패했습니다.",
+      );
+
+      setConnectEmailError(message);
+      alert(message);
     }
   };
 
@@ -253,36 +271,21 @@ function MailPage({
       const data: EmailListResponse = await getEmail({
         accountId: targetAccount.accountId,
         page: 0,
-        size: 20,
+        size: 100,
       });
       setEmails(data.emails);
 
       alert("이메일 동기화 완료");
-    } catch (error: unknown) {
-      if (typeof error === "object" && error !== null && "response" in error) {
-        const err = error as {
-          response?: {
-            status?: number;
-            data?: {
-              message?: string;
-              error?: string;
-            };
-          };
-        };
+        } catch (error) {
+      console.error("이메일 동기화 실패:", error);
 
-        console.error("이메일 동기화 실패:", err);
-        console.error("응답 상태:", err.response?.status);
-        console.error("응답 데이터:", err.response?.data);
+      // 백엔드에서 분기해서 내려준 에러 메시지를 alert로 표시
+      const message = getErrorMessage(
+        error,
+        "이메일 동기화에 실패했습니다.",
+      );
 
-        alert(
-          err.response?.data?.message ||
-            err.response?.data?.error ||
-            "이메일 동기화에 실패했습니다.",
-        );
-      } else {
-        console.error("알 수 없는 오류:", error);
-        alert("이메일 동기화에 실패했습니다.");
-      }
+      alert(message);
     } finally {
       setSyncingAccountId(null);
     }
