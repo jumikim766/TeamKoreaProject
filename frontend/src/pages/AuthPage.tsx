@@ -1,11 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/AuthPage.css";
 
 import {
-  checkEmail,
   checkUsername,
   goSocialLogin,
   login,
@@ -114,6 +113,11 @@ function AuthPages({
   const [isIdAvailable, setIsIdAvailable] = useState(false);
   const [isEmailAvailable, setIsEmailAvailable] = useState(false);
 
+  const [isEmailVerifyModalOpen, setIsEmailVerifyModalOpen] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [emailVerifyCode, setEmailVerifyCode] = useState("");
+  const [emailVerifyTimeLeft, setEmailVerifyTimeLeft] = useState(180);
+
   const passwordRules = useMemo(
     () => [
       {
@@ -126,6 +130,24 @@ function AuthPages({
     ],
     [signupPassword]
   );
+
+  useEffect(() => {
+    if (!isEmailVerifyModalOpen || isEmailVerified) return;
+    if (emailVerifyTimeLeft <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setEmailVerifyTimeLeft((prev) => prev - 1);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [isEmailVerifyModalOpen, isEmailVerified, emailVerifyTimeLeft]);
+
+  const formatEmailVerifyTime = (seconds: number) => {
+    const minute = Math.floor(seconds / 60);
+    const second = seconds % 60;
+
+    return `${minute}:${String(second).padStart(2, "0")}`;
+  };
 
   const isPasswordValid =
     passwordRules.every((rule) => rule.valid) &&
@@ -204,19 +226,25 @@ function AuthPages({
       return;
     }
 
-    try {
-      const res = await checkEmail(email);
-      const available = Boolean(res.data.data?.available);
-      setIsEmailAvailable(available);
-      setEmailCheckMessage(
-        available ? "사용 가능한 이메일입니다." : "이미 사용 중인 이메일입니다."
-      );
-    } catch (error) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setIsEmailAvailable(false);
-      setEmailCheckMessage(
-        getErrorMessage(error, "이메일 중복 확인에 실패했습니다.")
-      );
+      setEmailCheckMessage("올바른 이메일 형식으로 입력해주세요.");
+      return;
     }
+
+    setIsEmailAvailable(true);
+    setIsEmailVerified(false);
+    setEmailVerifyCode("");
+    setEmailVerifyTimeLeft(180);
+    setEmailCheckMessage("인증코드가 발송되었습니다.");
+    setIsEmailVerifyModalOpen(true);
+  };
+
+  const handleResendEmailCode = () => {
+    setIsEmailVerified(false);
+    setEmailVerifyCode("");
+    setEmailVerifyTimeLeft(180);
+    setEmailCheckMessage("인증코드가 재발송되었습니다.");
   };
 
   const handleSignupSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -245,7 +273,7 @@ function AuthPages({
     }
 
     if (!isEmailAvailable) {
-      alert("이메일 중복 확인을 완료해주세요.");
+      alert("이메일 인증을 완료해주세요.");
       return;
     }
 
@@ -429,19 +457,20 @@ function AuthPages({
                       setSignupEmail(event.target.value.replace(/\s/g, ""));
                       setIsEmailAvailable(false);
                       setEmailCheckMessage("");
+                      setIsEmailVerified(false);
+                      setEmailVerifyCode("");
                     }}
                     placeholder="이메일을 입력해주세요"
                   />
                   <button type="button" onClick={handleCheckEmail}>
-                    중복 확인
+                    인증코드 발송
                   </button>
                 </div>
+
                 {emailCheckMessage && (
                   <p
                     className={
-                      isEmailAvailable
-                        ? "login-success-text"
-                        : "login-error-text"
+                      isEmailAvailable ? "login-success-text" : "login-error-text"
                     }
                   >
                     {emailCheckMessage}
@@ -457,7 +486,7 @@ function AuthPages({
                   onChange={(event) =>
                     setSignupPhone(event.target.value.replace(/\s/g, ""))
                   }
-                  placeholder="01012345678"
+                  placeholder="전화번호를 입력해주세요"
                   maxLength={13}
                 />
               </label>
@@ -545,6 +574,80 @@ function AuthPages({
                 </button>
               </div>
             </form>
+          )}
+
+          {isEmailVerifyModalOpen && (
+            <div className="email-verify-overlay">
+              <div className="email-verify-modal">
+                <button
+                  type="button"
+                  className="email-verify-close"
+                  onClick={() => setIsEmailVerifyModalOpen(false)}
+                >
+                  ×
+                </button>
+
+                <h3>이메일 인증</h3>
+
+                <p className="email-verify-address">
+                  <strong>{signupEmail}</strong>
+                </p>
+
+                <div className="email-verify-code-row">
+                  <label>인증코드</label>
+
+                  <input
+                    type="text"
+                    value={emailVerifyCode}
+                    onChange={(event) =>
+                      setEmailVerifyCode(event.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="인증코드 8자리를 입력하세요"
+                    maxLength={8}
+                    disabled={emailVerifyTimeLeft <= 0 || isEmailVerified}
+                  />
+
+                  <span>{formatEmailVerifyTime(emailVerifyTimeLeft)}</span>
+                </div>
+
+                <div className="email-verify-button-row">
+                  <button
+                    type="button"
+                    disabled={
+                      emailVerifyCode.length !== 8 ||
+                      emailVerifyTimeLeft <= 0 ||
+                      isEmailVerified
+                    }
+                    onClick={() => {
+  setIsEmailVerified(true);
+  setIsEmailAvailable(true);
+  setEmailCheckMessage("이메일 인증이 완료되었습니다.");
+
+  setTimeout(() => {
+    setIsEmailVerifyModalOpen(false);
+  }, 800);
+}}
+                  >
+                    확인
+                  </button>
+
+                  <button
+                    type="button"
+                    className="email-verify-resend-button"
+                    disabled={emailVerifyTimeLeft > 0}
+                    onClick={handleResendEmailCode}
+                  >
+                    인증코드 재발송
+                  </button>
+                </div>
+
+                {isEmailVerified && (
+                  <p className="email-verify-success">
+                    이메일 인증이 완료되었습니다.
+                  </p>
+                )}
+              </div>
+            </div>
           )}
         </section>
       </main>
