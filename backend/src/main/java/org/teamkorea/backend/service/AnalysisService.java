@@ -41,7 +41,7 @@ public class AnalysisService {
     );
 
     /**
-     * URL 분석 실행 및 저장 (점수 보정 메커니즘 적용)
+     * URL 분석 실행 및 저장 (완전한 5단계 위험도 적용)
      */
     public UrlAnalysis analyzeAndSave(Long userId, Long urlId) {
         User user = userRepository.findById(userId)
@@ -96,16 +96,28 @@ public class AnalysisService {
         riskScore = Math.min(riskScore, 100);
 
         // ==============================================================
-        // 📊 보정된 등급 판별 스펙 규칙
+        // 📊 보정된 등급 판별 스펙 규칙 (완벽한 5단계 매핑)
         // ==============================================================
         RiskLevel riskLevel;
-        if (riskScore >= 80) riskLevel = RiskLevel.CRITICAL;
-        else if (riskScore >= 55) riskLevel = RiskLevel.DANGER;
-        else if (riskScore >= 30) riskLevel = RiskLevel.WARNING;
-        else riskLevel = RiskLevel.SAFE;
+        if (riskScore >= 80) {
+            riskLevel = RiskLevel.CRITICAL;   // 80 ~ 100
+        } else if (riskScore >= 55) {
+            riskLevel = RiskLevel.DANGER;     // 55 ~ 79
+        } else if (riskScore >= 35) {
+            riskLevel = RiskLevel.WARNING;    // 35 ~ 54
+        } else if (riskScore >= 15) {
+            riskLevel = RiskLevel.SUSPICIOUS; // 15 ~ 34 (추가됨)
+        } else {
+            riskLevel = RiskLevel.SAFE;       // 0 ~ 14
+        }
 
+        // 등급과 사유 메시지 간의 모순 방지 설정
         if (reasonList.isEmpty()) {
-            reasonList.add("특이사항 없음 (안전)");
+            if (riskLevel == RiskLevel.SAFE) {
+                reasonList.add("특이사항 없음 (안전)");
+            } else {
+                reasonList.add("기타 미세 위험 요인 탐지");
+            }
         }
         String finalReasonSummary = String.join(" / ", reasonList);
 
@@ -193,12 +205,13 @@ public class AnalysisService {
             String webhookUrl = "YOUR_DISCORD_WEBHOOK_URL"; 
             RestTemplate restTemplate = new RestTemplate();
 
+            // 5단계 등급 한글 매핑 완벽 대응
             String levelKor = switch (analysis.getRiskLevel()) {
                 case SAFE -> "안전";
+                case SUSPICIOUS -> "의심";
                 case WARNING -> "주의";
                 case DANGER -> "위험";
                 case CRITICAL -> "심각";
-                default -> "알 수 없음";
             };
 
             Map<String, Object> body = new HashMap<>();
