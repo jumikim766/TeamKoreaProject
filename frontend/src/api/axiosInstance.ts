@@ -3,44 +3,83 @@ import { clearAccessToken, saveAccessToken, getAccessToken } from "../utils/toke
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
-// 인증/공용용. /api prefix 포함 호출은 호출부에서.
+const publicAuthPaths = [
+  "/api/auth/login",
+  "/api/auth/signup",
+  "/api/auth/signup/send-code",
+  "/api/auth/signup/verify-code",
+  "/api/auth/find-username/send-code",
+  "/api/auth/find-username/verify-code",
+  "/api/auth/password-reset/send-code",
+  "/api/auth/password-reset",
+  "/api/auth/reissue",
+];
+
 export const apiClient = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true, // ← refreshToken 쿠키 송수신에 필수
+  withCredentials: true,
 });
 
-// 요청 인터셉터: accessToken 자동 부착
 apiClient.interceptors.request.use((config) => {
-  const token = getAccessToken();
+  const requestUrl = config.url ?? "";
+
+  const isPublicAuthRequest = publicAuthPaths.some((path) =>
+    requestUrl.includes(path)
+  );
+
   config.headers = config.headers ?? {};
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  if (!isPublicAuthRequest) {
+    const token = getAccessToken();
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } else {
+    delete config.headers.Authorization;
+  }
+
   return config;
 });
 
-// 응답 인터셉터: 401 시 /api/auth/reissue 자동 호출 (쿠키 기반)
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+
+    const requestUrl = original?.url ?? "";
+    const isPublicAuthRequest = publicAuthPaths.some((path) =>
+      requestUrl.includes(path)
+    );
+
+    if (isPublicAuthRequest) {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401 && original && !original._retry) {
       original._retry = true;
+
       try {
         const res = await axios.post(
           `${BASE_URL}/api/auth/reissue`,
           {},
-          { withCredentials: true } // body 없음. 쿠키만.
+          { withCredentials: true }
         );
+
         const newAccessToken = res.data.data.accessToken;
         saveAccessToken(newAccessToken);
+
         original.headers = original.headers ?? {};
         original.headers.Authorization = `Bearer ${newAccessToken}`;
+
         return apiClient(original);
       } catch (e) {
         clearAccessToken();
-        window.location.href = "/login"; // 또는 로그인 화면
+        window.location.href = "/login";
       }
     }
+
     return Promise.reject(error);
   }
 );

@@ -44,33 +44,6 @@ interface ClassificationPageProps {
   onNavigate: (view: PageViewTarget) => void;
 }
 
-const classificationMethods: ClassificationItem[] = [
-  {
-    id: 1,
-    title: 'URL 수집',
-    description: '메일 및 신고 데이터를 기반으로 URL 수집',
-    detail:
-      '메일함, 신고 데이터, 사용자 입력 데이터를 기반으로 URL을 수집하고 분석 대상으로 등록합니다.',
-    status: '안전',
-  },
-  {
-    id: 2,
-    title: '위험 요소 분석',
-    description: '도메인 및 링크 패턴 분석',
-    detail:
-      '도메인 생성일, URL 패턴, 로그인 유도 여부 등을 분석하여 위험 요소를 확인합니다.',
-    status: '주의',
-  },
-  {
-    id: 3,
-    title: '위험도 분류',
-    description: '위험도 기준에 따라 단계 분류',
-    detail:
-      '분석 결과를 기반으로 안전, 의심, 주의, 위험, 심각 단계로 분류합니다.',
-    status: '위험',
-  },
-];
-
 const classificationCriteria: ClassificationItem[] = [
   {
     id: 1,
@@ -122,11 +95,7 @@ function ClassificationPage({
   onGoMyPage,
   onNavigate,
 }: ClassificationPageProps) {
-  const items =
-    currentView === 'classification-method'
-      ? classificationMethods
-      : classificationCriteria;
-
+  const items = classificationCriteria;
   const selectedItem = items[0];
 
   return (
@@ -155,30 +124,6 @@ function ClassificationPage({
 
             <div className="page-side-card">
               <div className="page-side-title">분류기준</div>
-
-              <button
-                className={
-                  currentView === 'classification-method'
-                    ? 'side-menu-button is-active'
-                    : 'side-menu-button'
-                }
-                onClick={() => onNavigate('classification-method')}
-                type="button"
-              >
-                분류 방법
-              </button>
-
-              <button
-                className={
-                  currentView === 'classification-criteria'
-                    ? 'side-menu-button is-active'
-                    : 'side-menu-button'
-                }
-                onClick={() => onNavigate('classification-criteria')}
-                type="button"
-              >
-                분류 기준
-              </button>
             </div>
           </aside>
 
@@ -187,11 +132,7 @@ function ClassificationPage({
               <div className="page-head">
                 <p className="eyebrow"></p>
 
-                <h1>
-                  {currentView === 'classification-method'
-                    ? '분류 방법'
-                    : '분류 기준'}
-                </h1>
+                <h1>분류 기준</h1>
               </div>
 
               <div className="classification-content-grid">

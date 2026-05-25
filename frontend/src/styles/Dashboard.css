@@ -689,3 +689,18 @@ height: 170px;
   background: #ff1212;
   color: #ffffff;
 }
+
+.header-theme-button,
+.theme-toggle.header-theme-button {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #2563eb !important;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.header-theme-button:hover,
+.theme-toggle.header-theme-button:hover {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}

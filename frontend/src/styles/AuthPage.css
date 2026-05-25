@@ -220,3 +220,179 @@
   font-weight: 900;
   cursor: pointer;
 }
+
+.email-verify-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 999;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
+  padding-top: 90px;
+}
+
+.email-verify-modal {
+  position: relative;
+  width: 520px;
+  padding: 34px 36px 32px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #dbe3ef;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.email-verify-close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  border: none;
+  background: transparent;
+  font-size: 30px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #64748b;
+}
+
+.email-verify-modal h3 {
+  margin: 0 0 22px;
+  font-size: 26px;
+  font-weight: 900;
+  color: #111827;
+  text-align: center;
+}
+
+.email-verify-address {
+  margin: 0 0 22px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.email-verify-address strong {
+  color: #2563eb;
+}
+
+.email-verify-code-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 58px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.email-verify-code-row label {
+  font-size: 17px;
+  font-weight: 800;
+  color: #475569;
+}
+
+.email-verify-code-row input {
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid #d4dced;
+  background: #f8fbff;
+  font-size: 20px;
+  outline: none;
+}
+
+.email-verify-code-row span {
+  font-size: 18px;
+  font-weight: 900;
+  color: #2563eb;
+}
+
+.email-verify-button-row {
+  display: flex;
+  gap: 12px;
+}
+
+.email-verify-button-row button {
+  flex: 1;
+  height: 52px;
+  border-radius: 14px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.email-verify-button-row .email-verify-resend-button {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.email-verify-success {
+  margin: 20px 0 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 17px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.email-verify-address {
+  margin: 0 0 28px;
+  text-align: center;
+}
+
+.email-verify-address strong {
+  color: #2563eb;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.email-verify-code-row span {
+  color: #ef4444;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.email-verify-button-row button {
+  flex: 1;
+  height: 52px;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+/* 비활성화 */
+.email-verify-button-row button:disabled {
+  background: #bfdbfe;
+  color: #ffffff;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+/* 활성화 */
+.email-verify-button-row button:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.email-verify-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 90px;
+  background: rgba(15, 23, 42, 0.35);
+}
