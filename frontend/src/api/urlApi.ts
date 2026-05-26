@@ -102,6 +102,7 @@ export interface UrlStatisticsParams {
   accountId?: number;
   domain?: string;
   isAnalyzed?: boolean;
+  period?: "TODAY" | "ALL";
 }
 
 // URL 위험도 통계 조회 응답 타입
@@ -161,6 +162,7 @@ export const getUrlStatistics = async (params?: UrlStatisticsParams) => {
       accountId: params?.accountId,
       domain: params?.domain,
       isAnalyzed: params?.isAnalyzed,
+      period: params?.period,
     },
   });
 

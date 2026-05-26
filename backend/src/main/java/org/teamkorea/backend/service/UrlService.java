@@ -18,6 +18,7 @@ import org.teamkorea.backend.dto.MyUrlListResponseDto;
 import org.teamkorea.backend.dto.UrlStatisticsResponseDto;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -152,10 +153,12 @@ public class UrlService {
                         String scope,
                         Long accountId,
                         String domain,
-                        Boolean isAnalyzed) {
+                        Boolean isAnalyzed,
+                        String period) {
                 String searchDomain = normalizeSearchText(domain);
 
                 List<Url> urls;
+                LocalDateTime todayStart = LocalDateTime.now().toLocalDate().atStartOfDay();
 
                 if ("MY".equalsIgnoreCase(scope)) {
                         urls = emailUrlRepository.findMyUrlsForStatistics(
@@ -169,6 +172,13 @@ public class UrlService {
                 } else {
                         urls = urlRepository.findUrlsForStatistics(searchDomain, isAnalyzed);
                 }
+
+                if ("TODAY".equalsIgnoreCase(period)) {
+                        urls = urls.stream()
+                                .filter(url -> url.getCreatedAt() != null)
+                                .filter(url -> !url.getCreatedAt().isBefore(todayStart))
+                                .toList();
+}
 
                 long totalCount = urls.size();
                 long criticalCount = 0;
