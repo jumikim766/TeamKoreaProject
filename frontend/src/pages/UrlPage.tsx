@@ -177,64 +177,78 @@ function UrlPage({
   onNavigate,
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [myUrls, setMyUrls] = useState<MyUrlItem[]>([]);
-  const [allUrls, setAllUrls] = useState<UrlListItem[]>([]);
-  const [myStats, setMyStats] = useState<UrlStatistics | null>(null);
-  const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState("전체 계정");
+const [currentPage, setCurrentPage] = useState(1);
+const [myUrls, setMyUrls] = useState<MyUrlItem[]>([]);
+const [allUrls, setAllUrls] = useState<UrlListItem[]>([]);
+const [myStats, setMyStats] = useState<UrlStatistics | null>(null);
+const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
+const [myTodayStats, setMyTodayStats] = useState<UrlStatistics | null>(null);
+const [allTodayStats, setAllTodayStats] = useState<UrlStatistics | null>(null);
+const [loading, setLoading] = useState(false);
+const [selectedAccount, setSelectedAccount] = useState('전체 계정');
 
-  useEffect(() => {
-    const fetchUrlData = async () => {
-      try {
-        setLoading(true);
+useEffect(() => {
+  const fetchUrlData = async () => {
+    try {
+      setLoading(true);
 
-        if (currentView === "my-url") {
-          const data = await getMyUrls({
-            page: currentPage - 1,
-            size: PAGE_SIZE,
-          });
+      if (currentView === 'my-url') {
+        const data = await getMyUrls({
+          page: currentPage - 1,
+          size: PAGE_SIZE,
+        });
 
-          setMyUrls(data.urls ?? []);
-        }
-
-        if (currentView === "url-library") {
-          const data = await getUrls({
-            page: currentPage - 1,
-            size: PAGE_SIZE,
-          });
-
-          setAllUrls(data.urls ?? []);
-        }
-
-        if (currentView === "url-statistics") {
-          const my = await getUrlStatistics({ scope: "MY" });
-          const all = await getUrlStatistics({ scope: "ALL" });
-
-          setMyStats(my);
-          setAllStats(all);
-        }
-      } catch (error) {
-        console.error("URL 분석 결과 조회 실패:", error);
-      } finally {
-        setLoading(false);
+        setMyUrls(data.urls ?? []);
       }
     };
 
     fetchUrlData();
   }, [currentView, currentPage]);
 
-  const chartData = (stats: UrlStatistics | null) => [
-    { name: "CRITICAL", value: stats?.criticalCount ?? 0 },
-    { name: "DANGER", value: stats?.dangerCount ?? 0 },
-    { name: "WARNING", value: stats?.warningCount ?? 0 },
-    { name: "SUSPICIOUS", value: stats?.suspiciousCount ?? 0 },
-    { name: "SAFE", value: stats?.safeCount ?? 0 },
-  ];
+        setAllUrls(data.urls ?? []);
+      }
 
-  const isStatistics = currentView === "url-statistics";
-  const isMyUrl = currentView === "my-url";
+      if (currentView === 'url-statistics') {
+         const [my, all, myToday, allToday] = await Promise.all([
+          getUrlStatistics({ scope: 'MY', period: 'ALL' }),
+          getUrlStatistics({ scope: 'ALL', period: 'ALL' }),
+          getUrlStatistics({ scope: 'MY', period: 'TODAY' }),
+          getUrlStatistics({ scope: 'ALL', period: 'TODAY' }),
+            ]);
+
+          setMyStats(my);
+          setAllStats(all);
+          setMyTodayStats(myToday);
+          setAllTodayStats(allToday);
+        }
+    } catch (error) {
+      console.error('URL 분석 결과 조회 실패:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchUrlData();
+}, [currentView, currentPage]);
+
+const chartData = (stats: UrlStatistics | null) => [
+  { name: 'CRITICAL', value: stats?.criticalCount ?? 0 },
+  { name: 'DANGER', value: stats?.dangerCount ?? 0 },
+  { name: 'WARNING', value: stats?.warningCount ?? 0 },
+  { name: 'SUSPICIOUS', value: stats?.suspiciousCount ?? 0 },
+  { name: 'SAFE', value: stats?.safeCount ?? 0 },
+];
+
+const myHighRiskCount =
+  (myStats?.criticalCount ?? 0) + (myStats?.dangerCount ?? 0);
+
+const allTotalCount = allStats?.totalCount ?? 0;
+const myTotalCount = myStats?.totalCount ?? 0;
+const myTodayTotalCount = myTodayStats?.totalCount ?? 0;
+const allTodayTotalCount = allTodayStats?.totalCount ?? 0;
+
+  const isStatistics = currentView === 'url-statistics';
+  const isMyUrl = currentView === 'my-url';
 
   const urlItems = useMemo(() => {
     const items = isMyUrl ? myUrls : allUrls;
@@ -335,41 +349,33 @@ function UrlPage({
                 <section className="url-stat-grid">
                   <div className="url-stat-card">
                     <span>내 이메일 전체 링크</span>
-                    <strong>1,248개</strong>
+                    <strong>{myTotalCount.toLocaleString()}개</strong>
                     <p>연동된 이메일에서 탐지된 전체 링크 수입니다.</p>
                   </div>
 
                   <div className="url-stat-card">
                     <span>고위험 링크</span>
-                    <strong>42개</strong>
+                    <strong>{myHighRiskCount.toLocaleString()}개</strong>
                     <p>위험 또는 심각으로 분류된 링크 수입니다.</p>
                   </div>
 
                   <div className="url-stat-card">
-                    <span>전체 회원 전체 링크</span>
-                    <strong>6,615개</strong>
-                    <p>
-                      전체 회원의 이메일과 URL 분석에서 탐지된 전체 링크
-                      수입니다.
-                    </p>
-                  </div>
+  <span>전체 회원 전체 링크</span>
+  <strong>{allTotalCount.toLocaleString()}개</strong>
+  <p>전체 회원의 이메일과 URL 분석에서 탐지된 전체 링크 수입니다.</p>
+</div>
 
                   <div className="url-stat-chart">
-                    <ChartBox
-                      title="내 URL 위험도 통계"
-                      caption="이메일 링크 분석 기준"
-                      total="1,248개"
-                      data={chartData(myStats)}
-                    />
+                    <ChartBox title="내 URL 위험도 통계" caption="이메일 링크 분석 기준" total={`${myTotalCount.toLocaleString()}개`} data={chartData(myStats)} />
                   </div>
                   <div className="url-stat-chart">
-                    <ChartBox
-                      title="전체 URL 위험도 통계"
-                      caption="전체 회원 링크 분석 기준"
-                      total="6,615개"
-                      data={chartData(allStats)}
-                    />
-                  </div>
+  <ChartBox
+    title="전체 URL 위험도 통계"
+    caption="전체 회원 링크 분석 기준"
+    total={`${allTotalCount.toLocaleString()}개`}
+    data={chartData(allStats)}
+  />
+</div>
                 </section>
               ) : (
                 <>

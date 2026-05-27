@@ -3,6 +3,8 @@ import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import '../styles/Dashboard.css';
 import type { ViewMode } from '../App';
+import { getUrlStatistics, type UrlStatistics } from '../api/urlApi';
+import { useEffect, useState } from 'react';
 
 type ThemeMode = 'light' | 'dark';
 
@@ -20,22 +22,6 @@ interface DashboardProps {
   onNavigate: (view: ViewMode) => void;
 }
 
-const totalCollection = [
-  { name: '심각', value: 742 },
-  { name: '위험', value: 416 },
-  { name: '주의', value: 2018 },
-  { name: '의심', value: 640 },
-  { name: '안전', value: 3621 },
-];
-
-const todayCollection = [
-  { name: '심각', value: 124 },
-  { name: '위험', value: 87 },
-  { name: '주의', value: 315 },
-  { name: '의심', value: 148 },
-  { name: '안전', value: 758 },
-];
-
 function Dashboard({
   theme,
   isLoggedIn,
@@ -47,6 +33,47 @@ function Dashboard({
   onGoMyPage,
   onNavigate,
 }: DashboardProps) {
+  
+  const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
+  const [todayStats, setTodayStats] = useState<UrlStatistics | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardStatistics = async () => {
+      try {
+        const [all, today] = await Promise.all([
+          getUrlStatistics({ scope: 'ALL', period: 'ALL' }),
+          getUrlStatistics({ scope: 'ALL', period: 'TODAY' }),
+        ]);
+
+        setAllStats(all);
+        setTodayStats(today);
+      } catch (error) {
+        console.error('대시보드 URL 통계 조회 실패:', error);
+      }
+    };
+
+    fetchDashboardStatistics();
+  }, []);
+
+  const totalCollection = [
+    { name: '심각', value: allStats?.criticalCount ?? 0 },
+    { name: '위험', value: allStats?.dangerCount ?? 0 },
+    { name: '주의', value: allStats?.warningCount ?? 0 },
+    { name: '의심', value: allStats?.suspiciousCount ?? 0 },
+    { name: '안전', value: allStats?.safeCount ?? 0 },
+  ];
+
+  const todayCollection = [
+    { name: '심각', value: todayStats?.criticalCount ?? 0 },
+    { name: '위험', value: todayStats?.dangerCount ?? 0 },
+    { name: '주의', value: todayStats?.warningCount ?? 0 },
+    { name: '의심', value: todayStats?.suspiciousCount ?? 0 },
+    { name: '안전', value: todayStats?.safeCount ?? 0 },
+  ];
+
+  const totalUrlCount = allStats?.totalCount ?? 0;
+  const todayUrlCount = todayStats?.totalCount ?? 0;
+
   return (
     <div className={`dashboard-shell ${theme}`}>
       <Header
@@ -81,14 +108,14 @@ function Dashboard({
             <ChartBox
               title="총 수집 URL"
               caption="누적 분류 기준"
-              total="6,797건"
+              total={`${totalUrlCount.toLocaleString()}건`}
               data={totalCollection}
             />
 
             <ChartBox
               title="오늘 수집 URL"
               caption="금일 00:00 이후"
-              total="1,284건"
+              total={`${todayUrlCount.toLocaleString()}건`}
               data={todayCollection}
             />
           </section>
