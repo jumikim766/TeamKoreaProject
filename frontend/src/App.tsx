@@ -27,6 +27,7 @@ export type ViewMode =
   | "my-mailbox"
   | "mail-connect"
   | "my-url"
+  | "url-statistics"
   | "url-library"
   | "notifications"
   | "notification-settings"
@@ -47,6 +48,7 @@ const viewToPath: Record<ViewMode, string> = {
   mypage: "/mypage",
   "my-mailbox": "/my-mailbox",
   "mail-connect": "/mail-connect",
+  "url-statistics": "/url-statistics",
   "my-url": "/my-url",
   "url-library": "/url-library",
   notifications: "/notifications",
@@ -125,6 +127,13 @@ function App() {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("theme-mode", theme);
   }, [theme]);
+  const refreshLoginState = () => {
+    const hasToken = Boolean(getAccessToken());
+
+    setIsLoggedIn(hasToken);
+    setUserName(hasToken ? getSavedUserName() : "사용자");
+  };
+
 
   useEffect(() => {
     const handlePopState = () => {
@@ -139,28 +148,31 @@ function App() {
     };
   }, []);
 
-  const refreshLoginState = () => {
-    const hasToken = Boolean(getAccessToken());
+  
+  const protectedViews: ViewMode[] = ["notifications", "notification-settings"];
 
-    setIsLoggedIn(hasToken);
-    setUserName(hasToken ? getSavedUserName() : "사용자");
-  };
+const handleNavigate = (nextView: ViewMode, replace = false) => {
+  refreshLoginState();
 
-  const handleNavigate = (nextView: ViewMode, replace = false) => {
-    refreshLoginState();
+  const hasToken = Boolean(getAccessToken());
 
-    const nextPath = viewToPath[nextView];
+  if (protectedViews.includes(nextView) && !hasToken) {
+    alert("로그인이 필요한 메뉴입니다.");
+    nextView = "login";
+  }
 
-    if (window.location.pathname !== nextPath) {
-      if (replace) {
-        window.history.replaceState(null, "", nextPath);
-      } else {
-        window.history.pushState(null, "", nextPath);
-      }
+  const nextPath = viewToPath[nextView];
+
+  if (window.location.pathname !== nextPath) {
+    if (replace) {
+      window.history.replaceState(null, "", nextPath);
+    } else {
+      window.history.pushState(null, "", nextPath);
     }
+  }
 
-    setView(nextView);
-  };
+  setView(nextView);
+};
 
   const handleToggleTheme = () => {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
@@ -255,9 +267,13 @@ function App() {
     return <MailPage {...sharedProps} {...authProps} currentView={view} />;
   }
 
-  if (view === "my-url" || view === "url-library") {
-    return <UrlPage {...sharedProps} {...authProps} currentView={view} />;
-  }
+  if (
+  view === "url-statistics" ||
+  view === "my-url" ||
+  view === "url-library"
+) {
+  return <UrlPage {...sharedProps} {...authProps} currentView={view} />;
+}
 
   if (view === "notifications" || view === "notification-settings") {
     return (

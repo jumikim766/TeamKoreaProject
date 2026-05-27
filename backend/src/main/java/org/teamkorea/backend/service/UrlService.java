@@ -16,8 +16,11 @@ import org.teamkorea.backend.domain.EmailUrl;
 import org.teamkorea.backend.dto.MyUrlItemResponseDto;
 import org.teamkorea.backend.dto.MyUrlListResponseDto;
 import org.teamkorea.backend.dto.UrlStatisticsResponseDto;
+import org.teamkorea.backend.exception.BusinessException;
+import org.teamkorea.backend.exception.ErrorCode;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,7 +72,8 @@ public class UrlService {
         // URL 상세 조회
         public UrlDetailResponseDto getUrlDetail(Long urlId) {
                 Url url = urlRepository.findById(urlId)
-                                .orElseThrow(() -> new IllegalArgumentException("해당 URL 정보를 찾을 수 없습니다."));
+                                .orElseThrow(() -> new BusinessException(ErrorCode.URL_NOT_FOUND,
+                                                "해당 URL 정보를 찾을 수 없습니다."));
 
                 Optional<UrlAnalysis> latestAnalysis = urlAnalysisRepository
                                 .findTopByUrl_UrlIdOrderByAnalyzedAtDesc(urlId);
@@ -152,10 +156,14 @@ public class UrlService {
                         String scope,
                         Long accountId,
                         String domain,
-                        Boolean isAnalyzed) {
+                        Boolean isAnalyzed,
+                        String period) {
                 String searchDomain = normalizeSearchText(domain);
 
                 List<Url> urls;
+
+                String normalizedPeriod = normalizePeriod(period);
+                LocalDateTime startDateTime = getStatisticsStartDateTime(normalizedPeriod);
 
                 if ("MY".equalsIgnoreCase(scope)) {
                         urls = emailUrlRepository.findMyUrlsForStatistics(
@@ -168,6 +176,13 @@ public class UrlService {
                                         .toList();
                 } else {
                         urls = urlRepository.findUrlsForStatistics(searchDomain, isAnalyzed);
+                }
+
+                if (startDateTime != null) {
+                        urls = urls.stream()
+                                        .filter(url -> url.getCreatedAt() != null)
+                                        .filter(url -> !url.getCreatedAt().isBefore(startDateTime))
+                                        .toList();
                 }
 
                 long totalCount = urls.size();
@@ -203,14 +218,13 @@ public class UrlService {
                 }
 
                 return new UrlStatisticsResponseDto(
-                        totalCount,
-                        criticalCount,
-                        dangerCount,
-                        warningCount,
-                        suspiciousCount,
-                        safeCount,
-                        unanalyzedCount
-                );
+                                totalCount,
+                                criticalCount,
+                                dangerCount,
+                                warningCount,
+                                suspiciousCount,
+                                safeCount,
+                                unanalyzedCount);
         }
 
         // 나의 URL 목록 DTO 변환
@@ -287,7 +301,41 @@ public class UrlService {
                 try {
                         return RiskLevel.valueOf(value);
                 } catch (IllegalArgumentException e) {
-                        throw new IllegalArgumentException("올바르지 않은 위험도 값입니다.");
+                        throw new BusinessException(ErrorCode.INVALID_RISK_LEVEL, "올바르지 않은 위험도 값입니다.");
                 }
+        }
+
+        // 통계 기간 조건 정규화
+        private String normalizePeriod(String period) {
+                if (period == null || period.trim().isEmpty()) {
+                        return "ALL";
+                }
+
+                String value = period.trim().toUpperCase();
+
+                if (!List.of("ALL", "TODAY", "WEEK", "MONTH").contains(value)) {
+                        throw new BusinessException(ErrorCode.INVALID_PERIOD, "유효하지 않은 기간 조건입니다.");
+                }
+
+                return value;
+        }
+
+        // 통계 기간 조건에 따른 시작 시각 계산
+        private LocalDateTime getStatisticsStartDateTime(String period) {
+                LocalDateTime now = LocalDateTime.now();
+
+                if ("TODAY".equals(period)) {
+                        return now.toLocalDate().atStartOfDay();
+                }
+
+                if ("WEEK".equals(period)) {
+                        return now.minusDays(7);
+                }
+
+                if ("MONTH".equals(period)) {
+                        return now.minusMonths(1);
+                }
+
+                return null;
         }
 }

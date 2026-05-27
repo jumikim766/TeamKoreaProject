@@ -14,7 +14,6 @@ import org.teamkorea.backend.domain.UrlAnalysis;
 import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlRepository;
-import org.teamkorea.backend.service.AnalysisService;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
@@ -48,8 +47,7 @@ private final AnalysisService analysisService;
             "yclid",
             "mc_eid",
             "mc_cid",
-            "igshid"
-    );
+            "igshid");
 
     // 이메일 1개 저장 + 해당 이메일에서 추출된 URL 저장
     @Transactional
@@ -66,6 +64,11 @@ private final AnalysisService analysisService;
             LocalDateTime receivedAt,
             List<String> extractedUrls) {
         // 1. emails 테이블에 이메일 저장
+        // 이미 저장된 메일이면 insert를 시도하지 않고 바로 skip
+        if (emailRepository.existsByMessageUid(messageUid)) {
+            return 0;
+        }
+
         Email savedEmail = emailRepository.save(
                 Email.builder()
                         .account(account)
@@ -123,14 +126,16 @@ private final AnalysisService analysisService;
                         .build();
             }
 
-                        // 4. urls 테이블 저장
+            // 4. urls 테이블 저장
             // 같은 URL이 동시에 저장될 경우 unique 제약 조건 충돌이 날 수 있어서 대비
             Url savedUrl;
 
             try {
                 savedUrl = urlRepository.save(url);
+
             } catch (DataIntegrityViolationException e) {
-                // 이미 다른 동기화 작업에서 같은 URL을 먼저 저장한 경우 다시 조회
+
+                // 같은 URL이 동시에 저장된 경우 다시 조회
                 savedUrl = urlRepository.findByUrlHash(urlHash)
                         .orElseThrow(() -> e);
             }
@@ -144,7 +149,7 @@ private final AnalysisService analysisService;
                             .linkText(null)
                             .build());
 
-           try {
+try {
     analysisService.analyzeWithLlmAndSave(
             userId,
             savedUrl.getUrlId(),
@@ -166,7 +171,9 @@ private final AnalysisService analysisService;
     private String extractDomain(String url) {
         try {
             URI uri = new URI(url);
-            return uri.getHost() != null ? uri.getHost().toLowerCase() : null;
+
+            // PM 피드백 반영: domain 소문자화 제거
+            return uri.getHost() != null ? uri.getHost() : null;
         } catch (Exception e) {
             return null;
         }
@@ -182,7 +189,7 @@ private final AnalysisService analysisService;
         }
     }
 
-        // URL 정규화
+    // URL 정규화
     private String cleanUrl(String rawUrl) {
 
         if (rawUrl == null || rawUrl.isBlank()) {
@@ -212,8 +219,9 @@ private final AnalysisService analysisService;
                 return null;
             }
 
-            // 도메인 소문자 변환 + 한글 도메인 대응
-            host = IDN.toASCII(host.toLowerCase());
+            // domain 소문자화 제거
+            // 한글 도메인 대응만 유지
+            host = IDN.toASCII(host);
 
             // www. 제거
             if (host.startsWith("www.")) {
@@ -269,10 +277,11 @@ private final AnalysisService analysisService;
             String result = normalized.toString();
 
             /*
-            // 너무 긴 URL은 저장하지 않음
-            if (result.length() > 8192) {
-                return null;
-            }*/
+             * // 너무 긴 URL은 저장하지 않음
+             * if (result.length() > 8192) {
+             * return null;
+             * }
+             */
 
             return result;
 
@@ -281,7 +290,7 @@ private final AnalysisService analysisService;
         }
     }
 
-        // URL 끝에 붙은 불필요한 문장부호 제거
+    // URL 끝에 붙은 불필요한 문장부호 제거
     private String stripTrailingPunctuation(String url) {
 
         if (url == null || url.isBlank()) {
@@ -333,7 +342,7 @@ private final AnalysisService analysisService;
                             ? param
                             : param.substring(0, eqIndex);
 
-                    return new String[]{key, param};
+                    return new String[] { key, param };
                 })
                 // utm_ 계열 광고 파라미터 제거
                 .filter(pair -> !pair[0].toLowerCase().startsWith("utm_"))
@@ -350,7 +359,7 @@ private final AnalysisService analysisService;
 
         return normalizedQuery;
     }
-    
+
     // URL 중복 체크용 SHA-256 해시 생성
     private String sha256(String input) {
         try {

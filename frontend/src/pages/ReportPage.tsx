@@ -1,26 +1,26 @@
-import { useState } from 'react';
-import Header from '../components/Header';
-import Navbar from '../components/Navbar';
+import { useState } from "react";
+import Header from "../components/Header";
+import Navbar from "../components/Navbar";
 import "../styles/ReportPage.css";
 
-type ThemeMode = 'light' | 'dark';
-type ReportViewMode = 'report-guide' | 'report';
+type ThemeMode = "light" | "dark";
+type ReportViewMode = "report-guide" | "report";
 
 type PageViewTarget =
-  | 'my-mailbox'
-  | 'mail-connect'
-  | 'my-url'
-  | 'url-library'
-  | 'notifications'
-  | 'notification-settings'
-  | 'report-guide'
-  | 'report'
-  | 'classification-method'
-  | 'classification-criteria'
-  | 'service-info'
-  | 'terms'
-  | 'privacy'
-  | 'security-contact';
+  | "my-mailbox"
+  | "mail-connect"
+  | "my-url"
+  | "url-library"
+  | "notifications"
+  | "notification-settings"
+  | "report-guide"
+  | "report"
+  | "classification-method"
+  | "classification-criteria"
+  | "service-info"
+  | "terms"
+  | "privacy"
+  | "security-contact";
 
 interface ReportPageProps {
   theme: ThemeMode;
@@ -40,7 +40,7 @@ function ReportPage({
   theme,
   currentView,
   isLoggedIn = false,
-  userName = '팀코',
+  userName = "팀코",
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -49,8 +49,8 @@ function ReportPage({
   onGoMyPage,
   onNavigate,
 }: ReportPageProps) {
-  const [reportUrl, setReportUrl] = useState('');
-  const [reportReason, setReportReason] = useState('');
+  const [reportUrl, setReportUrl] = useState("");
+  const [reportReason, setReportReason] = useState("");
 
   return (
     <div className="dashboard-shell">
@@ -66,7 +66,7 @@ function ReportPage({
         onGoMyPage={onGoMyPage}
         onToggleTheme={onToggleTheme}
       />
-       <Navbar onNavigate={onNavigate} />
+      <Navbar onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -80,17 +80,23 @@ function ReportPage({
 
               <button
                 className={
-                  currentView === 'report-guide' ? 'side-menu-button is-active' : 'side-menu-button'
+                  currentView === "report-guide"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
                 }
-                onClick={() => onNavigate('report-guide')}
+                onClick={() => onNavigate("report-guide")}
                 type="button"
               >
                 신고 안내
               </button>
 
               <button
-                className={currentView === 'report' ? 'side-menu-button is-active' : 'side-menu-button'}
-                onClick={() => onNavigate('report')}
+                className={
+                  currentView === "report"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
+                }
+                onClick={() => onNavigate("report")}
                 type="button"
               >
                 신고하기
@@ -99,7 +105,7 @@ function ReportPage({
           </aside>
 
           <section className="page-content-card">
-            {currentView === 'report-guide' ? (
+            {currentView === "report-guide" ? (
               <div className="report-section">
                 <div className="page-head">
                   <p className="eyebrow"></p>
@@ -116,13 +122,18 @@ function ReportPage({
                     </div>
 
                     <div className="report-table-body">
-                      <button className="report-table-row is-active" type="button">
+                      <button
+                        className="report-table-row is-active"
+                        type="button"
+                      >
                         <span>
                           <strong>1단계</strong>
                           <small>URL 확인</small>
                         </span>
                         <span>의심 URL 복사</span>
-                        <span>메일, 문자, 웹사이트에서 의심되는 URL을 확인합니다.</span>
+                        <span>
+                          메일, 문자, 웹사이트에서 의심되는 URL을 확인합니다.
+                        </span>
                         <span>필수</span>
                       </button>
 
@@ -142,7 +153,9 @@ function ReportPage({
                           <small>검토 반영</small>
                         </span>
                         <span>위험도 분류</span>
-                        <span>신고된 URL은 검토 후 분류 기준에 반영됩니다.</span>
+                        <span>
+                          신고된 URL은 검토 후 분류 기준에 반영됩니다.
+                        </span>
                         <span>진행</span>
                       </button>
                     </div>
@@ -151,15 +164,16 @@ function ReportPage({
                   <section className="report-detail-card">
                     <div className="report-detail-head">
                       <h2>신고 접수 안내</h2>
-                    
                     </div>
 
                     <div className="report-meta">
                       <p>
-                        <strong>신고 대상 :</strong> 피싱, 악성코드, 계정 탈취 의심 URL
+                        <strong>신고 대상 :</strong> 피싱, 악성코드, 계정 탈취
+                        의심 URL
                       </p>
                       <p>
-                        <strong>필수 정보 :</strong> URL 주소, 발견 위치, 신고 사유
+                        <strong>필수 정보 :</strong> URL 주소, 발견 위치, 신고
+                        사유
                       </p>
                       <p>
                         <strong>처리 방식 :</strong> 접수 후 위험도 분석
@@ -170,8 +184,8 @@ function ReportPage({
 
                     <div className="report-body">
                       <p>
-                        신고된 URL은 내부 기준에 따라 검토되며, 위험도에 따라 안전, 주의, 위험,
-                        매우 위험으로 분류됩니다.
+                        신고된 URL은 내부 기준에 따라 검토되며, 위험도에 따라
+                        안전, 주의, 위험, 매우 위험으로 분류됩니다.
                       </p>
                     </div>
                   </section>
@@ -196,7 +210,7 @@ function ReportPage({
                   <button
                     className="primary-button"
                     type="button"
-                    onClick={() => alert('신고가 접수되었습니다.')}
+                    onClick={() => alert("신고가 접수되었습니다.")}
                   >
                     신고 접수
                   </button>
@@ -209,7 +223,7 @@ function ReportPage({
 
                   <textarea
                     className="report-connect-input"
-                    style={{ minHeight: '160px', resize: 'vertical' }}
+                    style={{ minHeight: "160px", resize: "vertical" }}
                     placeholder="의심되는 이유를 입력해주세요."
                     value={reportReason}
                     onChange={(event) => setReportReason(event.target.value)}
@@ -234,16 +248,16 @@ function ReportPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate('service-info')}>
+        <button type="button" onClick={() => onNavigate("service-info")}>
           서비스 소개
         </button>
-        <button type="button" onClick={() => onNavigate('terms')}>
+        <button type="button" onClick={() => onNavigate("terms")}>
           이용약관
         </button>
-        <button type="button" onClick={() => onNavigate('privacy')}>
+        <button type="button" onClick={() => onNavigate("privacy")}>
           개인정보 처리방침
         </button>
-        <button type="button" onClick={() => onNavigate('security-contact')}>
+        <button type="button" onClick={() => onNavigate("security-contact")}>
           보안 문의
         </button>
       </footer>

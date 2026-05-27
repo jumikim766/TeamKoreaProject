@@ -22,8 +22,8 @@ export interface LoginData {
   user: LoginUser;
 }
 
-export const login = (email: string, password: string) =>
-  apiClient.post<BaseResponse<LoginData>>("/api/auth/login", { email, password });
+export const login = (username: string, password: string) =>
+  apiClient.post<BaseResponse<LoginData>>("/api/auth/login", { username, password });
 
 // 회원가입: name 공백 불가, phone은 하이픈 제거 후 전송, 빈값이면 필드 자체를 안 보내는 게 안전
 export interface SignupPayload {
@@ -63,3 +63,84 @@ export const goSocialLogin = (provider: "google" | "naver") => {
   const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
   window.location.href = `${BASE}/oauth2/authorization/${provider}`;
 };
+
+// ===== 아이디 찾기 =====
+
+// 아이디 찾기 인증번호 발송
+export interface FindUsernameSendCodeRequest {
+  name: string;
+  email: string;
+}
+
+// 인증번호 검증 요청
+export interface VerifyCodeRequest {
+  email: string;
+  code: string;
+}
+
+// 아이디 찾기 응답
+export interface FindUsernameResponse {
+  username: string;
+}
+
+// ===== 비밀번호 재설정 =====
+
+// 비밀번호 재설정 인증번호 발송 요청
+export interface PasswordResetSendCodeRequest {
+  username: string;
+  email: string;
+}
+
+// 비밀번호 재설정 요청
+export interface PasswordResetRequest {
+  username: string;
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
+// 아이디 찾기 인증번호 발송
+export const sendFindUsernameCode = (data: FindUsernameSendCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/find-username/send-code",
+    data
+  );
+
+// 아이디 찾기 인증번호 검증
+export const verifyFindUsernameCode = (data: VerifyCodeRequest) =>
+  apiClient.post<BaseResponse<FindUsernameResponse>>(
+    "/api/auth/find-username/verify-code",
+    data
+  );
+
+// 비밀번호 재설정 인증번호 발송
+export const sendPasswordResetCode = (data: PasswordResetSendCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/password-reset/send-code",
+    data
+  );
+
+// 비밀번호 재설정
+export const resetPassword = (data: PasswordResetRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/password-reset",
+    data
+  );
+
+//회원가입 인증번호 발송
+export interface SignupSendCodeRequest {
+  email: string;
+}
+
+export const sendSignupCode = (data: SignupSendCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/signup/send-code",
+    data
+  );
+
+//회원가입 인증번호 검증
+export const verifySignupCode = (data: VerifyCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/auth/signup/verify-code",
+    data
+  );

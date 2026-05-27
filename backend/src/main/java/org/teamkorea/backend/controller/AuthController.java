@@ -41,6 +41,16 @@ public class AuthController {
                                 BaseResponse.success("회원가입 인증번호가 이메일로 발송되었습니다.", null));
         }
 
+        @PostMapping("/signup/verify-code")
+        public ResponseEntity<BaseResponse<Void>> verifySignupCode(
+                        @Valid @RequestBody VerifyCodeRequestDto request) {
+
+                authService.verifySignupCode(request);
+
+                return ResponseEntity.ok(
+                                BaseResponse.success("이메일 인증이 완료되었습니다.", null));
+        }
+
         @PostMapping("/signup")
         public ResponseEntity<BaseResponse<SignupResponseDto>> signup(
                         @Valid @RequestBody SignupRequestDto requestDto) {
