@@ -73,8 +73,13 @@ public class EmailAccount {
         this.lastSyncedAt = LocalDateTime.now();
     }
 
-    // 이메일 동기화 실패 시 상태 갱신
+    /// 이메일 동기화 실패 시 상태 갱신
     public void updateSyncFailed() {
         this.lastSyncStatus = "FAILED";
+    }
+
+    // 이메일 계정 비활성화
+    public void deactivate() {
+        this.active = false;
     }
 }

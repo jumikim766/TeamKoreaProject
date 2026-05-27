@@ -18,8 +18,9 @@ public class EmailSyncScheduler {
     private final EmailAccountRepository emailAccountRepository;
     private final EmailAccountService emailAccountService;
 
-    // active = true 계정만 1분 간격으로 자동 동기화
-    // @Scheduled(fixedDelay = 60_000)
+    // 자동 sync는 너무 자주 돌리면 IMAP 서버 차단 위험과 서버 부하가 커짐
+    // 30분 간격으로 자동 동기화 실행
+    @Scheduled(fixedDelay = 1_800_000)
     public void syncActiveEmailAccounts() {
         List<EmailAccount> activeAccounts = emailAccountRepository.findByActiveTrue();
 
