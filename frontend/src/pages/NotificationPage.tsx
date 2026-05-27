@@ -90,9 +90,7 @@ function NotificationPage({
   const fetchUnreadCount = async () => {
     try {
       const count = await getUnreadCount();
-
       setUnreadCount(count);
-
       window.dispatchEvent(new Event('notification-updated'));
     } catch {
       showErrorOnce('알림 정보를 불러오지 못했습니다.');
@@ -104,7 +102,6 @@ function NotificationPage({
       setLoading(true);
 
       const data = await getNotifications();
-
       const converted = data.map(convertNotification);
 
       setNotifications(converted);
@@ -122,10 +119,11 @@ function NotificationPage({
   };
 
   useEffect(() => {
-  if (!isLoggedIn) return;
+    if (!isLoggedIn) return;
 
-  fetchUnreadCount();
-}, [isLoggedIn, currentView]);
+    
+    fetchUnreadCount();
+  }, [isLoggedIn, currentView]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -276,7 +274,6 @@ function NotificationPage({
                             </div>
 
                             <strong>{item.title}</strong>
-
                             <p>{item.summary}</p>
                           </button>
                         ))
@@ -325,7 +322,6 @@ function NotificationPage({
                   <div className="notification-setting-row">
                     <div>
                       <strong>위험 URL 탐지 알림</strong>
-
                       <p>고위험 URL이 새로 탐지되면 알림을 받습니다.</p>
                     </div>
 
