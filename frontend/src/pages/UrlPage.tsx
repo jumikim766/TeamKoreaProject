@@ -33,16 +33,6 @@ type PageViewTarget =
   | "privacy"
   | "security-contact";
 
-interface UrlItem {
-  id: number;
-  sender?: string;
-  link: string;
-  date: string;
-  time: string;
-  risk: string;
-  reason: string[];
-}
-
 interface UrlPageProps {
   theme: ThemeMode;
   currentView: UrlViewMode;
@@ -58,57 +48,6 @@ interface UrlPageProps {
 }
 
 const PAGE_SIZE = 20;
-
-const myUrlItems: UrlItem[] = Array.from({ length: 26 }, (_, index) => ({
-  id: index + 1,
-  sender: index % 2 === 0 ? "보안팀" : "알 수 없는 발신자",
-  link:
-    index % 3 === 0
-      ? `http://danger-example-${index + 1}.com/login`
-      : `https://safe-example-${index + 1}.com/document`,
-  date: `03.${String(25 - (index % 10)).padStart(2, "0")}`,
-  time: `${String(12 - (index % 5)).padStart(2, "0")}:34`,
-  risk:
-    index % 5 === 0
-      ? "심각"
-      : index % 5 === 1
-        ? "위험"
-        : index % 5 === 2
-          ? "주의"
-          : index % 5 === 3
-            ? "의심"
-            : "안전",
-  reason: [
-    "URL의 도메인 패턴과 접속 유도 방식이 분석되었습니다.",
-    "메일 본문에서 사용자를 외부 페이지로 이동시키는 링크로 탐지되었습니다.",
-    "접속 전 발신자, 도메인, 요청 내용을 확인하는 것이 좋습니다.",
-  ],
-}));
-
-const urlLibraryItems: UrlItem[] = Array.from({ length: 33 }, (_, index) => ({
-  id: index + 1,
-  link:
-    index % 4 === 0
-      ? `http://public-danger-${index + 1}.com/verify`
-      : `https://public-url-${index + 1}.com/info`,
-  date: `03.${String(25 - (index % 12)).padStart(2, "0")}`,
-  time: `${String(10 + (index % 8)).padStart(2, "0")}:21`,
-  risk:
-    index % 5 === 0
-      ? "심각"
-      : index % 5 === 1
-        ? "위험"
-        : index % 5 === 2
-          ? "주의"
-          : index % 5 === 3
-            ? "의심"
-            : "안전",
-  reason: [
-    "전체 회원의 링크 분석 데이터에서 수집된 URL입니다.",
-    "동일하거나 유사한 패턴의 URL이 여러 번 탐지되었습니다.",
-    "위험도는 URL 패턴, 신고 여부, 분석 결과를 기준으로 표시됩니다.",
-  ],
-}));
 
 const pageInfo = {
   "url-statistics": {
@@ -177,75 +116,64 @@ function UrlPage({
   onNavigate,
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
-const [currentPage, setCurrentPage] = useState(1);
-const [myUrls, setMyUrls] = useState<MyUrlItem[]>([]);
-const [allUrls, setAllUrls] = useState<UrlListItem[]>([]);
-const [myStats, setMyStats] = useState<UrlStatistics | null>(null);
-const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
-const [myTodayStats, setMyTodayStats] = useState<UrlStatistics | null>(null);
-const [allTodayStats, setAllTodayStats] = useState<UrlStatistics | null>(null);
-const [loading, setLoading] = useState(false);
-const [selectedAccount, setSelectedAccount] = useState('전체 계정');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [myUrls, setMyUrls] = useState<MyUrlItem[]>([]);
+  const [allUrls, setAllUrls] = useState<UrlListItem[]>([]);
+  const [myStats, setMyStats] = useState<UrlStatistics | null>(null);
+  const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState("전체 계정");
 
-useEffect(() => {
-  const fetchUrlData = async () => {
-    try {
-      setLoading(true);
+  useEffect(() => {
+    const fetchUrlData = async () => {
+      try {
+        if (currentView === "my-url") {
+          const data = await getMyUrls({
+            page: currentPage - 1,
+            size: PAGE_SIZE,
+          });
 
-      if (currentView === 'my-url') {
-        const data = await getMyUrls({
-          page: currentPage - 1,
-          size: PAGE_SIZE,
-        });
+          setMyUrls(data.urls ?? []);
+        }
 
-        setMyUrls(data.urls ?? []);
+        if (currentView === "url-library") {
+          const data = await getUrls({
+            page: currentPage - 1,
+            size: PAGE_SIZE,
+          });
+
+          setAllUrls(data.urls ?? []);
+        }
+
+        if (currentView === "url-statistics") {
+          const [my, all] = await Promise.all([
+            getUrlStatistics({ scope: "MY", period: "ALL" }),
+            getUrlStatistics({ scope: "ALL", period: "ALL" }),
+          ]);
+
+          setMyStats(my);
+          setAllStats(all);
+        }
+      } catch (error) {
+        console.error("URL 분석 결과 조회 실패:", error);
       }
     };
 
     fetchUrlData();
   }, [currentView, currentPage]);
 
-        setAllUrls(data.urls ?? []);
-      }
+  const chartData = (stats: UrlStatistics | null) => [
+    { name: "CRITICAL", value: stats?.criticalCount ?? 0 },
+    { name: "DANGER", value: stats?.dangerCount ?? 0 },
+    { name: "WARNING", value: stats?.warningCount ?? 0 },
+    { name: "SUSPICIOUS", value: stats?.suspiciousCount ?? 0 },
+    { name: "SAFE", value: stats?.safeCount ?? 0 },
+  ];
 
-      if (currentView === 'url-statistics') {
-         const [my, all, myToday, allToday] = await Promise.all([
-          getUrlStatistics({ scope: 'MY', period: 'ALL' }),
-          getUrlStatistics({ scope: 'ALL', period: 'ALL' }),
-          getUrlStatistics({ scope: 'MY', period: 'TODAY' }),
-          getUrlStatistics({ scope: 'ALL', period: 'TODAY' }),
-            ]);
+  const myHighRiskCount =
+    (myStats?.criticalCount ?? 0) + (myStats?.dangerCount ?? 0);
 
-          setMyStats(my);
-          setAllStats(all);
-          setMyTodayStats(myToday);
-          setAllTodayStats(allToday);
-        }
-    } catch (error) {
-      console.error('URL 분석 결과 조회 실패:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchUrlData();
-}, [currentView, currentPage]);
-
-const chartData = (stats: UrlStatistics | null) => [
-  { name: 'CRITICAL', value: stats?.criticalCount ?? 0 },
-  { name: 'DANGER', value: stats?.dangerCount ?? 0 },
-  { name: 'WARNING', value: stats?.warningCount ?? 0 },
-  { name: 'SUSPICIOUS', value: stats?.suspiciousCount ?? 0 },
-  { name: 'SAFE', value: stats?.safeCount ?? 0 },
-];
-
-const myHighRiskCount =
-  (myStats?.criticalCount ?? 0) + (myStats?.dangerCount ?? 0);
-
-const allTotalCount = allStats?.totalCount ?? 0;
-const myTotalCount = myStats?.totalCount ?? 0;
-const myTodayTotalCount = myTodayStats?.totalCount ?? 0;
-const allTodayTotalCount = allTodayStats?.totalCount ?? 0;
+  const allTotalCount = allStats?.totalCount ?? 0;
+  const myTotalCount = myStats?.totalCount ?? 0;
 
   const isStatistics = currentView === 'url-statistics';
   const isMyUrl = currentView === 'my-url';

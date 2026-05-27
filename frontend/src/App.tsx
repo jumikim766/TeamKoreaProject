@@ -127,6 +127,13 @@ function App() {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("theme-mode", theme);
   }, [theme]);
+  const refreshLoginState = () => {
+    const hasToken = Boolean(getAccessToken());
+
+    setIsLoggedIn(hasToken);
+    setUserName(hasToken ? getSavedUserName() : "사용자");
+  };
+
 
   useEffect(() => {
     const handlePopState = () => {
@@ -141,13 +148,7 @@ function App() {
     };
   }, []);
 
-  const refreshLoginState = () => {
-    const hasToken = Boolean(getAccessToken());
-
-    setIsLoggedIn(hasToken);
-    setUserName(hasToken ? getSavedUserName() : "사용자");
-  };
-
+  
   const protectedViews: ViewMode[] = ["notifications", "notification-settings"];
 
 const handleNavigate = (nextView: ViewMode, replace = false) => {
