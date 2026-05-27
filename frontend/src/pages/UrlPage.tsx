@@ -1,9 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import ChartBox from '../components/ChartBox';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import "../styles/UrlPage.css";
 import { getRiskClassName, getRiskLabel, type RiskLevelLabel } from '../utils/riskLevel';
+import {
+  getMyUrls,
+  analyzeUrlWithLlm,
+  type MyUrlItem,
+  type LlmAnalysisResponse,
+} from '../api/urlApi';
 
 type ThemeMode = 'light' | 'dark';
 type UrlViewMode = 'my-url' | 'url-library';
@@ -24,16 +30,6 @@ type PageViewTarget =
   | 'privacy'
   | 'security-contact';
 
-interface UrlItem {
-  id: number;
-  sender?: string;
-  link: string;
-  date: string;
-  time: string;
-  risk: RiskLevelLabel;
-  reason: string[];
-}
-
 interface UrlPageProps {
   theme: ThemeMode;
   currentView: UrlViewMode;
@@ -47,63 +43,6 @@ interface UrlPageProps {
   onGoMyPage: () => void;
   onNavigate: (view: PageViewTarget) => void;
 }
-
-const myUrlItems: UrlItem[] = [
-  {
-    id: 1,
-    sender: 'XXX',
-    link: 'http://www.xxxyyyzzz.com/@@@###$$$%%%',
-    date: '03.25',
-    time: '12:34',
-    risk: '심각',
-    reason: [
-      '해당 URL은 피싱 위험이 높은 주소 패턴으로 분석되었습니다.',
-      '비정상적으로 긴 특수문자 조합이 포함되어 있습니다.',
-      '사용자 정보 입력을 유도할 가능성이 있습니다.',
-      '접속 전 링크 출처를 반드시 확인해야 합니다.',
-    ],
-  },
-  {
-    id: 2,
-    sender: '보안팀',
-    link: 'https://safe-example.com/document',
-    date: '03.25',
-    time: '10:20',
-    risk: '안전',
-    reason: [
-      '정상적인 HTTPS 연결을 사용하는 URL입니다.',
-      '현재까지 악성코드 유포 이력이나 피싱 신고 이력이 발견되지 않았습니다.',
-      '다만 외부 링크 접속 시에는 항상 도메인을 확인하는 것이 좋습니다.',
-    ],
-  },
-];
-
-const urlLibraryItems: UrlItem[] = [
-  {
-    id: 1,
-    link: 'http://www.xxxyyyzzz.com/@@@###$$$%%%',
-    date: '03.25',
-    time: '12:34',
-    risk: '심각',
-    reason: [
-      '여러 사용자에게 반복적으로 탐지된 고위험 URL입니다.',
-      '피싱 사이트와 유사한 도메인 패턴을 사용하고 있습니다.',
-      '개인정보 탈취 시도 가능성이 있어 접속을 피하는 것이 좋습니다.',
-    ],
-  },
-  {
-    id: 2,
-    link: 'https://warning-example.com/event',
-    date: '03.24',
-    time: '09:21',
-    risk: '주의',
-    reason: [
-      'URL 자체는 접속 가능하지만 출처 신뢰도가 낮습니다.',
-      '이벤트, 쿠폰, 로그인 유도 문구가 포함된 페이지로 연결될 수 있습니다.',
-      '접속 전 발신자와 도메인을 확인하는 것이 필요합니다.',
-    ],
-  },
-];
 
 const chartData = [
   { name: '심각', value: 1234 },
@@ -128,17 +67,50 @@ function UrlPage({
 }: UrlPageProps) {
   const [selectedAccount, setSelectedAccount] = useState('1234@5678.com');
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
+  const [urlItems, setUrlItems] = useState<MyUrlItem[]>([]);
+  const [llmResult, setLlmResult] = useState<LlmAnalysisResponse | null>(null);
+  const [analyzingUrlId, setAnalyzingUrlId] = useState<number | null>(null);
+  const [selectedLlmUrlId, setSelectedLlmUrlId] = useState<number | null>(null);
 
   const isMyUrl = currentView === 'my-url';
 
-  const urlItems = useMemo(() => {
-    const items = isMyUrl ? myUrlItems : urlLibraryItems;
+  useEffect(() => {
+    const fetchUrls = async () => {
+      try {
+        const response = await getMyUrls({
+          page: 0,
+          size: 20,
+        });
 
-    return [...items].sort((a, b) => b.id - a.id);
-  }, [isMyUrl]);
+        setUrlItems(response.urls);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchUrls();
+  }, []);
 
   const handleToggleReason = (id: number) => {
     setOpenedUrlId((prevId) => (prevId === id ? null : id));
+  };
+
+  const handleLlmAnalyze = async (urlId: number) => {
+    try {
+      setAnalyzingUrlId(urlId);
+
+      const result = await analyzeUrlWithLlm(urlId);
+
+      setLlmResult(result);
+      setSelectedLlmUrlId(urlId);
+
+      alert('LLM 분석이 완료되었습니다.');
+    } catch (error) {
+      console.error(error);
+      alert('LLM 분석 중 오류가 발생했습니다.');
+    } finally {
+      setAnalyzingUrlId(null);
+    }
   };
 
   return (
@@ -248,11 +220,11 @@ function UrlPage({
 
                 <div className="url-table-body">
                   {urlItems.map((item, index) => {
-                    const isOpened = openedUrlId === item.id;
+                    const isOpened = openedUrlId === item.urlId;
                     const displayNumber = urlItems.length - index;
 
                     return (
-                      <div className="url-row-block" key={item.id}>
+                      <div className="url-row-block" key={item.urlId}>
                         <div
                           className={
                             isMyUrl
@@ -264,36 +236,58 @@ function UrlPage({
 
                           {isMyUrl && (
                             <span>
-                              <strong>{item.sender}</strong>
+                              <strong>{item.senderName ?? '알 수 없음'}</strong>
                             </span>
                           )}
 
-                          <span className="url-link-text">{item.link}</span>
+                          <span className="url-link-text">{item.normalizedUrl}</span>
 
                           <span>
-                            {item.date} {item.time}
+                            {new Date(item.createdAt).toLocaleString()}
                           </span>
 
                           <span>
-                            <span className={`risk-badge ${getRiskClassName(item.risk)}`}>
-                              {getRiskLabel(item.risk)}
+                            <span
+                              className={`risk-badge ${getRiskClassName(
+                                item.riskLevel as RiskLevelLabel
+                              )}`}
+                            >
+                              {getRiskLabel(item.riskLevel as RiskLevelLabel)}
                             </span>
                           </span>
 
                           <button
                             className="url-detail-toggle"
-                            onClick={() => handleToggleReason(item.id)}
+                            onClick={() => handleToggleReason(item.urlId)}
                             type="button"
                             aria-label={isOpened ? 'URL 설명 닫기' : 'URL 설명 열기'}
                           >
                             {isOpened ? '−' : '+'}
                           </button>
+
+                          <button
+                            className="url-detail-toggle"
+                            onClick={() => handleLlmAnalyze(item.urlId)}
+                            type="button"
+                          >
+                            {analyzingUrlId === item.urlId ? '분석 중...' : 'LLM 분석'}
+                          </button>
                         </div>
 
                         {isOpened && (
                           <div className="url-risk-reason-box">
-                            {item.reason.map((reason) => (
-                              <p key={reason}>· {reason}</p>
+                            <p>· {item.reasonSummary ?? '분석 설명이 없습니다.'}</p>
+                          </div>
+                        )}
+
+                        {llmResult && selectedLlmUrlId === item.urlId && (
+                          <div className="url-risk-reason-box">
+                            <p>위험도: {llmResult.risk}</p>
+                            <p>점수: {llmResult.score}</p>
+                            <p>{llmResult.reasonSummary}</p>
+
+                            {llmResult.detectedRules.map((rule) => (
+                              <p key={rule}>• {rule}</p>
                             ))}
                           </div>
                         )}

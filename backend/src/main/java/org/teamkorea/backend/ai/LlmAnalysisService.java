@@ -34,7 +34,10 @@ public class LlmAnalysisService {
                 url,
                 domain,
                 calculatedRisk,
-                calculatedScore
+                calculatedScore,
+                detectedRules,
+                null,
+                null
         );
 
         String reason = llmClient.call(prompt);
@@ -47,7 +50,71 @@ public class LlmAnalysisService {
                 calculatedRisk,
                 reason,
                 calculatedScore,
-                detectedRules
+                detectedRules,
+                calculatedRisk,
+                0.5,
+                false,
+                "의심스러운 링크는 클릭하지 말고 공식 홈페이지나 앱을 통해 직접 접속하세요."
+        );
+    }
+
+    public LlmAnalysisResponse analyzeWithContext(
+            String url,
+            String domain,
+            String ruleRisk,
+            double ruleScore,
+            List<String> detectedRules,
+            String emailSubject,
+            String emailBody
+    ) {
+        String prompt = LlmPromptBuilder.buildPrompt(
+                url,
+                domain,
+                ruleRisk,
+                ruleScore,
+                detectedRules,
+                emailSubject,
+                emailBody
+        );
+
+        String llmText = llmClient.call(prompt);
+
+        String llmRiskOpinion = extractJsonString(llmText, "llmRiskOpinion", ruleRisk);
+        double confidence = extractJsonDouble(llmText, "confidence", 0.5);
+        boolean falsePositivePossibility =
+                extractJsonBoolean(llmText, "falsePositivePossibility", false);
+
+        String reason = extractJsonString(
+                llmText,
+                "reason",
+                createFallbackReason(ruleRisk, detectedRules)
+        );
+
+        String recommendation = extractJsonString(
+                llmText,
+                "recommendation",
+                "의심스러운 링크는 클릭하지 말고 공식 홈페이지나 앱을 통해 직접 접속하세요."
+        );
+
+        double finalScore = ruleScore;
+
+        if ("DANGER".equals(llmRiskOpinion) && ruleScore < 70) {
+            finalScore = Math.max(ruleScore, 70);
+        } else if ("WARNING".equals(llmRiskOpinion) && ruleScore < 30) {
+            finalScore = Math.max(ruleScore, 30);
+        }
+
+        String finalRisk = determineFinalRisk(finalScore);
+
+        return new LlmAnalysisResponse(
+                finalRisk,
+                reason,
+                finalScore,
+                detectedRules,
+                llmRiskOpinion,
+                confidence,
+                falsePositivePossibility,
+                recommendation
         );
     }
 
@@ -196,17 +263,17 @@ public class LlmAnalysisService {
             calculatedScore += 40;
         }
 
-        String domain = extractDomain(url);
+        String extractedDomain = extractDomain(url);
 
-        if (domain != null && domain.length() >= 30) {
+        if (extractedDomain != null && extractedDomain.length() >= 30) {
             calculatedScore += 15;
         }
 
-        if (domain != null && domain.chars().filter(ch -> ch == '-').count() >= 2) {
+        if (extractedDomain != null && extractedDomain.chars().filter(ch -> ch == '-').count() >= 2) {
             calculatedScore += 15;
         }
 
-        if (domain != null && domain.split("\\.").length >= 4) {
+        if (extractedDomain != null && extractedDomain.split("\\.").length >= 4) {
             calculatedScore += 15;
         }
 
@@ -236,4 +303,71 @@ public class LlmAnalysisService {
             return null;
         }
     }
+private String extractJsonString(String text, String key, String defaultValue) {
+    if (text == null || text.isBlank()) {
+        return defaultValue;
+    }
+
+    try {
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*\"([^\"]*)\""
+        );
+
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        return defaultValue;
+    } catch (Exception e) {
+        return defaultValue;
+    }
+}
+
+private double extractJsonDouble(String text, String key, double defaultValue) {
+    if (text == null || text.isBlank()) {
+        return defaultValue;
+    }
+
+    try {
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*([0-9.]+)"
+        );
+
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+
+        if (matcher.find()) {
+            return Double.parseDouble(matcher.group(1));
+        }
+
+        return defaultValue;
+    } catch (Exception e) {
+        return defaultValue;
+    }
+}
+
+private boolean extractJsonBoolean(String text, String key, boolean defaultValue) {
+    if (text == null || text.isBlank()) {
+        return defaultValue;
+    }
+
+    try {
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+                "\"" + key + "\"\\s*:\\s*(true|false)"
+        );
+
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+
+        if (matcher.find()) {
+            return Boolean.parseBoolean(matcher.group(1));
+        }
+
+        return defaultValue;
+    } catch (Exception e) {
+        return defaultValue;
+    }
+}
+    
+
 }

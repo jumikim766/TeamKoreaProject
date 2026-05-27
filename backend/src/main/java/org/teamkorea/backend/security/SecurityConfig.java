@@ -76,7 +76,9 @@ public class SecurityConfig {
                                                                 "/api/auth/password-reset",
                                                                 "/api/llm/test",
                                                                 "/api/url-analysis/llm/url/**",
-                                                                "/api/llm/url/**")
+                                                                "/api/llm/url/**",
+                                                                "/api/openai/**",
+                                                                "/api/test/**")
                                                 .permitAll()
                                                 .anyRequest().authenticated())
                                 .oauth2Login(oauth -> oauth

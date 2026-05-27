@@ -158,12 +158,24 @@ export const getUrlStatistics = async (params?: UrlStatisticsParams) => {
 
   return response.data.data as UrlStatistics;
 };
+export interface LlmAnalysisResponse {
+  risk: string;
+  reasonSummary: string;
+  score: number;
+  detectedRules: string[];
+}
 
-// URL API 모음
-// 프론트에서 urlApi.getUrls() 이런 식으로 쓰고 싶으면 이 객체 사용하면 됨
+export const analyzeUrlWithLlm = async (urlId: number) => {
+  const response = await apiClient.get(`/api/url-analysis/llm/url/${urlId}`);
+  return response.data.data as LlmAnalysisResponse;
+};
+
 export const urlApi = {
   getUrls,
   getUrlDetail,
   getMyUrls,
   getUrlStatistics,
+  analyzeUrlWithLlm,
 };
+
+

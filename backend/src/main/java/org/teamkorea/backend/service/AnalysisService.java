@@ -14,6 +14,8 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
+import org.teamkorea.backend.ai.LlmAnalysisService;
+import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
 
 @Service
 @Transactional
@@ -26,6 +28,7 @@ public class AnalysisService {
     private final AnalysisHistoryRepository analysisHistoryRepository;
     private final NotificationRepository notificationRepository;
     private final DomainReputationRepository domainReputationRepository;
+    private final LlmAnalysisService llmAnalysisService;
 
     private static final String CURRENT_RULE_VERSION = "ruleset-1.2.0"; // 점수 보정 버전 업
 
@@ -139,6 +142,233 @@ public class AnalysisService {
         
         return savedAnalysis;
     }
+    public UrlAnalysis analyzeWithLlmAndSave(
+        Long userId,
+        Long urlId,
+        String emailSubject,
+        String emailBody
+) {
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+    Url url = urlRepository.findById(urlId)
+            .orElseThrow(() -> new IllegalArgumentException("URL을 찾을 수 없습니다."));
+
+    String rawUrl = url.getNormalizedUrl();
+    String extractedDomain = extractDomain(rawUrl);
+
+    int ruleScore = 0;
+    List<String> ruleReasons = new ArrayList<>();
+
+    DomainReputation reputation =
+            domainReputationRepository.findByDomain(extractedDomain).orElse(null);
+
+    if (reputation != null && Boolean.TRUE.equals(reputation.getIsBlacklisted())) {
+        ruleScore = 100;
+        ruleReasons.add("블랙리스트에 등록된 악성 도메인");
+    } else if (reputation != null && Boolean.TRUE.equals(reputation.getIsWhitelisted())) {
+        ruleScore = 0;
+        ruleReasons.add("안전이 검증된 화이트리스트 도메인");
+    } else {
+        if (IP_PATTERN.matcher(extractedDomain).matches()) {
+            ruleScore += 50;
+            ruleReasons.add("도메인 대신 IP 주소 직접 사용");
+        }
+
+        if (!rawUrl.startsWith("https://")) {
+            ruleScore += 20;
+            ruleReasons.add("HTTPS 미사용");
+        }
+
+        if (rawUrl.length() > 75) {
+            ruleScore += 20;
+            ruleReasons.add("URL 길이 과다");
+        }
+
+        if (extractedDomain.chars().filter(ch -> ch == '-').count() >= 2) {
+            ruleScore += 15;
+            ruleReasons.add("하이픈 과다 사용");
+        }
+
+        if (extractedDomain.split("\\.").length >= 4) {
+            ruleScore += 15;
+            ruleReasons.add("서브도메인 과다 사용");
+        }
+
+        boolean hasSuspiciousTld =
+                SUSPICIOUS_TLDS.stream().anyMatch(extractedDomain::endsWith);
+
+        if (hasSuspiciousTld) {
+            ruleScore += 25;
+            ruleReasons.add("의심 TLD 사용");
+        }
+
+        String lowerUrl = rawUrl.toLowerCase();
+
+        if (lowerUrl.contains("login")) {
+            ruleScore += 20;
+            ruleReasons.add("login 키워드 포함");
+        }
+
+        if (lowerUrl.contains("verify")) {
+            ruleScore += 15;
+            ruleReasons.add("verify 키워드 포함");
+        }
+
+        if (lowerUrl.contains("password")) {
+            ruleScore += 20;
+            ruleReasons.add("password 키워드 포함");
+        }
+
+        if (lowerUrl.contains("account")) {
+            ruleScore += 15;
+            ruleReasons.add("account 키워드 포함");
+        }
+
+        if (lowerUrl.contains("secure")) {
+            ruleScore += 15;
+            ruleReasons.add("secure 키워드 포함");
+        }
+
+        if (
+                lowerUrl.contains("bank")
+                        || lowerUrl.contains("pay")
+                        || lowerUrl.contains("billing")
+                        || lowerUrl.contains("confirm")
+                        || lowerUrl.contains("update")
+        ) {
+            ruleScore += 20;
+            ruleReasons.add("금융/결제/인증 관련 키워드 포함");
+        }
+
+        if (
+                lowerUrl.contains("bit.ly")
+                        || lowerUrl.contains("tinyurl.com")
+                        || lowerUrl.contains("t.co")
+                        || lowerUrl.contains("url.kr")
+        ) {
+            ruleScore += 30;
+            ruleReasons.add("단축 URL 사용");
+        }
+
+        if (reputation != null && reputation.getTrustScoreValue() < 40.0) {
+            ruleScore += 15;
+            ruleReasons.add("도메인 평판 신뢰 점수 미달");
+        }
+    }
+
+    ruleScore = Math.min(ruleScore, 100);
+
+    String ruleRisk = determineRiskByFinalScore(ruleScore);
+
+   LlmAnalysisResponse llmResponse = llmAnalysisService.analyzeWithContext(
+        rawUrl,
+        extractedDomain,
+        ruleRisk,
+        ruleScore,
+        ruleReasons,
+        emailSubject,
+        emailBody
+);
+
+    String finalRisk = decideFinalRisk(ruleRisk, llmResponse.getRisk());
+    RiskLevel finalRiskLevel = convertRiskLevel(finalRisk);
+
+    double finalScore = Math.max(ruleScore, llmResponse.getScore());
+
+    if (ruleReasons.isEmpty()) {
+        ruleReasons.add("특이사항 없음");
+    }
+
+    String finalReasonSummary =
+        "1차 규칙 분석: " + String.join(", ", ruleReasons)
+                + " / LLM 판단: " + llmResponse.getReasonSummary()
+                + " / 대응 권고: " + llmResponse.getRecommendation();
+    UrlAnalysis analysis = UrlAnalysis.builder()
+            .url(url)
+            .domain(extractedDomain)
+            .sourceType("MAIL_LLM")
+            .riskLevel(finalRiskLevel)
+            .riskType(finalRiskLevel == RiskLevel.SAFE ? "NONE" : "PHISHING")
+            .score(BigDecimal.valueOf(finalScore))
+            .reasonSummary(finalReasonSummary)
+            .ruleVersion(CURRENT_RULE_VERSION)
+            .sslVerified(rawUrl.startsWith("https"))
+            .redirectionDepth(0)
+            .containsFormInput(false)
+            .featuresJson(
+        "{"
+                + "\"ruleReasons\":\"" + String.join(", ", ruleReasons) + "\","
+                + "\"llmRules\":\"" + String.join(", ", llmResponse.getDetectedRules()) + "\","
+                + "\"llmRiskOpinion\":\"" + llmResponse.getLlmRiskOpinion() + "\","
+                + "\"confidence\":" + llmResponse.getConfidence() + ","
+                + "\"falsePositivePossibility\":" + llmResponse.isFalsePositivePossibility() + ","
+                + "\"recommendation\":\"" + llmResponse.getRecommendation() + "\""
+                + "}"
+)
+            .analyzedAt(LocalDateTime.now())
+            .build();
+
+    UrlAnalysis savedAnalysis = urlAnalysisRepository.save(analysis);
+
+    analysisHistoryRepository.save(
+            AnalysisHistory.createHistory(user, savedAnalysis, "MAIL_LLM")
+    );
+
+    if (finalRiskLevel == RiskLevel.DANGER || finalRiskLevel == RiskLevel.CRITICAL) {
+        createRiskNotification(user, savedAnalysis);
+        sendDiscordAlert(savedAnalysis);
+    }
+
+    return savedAnalysis;
+}
+private String determineRiskByFinalScore(double score) {
+    if (score >= 70) {
+        return "DANGER";
+    }
+
+    if (score >= 30) {
+        return "WARNING";
+    }
+
+    return "SAFE";
+}
+
+private String decideFinalRisk(String ruleRisk, String llmRisk) {
+    if ("DANGER".equals(ruleRisk)) {
+        return "DANGER";
+    }
+
+    if ("WARNING".equals(ruleRisk) && "DANGER".equals(llmRisk)) {
+        return "DANGER";
+    }
+
+    if ("WARNING".equals(ruleRisk)) {
+        return "WARNING";
+    }
+
+    if ("SAFE".equals(ruleRisk) && "DANGER".equals(llmRisk)) {
+        return "WARNING";
+    }
+
+    if ("SAFE".equals(ruleRisk) && "WARNING".equals(llmRisk)) {
+        return "WARNING";
+    }
+
+    return "SAFE";
+}
+
+private RiskLevel convertRiskLevel(String risk) {
+    if ("DANGER".equals(risk)) {
+        return RiskLevel.DANGER;
+    }
+
+    if ("WARNING".equals(risk)) {
+        return RiskLevel.WARNING;
+    }
+
+    return RiskLevel.SAFE;
+}
 
     @Transactional(readOnly = true)
     public AnalysisDetailResponseDto getDetail(Long analysisId) {
