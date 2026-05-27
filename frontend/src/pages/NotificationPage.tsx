@@ -1,7 +1,5 @@
-
-
-
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ViewMode } from '../App';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import {
@@ -14,22 +12,6 @@ import '../styles/NotificationPage.css';
 
 type ThemeMode = 'light' | 'dark';
 type NotificationViewMode = 'notifications' | 'notification-settings';
-
-type PageViewTarget =
-  | 'my-mailbox'
-  | 'mail-connect'
-  | 'my-url'
-  | 'url-library'
-  | 'notifications'
-  | 'notification-settings'
-  | 'report-guide'
-  | 'report'
-  | 'classification-method'
-  | 'classification-criteria'
-  | 'service-info'
-  | 'terms'
-  | 'privacy'
-  | 'security-contact';
 
 interface NotificationItem {
   id: number;
@@ -52,14 +34,16 @@ interface NotificationPageProps {
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
-  onNavigate: (view: PageViewTarget) => void;
+  onNavigate: (view: ViewMode) => void;
 }
 
 const formatDate = (date: string) => {
   return new Date(date).toLocaleString('ko-KR');
 };
 
-const convertNotification = (item: NotificationResponse): NotificationItem => ({
+const convertNotification = (
+  item: NotificationResponse
+): NotificationItem => ({
   id: item.notificationId,
   title: item.title,
   summary: item.message,
@@ -82,28 +66,36 @@ function NotificationPage({
   onGoMyPage,
   onNavigate,
 }: NotificationPageProps) {
+  const hasShownErrorRef = useRef(false);
+
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [mailEnabled, setMailEnabled] = useState(true);
-  const [reportEnabled, setReportEnabled] = useState(true);
-  const [systemEnabled, setSystemEnabled] = useState(false);
 
   const selectedNotification = useMemo(
     () => notifications.find((item) => item.id === selectedId) ?? null,
-    [notifications, selectedId],
+    [notifications, selectedId]
   );
+
+  const showErrorOnce = (message: string) => {
+    if (!hasShownErrorRef.current) {
+      alert(message);
+      hasShownErrorRef.current = true;
+    }
+  };
 
   const fetchUnreadCount = async () => {
     try {
       const count = await getUnreadCount();
+
       setUnreadCount(count);
+
       window.dispatchEvent(new Event('notification-updated'));
-    } catch (error: any) {
-      alert(error.response?.data?.message || '읽지 않은 알림 개수를 불러오지 못했습니다.');
+    } catch {
+      showErrorOnce('알림 정보를 불러오지 못했습니다.');
     }
   };
 
@@ -112,6 +104,7 @@ function NotificationPage({
       setLoading(true);
 
       const data = await getNotifications();
+
       const converted = data.map(convertNotification);
 
       setNotifications(converted);
@@ -121,27 +114,25 @@ function NotificationPage({
       } else {
         setSelectedId(null);
       }
-    } catch (error: any) {
-      alert(error.response?.data?.message || '알림 목록을 불러오지 못했습니다.');
+    } catch {
+      showErrorOnce('알림 정보를 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+  if (!isLoggedIn) return;
 
-    fetchNotifications();
-    fetchUnreadCount();
-  }, [isLoggedIn, currentView]);
+  fetchUnreadCount();
+}, [isLoggedIn, currentView]);
 
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    const timer = window.setInterval(() => {
-      fetchNotifications();
-      fetchUnreadCount();
-    }, 30000);
+   const timer = window.setInterval(() => {
+  fetchUnreadCount();
+}, 30000);
 
     return () => window.clearInterval(timer);
   }, [isLoggedIn]);
@@ -157,14 +148,14 @@ function NotificationPage({
 
         setNotifications((prev) =>
           prev.map((item) =>
-            item.id === id ? { ...item, isRead: true } : item,
-          ),
+            item.id === id ? { ...item, isRead: true } : item
+          )
         );
 
         await fetchUnreadCount();
       }
-    } catch (error: any) {
-      alert(error.response?.data?.message || '알림 읽음 처리에 실패했습니다.');
+    } catch {
+      alert('알림 읽음 처리에 실패했습니다.');
     }
   };
 
@@ -179,17 +170,17 @@ function NotificationPage({
   return (
     <div className="dashboard-shell">
       <Header
-  currentView={currentView}
-  theme={theme}
-  isLoggedIn={isLoggedIn}
-  userName={userName}
-  onLogout={onLogout}
-  onGoHome={onGoHome}
-  onGoLogin={onGoLogin}
-  onGoSignup={onGoSignup}
-  onGoMyPage={onGoMyPage}
-  onToggleTheme={onToggleTheme}
-/>
+        currentView={currentView}
+        theme={theme}
+        isLoggedIn={isLoggedIn}
+        userName={userName}
+        onLogout={onLogout}
+        onGoHome={onGoHome}
+        onGoLogin={onGoLogin}
+        onGoSignup={onGoSignup}
+        onGoMyPage={onGoMyPage}
+        onToggleTheme={onToggleTheme}
+      />
 
       <Navbar onNavigate={onNavigate} />
 
@@ -229,13 +220,12 @@ function NotificationPage({
             </div>
           </aside>
 
-          <section className="page-content-card">
+          <section className="page-content">
             {currentView === 'notifications' ? (
               <div className="notification-section">
-                <div className="notification-summary-card">
+                <div className="page-head">
                   <div>
-                    <p className="eyebrow"></p>
-                    <h2>알림함</h2>
+                    <h1>알림함</h1>
                   </div>
 
                   <div className="notification-summary-badge">
@@ -286,6 +276,7 @@ function NotificationPage({
                             </div>
 
                             <strong>{item.title}</strong>
+
                             <p>{item.summary}</p>
                           </button>
                         ))
@@ -298,7 +289,6 @@ function NotificationPage({
                       <>
                         <div className="notification-detail-head">
                           <div>
-                            <p className="eyebrow"></p>
                             <h2>{selectedNotification.title}</h2>
                           </div>
 
@@ -328,7 +318,6 @@ function NotificationPage({
             ) : (
               <div className="notification-section">
                 <div className="page-head">
-                  <p className="eyebrow"></p>
                   <h1>알림 설정</h1>
                 </div>
 
@@ -336,6 +325,7 @@ function NotificationPage({
                   <div className="notification-setting-row">
                     <div>
                       <strong>위험 URL 탐지 알림</strong>
+
                       <p>고위험 URL이 새로 탐지되면 알림을 받습니다.</p>
                     </div>
 
@@ -343,56 +333,11 @@ function NotificationPage({
                       <input
                         type="checkbox"
                         checked={pushEnabled}
-                        onChange={(event) => setPushEnabled(event.target.checked)}
+                        onChange={(event) =>
+                          setPushEnabled(event.target.checked)
+                        }
                       />
-                      <span className="toggle-slider" />
-                    </label>
-                  </div>
 
-                  <div className="notification-setting-row">
-                    <div>
-                      <strong>이메일 연동 상태 알림</strong>
-                      <p>메일 연동 상태 변화나 동기화 오류 발생 시 알림을 받습니다.</p>
-                    </div>
-
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={mailEnabled}
-                        onChange={(event) => setMailEnabled(event.target.checked)}
-                      />
-                      <span className="toggle-slider" />
-                    </label>
-                  </div>
-
-                  <div className="notification-setting-row">
-                    <div>
-                      <strong>신고 처리 결과 알림</strong>
-                      <p>신고 접수 후 처리 상태가 변경되면 알림을 받습니다.</p>
-                    </div>
-
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={reportEnabled}
-                        onChange={(event) => setReportEnabled(event.target.checked)}
-                      />
-                      <span className="toggle-slider" />
-                    </label>
-                  </div>
-
-                  <div className="notification-setting-row">
-                    <div>
-                      <strong>시스템 점검 안내 알림</strong>
-                      <p>서비스 점검, 공지, 정책 변경 등의 알림을 받습니다.</p>
-                    </div>
-
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={systemEnabled}
-                        onChange={(event) => setSystemEnabled(event.target.checked)}
-                      />
                       <span className="toggle-slider" />
                     </label>
                   </div>
@@ -406,35 +351,14 @@ function NotificationPage({
                   >
                     저장하기
                   </button>
-
-                  <button className="secondary-button" type="button">
-                    취소
-                  </button>
                 </div>
               </div>
             )}
           </section>
         </div>
       </main>
-
-      <footer className="footer">
-        <button type="button" onClick={() => onNavigate('service-info')}>
-          서비스 소개
-        </button>
-        <button type="button" onClick={() => onNavigate('terms')}>
-          이용약관
-        </button>
-        <button type="button" onClick={() => onNavigate('privacy')}>
-          개인정보 처리방침
-        </button>
-        <button type="button" onClick={() => onNavigate('security-contact')}>
-          보안 문의
-        </button>
-      </footer>
     </div>
   );
 }
-
-
 
 export default NotificationPage;
