@@ -23,8 +23,12 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import jakarta.mail.internet.MimeUtility;
 import jakarta.mail.internet.InternetAddress;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailAccountService {
@@ -240,6 +244,7 @@ public class EmailAccountService {
 
                 // 메일 1건 처리 실패가 sync 전체를 죽이지 않게 try-catch로 감쌈
                 try {
+                    // 저장된 URL 개수 반환
                     int savedUrlCount = emailSaveService.saveEmailAndUrls(
                             userId,
                             account,
@@ -253,15 +258,17 @@ public class EmailAccountService {
                             receivedAt,
                             extractedUrls);
 
+                    // 저장 성공 시 카운트 증가
                     savedEmailCount++;
                     extractedUrlCount += savedUrlCount;
                 } catch (Exception perMailEx) {
                     skippedEmailCount++;
 
-                    // 지금은 원인 확인 단계라서 저장 실패 원인을 Postman에 바로 보여줌
-                    throw new BusinessException(
-                            ErrorCode.INTERNAL_ERROR,
-                            "메일 저장 실패: " + perMailEx.getClass().getSimpleName() + " : " + perMailEx.getMessage());
+                    // 메일 1건 저장 실패가 전체 sync 실패로 이어지지 않게 처리
+                    log.warn("[EMAIL SYNC] 메일 1건 저장 실패 - accountId={}, messageUid={}, reason={}",
+                            account.getAccountId(), messageUid, perMailEx.getMessage());
+
+                    continue;
                 }
             }
 
@@ -441,7 +448,10 @@ public class EmailAccountService {
             return "";
         }
 
+        // script/style 제거 후 HTML 태그 제거
         return html
+                .replaceAll("(?is)<script.*?>.*?</script>", "")
+                .replaceAll("(?is)<style.*?>.*?</style>", "")
                 .replaceAll("(?i)<br\\s*/?>", "\n")
                 .replaceAll("(?i)</p>", "\n")
                 .replaceAll("<[^>]*>", "")
@@ -454,8 +464,10 @@ public class EmailAccountService {
         Pattern pattern = Pattern.compile("https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+");
         Matcher matcher = pattern.matcher(text == null ? "" : text);
 
+        // 같은 메일 안에서 중복 URL 제거
         return matcher.results()
                 .map(match -> match.group())
+                .distinct()
                 .toList();
     }
 
@@ -489,7 +501,10 @@ public class EmailAccountService {
             }
 
             if (froms[0] instanceof InternetAddress internetAddress) {
-                return internetAddress.getPersonal();
+                // MIME 인코딩된 발신자 이름 디코딩
+                return internetAddress.getPersonal() != null
+                        ? MimeUtility.decodeText(internetAddress.getPersonal())
+                        : null;
             }
 
             return null;
