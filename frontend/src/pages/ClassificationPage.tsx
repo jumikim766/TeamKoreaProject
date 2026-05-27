@@ -26,8 +26,7 @@ type PageViewTarget =
   | "service-info"
   | "terms"
   | "privacy"
-  | "security-contact"
-  | "url-statistics";
+  | "security-contact";
 
 interface ClassificationItem {
   id: number;

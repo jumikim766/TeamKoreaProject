@@ -27,7 +27,6 @@ export type ViewMode =
   | "my-mailbox"
   | "mail-connect"
   | "my-url"
-  | "url-statistics"
   | "url-library"
   | "notifications"
   | "notification-settings"
@@ -48,7 +47,6 @@ const viewToPath: Record<ViewMode, string> = {
   mypage: "/mypage",
   "my-mailbox": "/my-mailbox",
   "mail-connect": "/mail-connect",
-  "url-statistics": "/url-statistics",
   "my-url": "/my-url",
   "url-library": "/url-library",
   notifications: "/notifications",
@@ -268,7 +266,6 @@ const handleNavigate = (nextView: ViewMode, replace = false) => {
   }
 
   if (
-  view === "url-statistics" ||
   view === "my-url" ||
   view === "url-library"
 ) {
