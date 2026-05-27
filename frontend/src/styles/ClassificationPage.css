@@ -1,195 +1,185 @@
 .classification-section {
-width: 100%;
-display: flex;
-flex-direction: column;
-gap: 22px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
-.classification-head h1 {
-margin-top: 10px;
-color: var(--text-strong);
-font-size: 34px;
-letter-spacing: -0.04em;
+.classification-list-card {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #ffffff;
 }
 
-.classification-card-grid {
-display: grid;
-grid-template-columns: repeat(2, minmax(0, 1fr));
-gap: 18px;
-}
-
-.classification-card,
-.classification-wide-card {
-border-radius: 20px;
-background: #ffffff;
-border: 1px solid var(--line);
-padding: 24px;
-box-shadow: none;
-}
-
-.classification-card h2,
-.classification-wide-card h2 {
-color: var(--text-strong);
-font-size: 24px;
-letter-spacing: -0.04em;
-}
-
-.classification-card p,
-.classification-wide-card p {
-margin-top: 14px;
-color: var(--text-body);
-line-height: 1.8;
-}
-
-.classification-risk-grid {
-display: grid;
-grid-template-columns: repeat(4, minmax(0, 1fr));
-gap: 14px;
-}
-
-.classification-risk-card {
-padding: 20px;
-border-radius: 18px;
-background: #ffffff;
-border: 1px solid var(--line);
-}
-
-.classification-risk-card strong {
-display: block;
-color: var(--text-strong);
-font-size: 18px;
-}
-
-.classification-risk-card p {
-margin-top: 10px;
-color: var(--text-body);
-line-height: 1.7;
-}
-
-.classification-table-card {
-border-radius: 20px;
-overflow: hidden;
-background: #ffffff;
-border: 1px solid var(--line);
-}
-
-.classification-table,
 .classification-table-header,
 .classification-table-row {
-display: grid;
-grid-template-columns: 1fr 1.2fr 2fr 1.2fr;
-align-items: stretch;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 0.8fr 0.8fr 2fr 0.7fr;
+  align-items: stretch;
 }
 
 .classification-table-header {
-background: #f8fbff;
-}
-
-.classification-table-header span,
-.classification-table-row span {
-min-height: 76px;
-padding: 18px 16px;
-display: flex;
-align-items: center;
-justify-content: center;
-text-align: center;
-border-bottom: 1px solid var(--line);
-}
-
-.classification-table-header span:not(:last-child),
-.classification-table-row span:not(:last-child) {
-border-right: 1px solid var(--line);
-}
-
-.classification-table-body {
-display: flex;
-flex-direction: column;
+  background: #f8fbff;
 }
 
 .classification-table-row {
-background: #ffffff;
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 0.8fr 0.8fr 2fr 0.7fr;
+  background: #ffffff;
+  cursor: default;
+  font: inherit;
 }
 
 .classification-table-row:hover {
-background: #eff6ff;
+  background: #eff6ff;
 }
 
-.classification-badge {
-display: inline-flex;
-align-items: center;
-justify-content: center;
-padding: 8px 12px;
-border-radius: 999px;
-font-size: 13px;
-font-weight: 800;
-white-space: nowrap;
+.classification-table-header > span,
+.classification-table-row > span {
+  box-sizing: border-box;
+  min-height: 84px;
+  padding: 12px 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--line);
 }
 
-.classification-safe {
-background: rgba(34, 197, 94, 0.16);
-color: #15803d;
+.classification-table-header > span:not(:last-child),
+.classification-table-row > span:not(:last-child) {
+  border-right: 1px solid var(--line);
 }
 
-.classification-warning {
-background: rgba(245, 158, 11, 0.16);
-color: #b45309;
+.classification-table-row > span:first-child {
+  flex-direction: column;
+  gap: 4px;
 }
 
-.classification-danger {
-background: rgba(255, 107, 87, 0.14);
-color: #c2410c;
+.classification-table-row strong {
+  display: block;
+  font-size: 15px;
+  color: var(--text-strong);
 }
 
-.classification-critical {
-background: rgba(127, 29, 29, 0.14);
-color: #991b1b;
+.classification-table-row small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
 }
 
-:root[data-theme='dark'] .classification-card,
-:root[data-theme='dark'] .classification-wide-card,
-:root[data-theme='dark'] .classification-risk-card,
-:root[data-theme='dark'] .classification-table-card {
-background: #3a3a3a;
-border-color: rgba(255, 255, 255, 0.08);
+.classification-detail-box {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 32px 28px;
+  background: #ffffff;
+
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-:root[data-theme='dark'] .classification-table-header {
-background: #474747;
+.classification-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 14px;
 }
 
-:root[data-theme='dark'] .classification-table-row {
-background: #3a3a3a;
+.classification-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-:root[data-theme='dark'] .classification-table-row:hover {
-background: #444444;
+.classification-detail-head h2 {
+  margin: 0;
+  padding: 0;
+  line-height: 36px;
 }
 
-@media (max-width: 1100px) {
-.classification-risk-grid {
-grid-template-columns: repeat(2, minmax(0, 1fr));
+.classification-detail-head .risk-badge {
+  width: 64px !important;
+  height: 36px !important;
+  min-width: 64px !important;
+  min-height: 36px !important;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1;
 }
+
+.classification-meta p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.classification-detail-card {
+  display: flex;
+  flex-direction: column;
+  margin-top: 18px;
+}
+
+.classification-badge,
+.classification-status-cell .risk-badge {
+  width: 84px !important;
+  height: 36px !important;
+  min-width: 84px !important;
+  min-height: 36px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 999px;
+
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:root[data-theme="dark"] .classification-list-card {
+  background: #3a3a3a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme="dark"] .classification-table-header {
+  background: #474747;
+}
+
+:root[data-theme="dark"] .classification-table-row {
+  background: #3a3a3a;
+}
+
+:root[data-theme="dark"] .classification-table-row:hover {
+  background: #444444;
 }
 
 @media (max-width: 900px) {
-.classification-card-grid {
-grid-template-columns: 1fr;
-}
+  .classification-table-header,
+  .classification-table-row {
+    grid-template-columns: 1fr;
+  }
 
-.classification-table,
-.classification-table-header,
-.classification-table-row {
-grid-template-columns: 1fr;
-}
-
-.classification-table-header span,
-.classification-table-row span {
-border-right: none !important;
-}
-}
-
-@media (max-width: 640px) {
-.classification-risk-grid {
-grid-template-columns: 1fr;
-}
+  .classification-table-header > span,
+  .classification-table-row > span,
+  .classification-table-row > .classification-status-cell {
+    border-right: none !important;
+  }
 }

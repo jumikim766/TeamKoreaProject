@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import ChartBox from '../components/ChartBox';
-import Header from '../components/Header';
-import Navbar from '../components/Navbar';
-import '../styles/UrlPage.css';
-import { getRiskClassName, getRiskLabel } from '../utils/riskLevel';
+import { useEffect, useMemo, useState } from "react";
+import ChartBox from "../components/ChartBox";
+import Header from "../components/Header";
+import Navbar from "../components/Navbar";
+import "../styles/UrlPage.css";
+import { getRiskClassName, getRiskLabel } from "../utils/riskLevel";
 import {
   getMyUrls,
   getUrls,
@@ -11,27 +11,27 @@ import {
   type MyUrlItem,
   type UrlListItem,
   type UrlStatistics,
-} from '../api/urlApi';
+} from "../api/urlApi";
 
-type ThemeMode = 'light' | 'dark';
-type UrlViewMode = 'url-statistics' | 'my-url' | 'url-library';
+type ThemeMode = "light" | "dark";
+type UrlViewMode = "url-statistics" | "my-url" | "url-library";
 
 type PageViewTarget =
-  | 'my-mailbox'
-  | 'mail-connect'
-  | 'url-statistics'
-  | 'my-url'
-  | 'url-library'
-  | 'notifications'
-  | 'notification-settings'
-  | 'report-guide'
-  | 'report'
-  | 'classification-method'
-  | 'classification-criteria'
-  | 'service-info'
-  | 'terms'
-  | 'privacy'
-  | 'security-contact';
+  | "my-mailbox"
+  | "mail-connect"
+  | "url-statistics"
+  | "my-url"
+  | "url-library"
+  | "notifications"
+  | "notification-settings"
+  | "report-guide"
+  | "report"
+  | "classification-method"
+  | "classification-criteria"
+  | "service-info"
+  | "terms"
+  | "privacy"
+  | "security-contact";
 
 interface UrlItem {
   id: number;
@@ -61,18 +61,27 @@ const PAGE_SIZE = 20;
 
 const myUrlItems: UrlItem[] = Array.from({ length: 26 }, (_, index) => ({
   id: index + 1,
-  sender: index % 2 === 0 ? '보안팀' : '알 수 없는 발신자',
+  sender: index % 2 === 0 ? "보안팀" : "알 수 없는 발신자",
   link:
     index % 3 === 0
       ? `http://danger-example-${index + 1}.com/login`
       : `https://safe-example-${index + 1}.com/document`,
-  date: `03.${String(25 - (index % 10)).padStart(2, '0')}`,
-  time: `${String(12 - (index % 5)).padStart(2, '0')}:34`,
-  risk: index % 5 === 0 ? '심각' : index % 5 === 1 ? '위험' : index % 5 === 2 ? '주의' : index % 5 === 3 ? '의심' : '안전',
+  date: `03.${String(25 - (index % 10)).padStart(2, "0")}`,
+  time: `${String(12 - (index % 5)).padStart(2, "0")}:34`,
+  risk:
+    index % 5 === 0
+      ? "심각"
+      : index % 5 === 1
+        ? "위험"
+        : index % 5 === 2
+          ? "주의"
+          : index % 5 === 3
+            ? "의심"
+            : "안전",
   reason: [
-    'URL의 도메인 패턴과 접속 유도 방식이 분석되었습니다.',
-    '메일 본문에서 사용자를 외부 페이지로 이동시키는 링크로 탐지되었습니다.',
-    '접속 전 발신자, 도메인, 요청 내용을 확인하는 것이 좋습니다.',
+    "URL의 도메인 패턴과 접속 유도 방식이 분석되었습니다.",
+    "메일 본문에서 사용자를 외부 페이지로 이동시키는 링크로 탐지되었습니다.",
+    "접속 전 발신자, 도메인, 요청 내용을 확인하는 것이 좋습니다.",
   ],
 }));
 
@@ -82,35 +91,54 @@ const urlLibraryItems: UrlItem[] = Array.from({ length: 33 }, (_, index) => ({
     index % 4 === 0
       ? `http://public-danger-${index + 1}.com/verify`
       : `https://public-url-${index + 1}.com/info`,
-  date: `03.${String(25 - (index % 12)).padStart(2, '0')}`,
-  time: `${String(10 + (index % 8)).padStart(2, '0')}:21`,
-  risk: index % 5 === 0 ? '심각' : index % 5 === 1 ? '위험' : index % 5 === 2 ? '주의' : index % 5 === 3 ? '의심' : '안전',
+  date: `03.${String(25 - (index % 12)).padStart(2, "0")}`,
+  time: `${String(10 + (index % 8)).padStart(2, "0")}:21`,
+  risk:
+    index % 5 === 0
+      ? "심각"
+      : index % 5 === 1
+        ? "위험"
+        : index % 5 === 2
+          ? "주의"
+          : index % 5 === 3
+            ? "의심"
+            : "안전",
   reason: [
-    '전체 회원의 링크 분석 데이터에서 수집된 URL입니다.',
-    '동일하거나 유사한 패턴의 URL이 여러 번 탐지되었습니다.',
-    '위험도는 URL 패턴, 신고 여부, 분석 결과를 기준으로 표시됩니다.',
+    "전체 회원의 링크 분석 데이터에서 수집된 URL입니다.",
+    "동일하거나 유사한 패턴의 URL이 여러 번 탐지되었습니다.",
+    "위험도는 URL 패턴, 신고 여부, 분석 결과를 기준으로 표시됩니다.",
   ],
 }));
 
 const pageInfo = {
-  'url-statistics': {
-    title: 'URL 통계',
+  "url-statistics": {
+    title: "URL 통계",
     description:
-      '내 이메일에 포함된 링크의 위험도를 분석하고, 전체 회원의 통계와 비교해 내 이메일 환경이 얼마나 안전한지 한눈에 확인하세요.',
+      "내 이메일에 포함된 링크의 위험도를 분석하고, 전체 회원의 통계와 비교해 내 이메일 환경이 얼마나 안전한지 한눈에 확인하세요.",
   },
-  'my-url': {
-    title: '나의 URL',
-    description: '내 이메일 링크 분석',
+  "my-url": {
+    title: "나의 URL",
+    description: "내 이메일 링크 분석",
   },
-  'url-library': {
-    title: '전체 URL 모음',
-    description: '전체 회원 링크 통계',
+  "url-library": {
+    title: "전체 URL 모음",
+    description: "전체 회원 링크 통계",
   },
 };
 
 function PlusIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M5 12h14" />
       <path d="M12 5v14" />
     </svg>
@@ -119,7 +147,17 @@ function PlusIcon() {
 
 function MinusIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M5 12h14" />
     </svg>
   );
@@ -129,7 +167,7 @@ function UrlPage({
   theme,
   currentView,
   isLoggedIn = false,
-  userName = '팀코',
+  userName = "팀코",
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -162,12 +200,10 @@ useEffect(() => {
 
         setMyUrls(data.urls ?? []);
       }
+    };
 
-      if (currentView === 'url-library') {
-        const data = await getUrls({
-          page: currentPage - 1,
-          size: PAGE_SIZE,
-        });
+    fetchUrlData();
+  }, [currentView, currentPage]);
 
         setAllUrls(data.urls ?? []);
       }
@@ -215,14 +251,11 @@ const allTodayTotalCount = allTodayStats?.totalCount ?? 0;
   const isMyUrl = currentView === 'my-url';
 
   const urlItems = useMemo(() => {
-  const items = isMyUrl ? myUrls : allUrls;
-  return [...items].sort((a, b) => b.urlId - a.urlId);
-}, [isMyUrl, myUrls, allUrls]);
+    const items = isMyUrl ? myUrls : allUrls;
+    return [...items].sort((a, b) => b.urlId - a.urlId);
+  }, [isMyUrl, myUrls, allUrls]);
 
-const totalPages = Math.max(
-  1,
-  Math.ceil(urlItems.length / PAGE_SIZE)
-);
+  const totalPages = Math.max(1, Math.ceil(urlItems.length / PAGE_SIZE));
 
   const pagedUrlItems = useMemo(() => {
     const startIndex = (currentPage - 1) * PAGE_SIZE;
@@ -266,15 +299,39 @@ const totalPages = Math.max(
             <div className="page-side-card">
               <div className="page-side-title">URL 관리</div>
 
-              <button className={currentView === 'url-statistics' ? 'side-menu-button is-active' : 'side-menu-button'} onClick={() => handleChangeMenu('url-statistics')} type="button">
+              <button
+                className={
+                  currentView === "url-statistics"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
+                }
+                onClick={() => handleChangeMenu("url-statistics")}
+                type="button"
+              >
                 URL 통계
               </button>
 
-              <button className={currentView === 'my-url' ? 'side-menu-button is-active' : 'side-menu-button'} onClick={() => handleChangeMenu('my-url')} type="button">
+              <button
+                className={
+                  currentView === "my-url"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
+                }
+                onClick={() => handleChangeMenu("my-url")}
+                type="button"
+              >
                 나의 URL
               </button>
 
-              <button className={currentView === 'url-library' ? 'side-menu-button is-active' : 'side-menu-button'} onClick={() => handleChangeMenu('url-library')} type="button">
+              <button
+                className={
+                  currentView === "url-library"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
+                }
+                onClick={() => handleChangeMenu("url-library")}
+                type="button"
+              >
                 전체 URL 모음
               </button>
             </div>
@@ -324,7 +381,13 @@ const totalPages = Math.max(
                 <>
                   {isMyUrl && (
                     <div className="url-top-bar">
-                      <select className="url-filter-select" value={selectedAccount} onChange={(event) => setSelectedAccount(event.target.value)}>
+                      <select
+                        className="url-filter-select"
+                        value={selectedAccount}
+                        onChange={(event) =>
+                          setSelectedAccount(event.target.value)
+                        }
+                      >
                         <option value="1234@5678.com">1234@5678.com</option>
                         <option value="8765@4321.com">8765@4321.com</option>
                         <option value="abcd@efgh.com">abcd@efgh.com</option>
@@ -335,14 +398,23 @@ const totalPages = Math.max(
                   <section className="url-list-card">
                     <div className="url-list-head">
                       <div>
-                        <h2 className="url-list-title">{pageInfo[currentView].title}</h2>
+                        <h2 className="url-list-title">
+                          {pageInfo[currentView].title}
+                        </h2>
                         <p className="url-list-count">
-                          총 <strong>{urlItems.length}</strong>건 · 최신 링크가 위에 표시됩니다.
+                          총 <strong>{urlItems.length}</strong>건 · 최신 링크가
+                          위에 표시됩니다.
                         </p>
                       </div>
                     </div>
 
-                    <div className={isMyUrl ? 'url-table-grid url-table-header-row' : 'url-table-grid url-library-table-grid url-table-header-row'}>
+                    <div
+                      className={
+                        isMyUrl
+                          ? "url-table-grid url-table-header-row"
+                          : "url-table-grid url-library-table-grid url-table-header-row"
+                      }
+                    >
                       <span>번호</span>
                       {isMyUrl && <span>보낸 사람</span>}
                       <span>URL</span>
@@ -353,37 +425,63 @@ const totalPages = Math.max(
 
                     <div className="url-table-body">
                       {pagedUrlItems.map((item, index) => {
-                        const isOpened = openedUrlId === item.urlId
-                        const displayNumber = urlItems.length - ((currentPage - 1) * PAGE_SIZE + index);
+                        const isOpened = openedUrlId === item.urlId;
+                        const displayNumber =
+                          urlItems.length -
+                          ((currentPage - 1) * PAGE_SIZE + index);
 
                         return (
                           <div className="url-row-block" key={item.urlId}>
-                            <div className={isMyUrl ? 'url-table-grid url-table-data-row' : 'url-table-grid url-library-table-grid url-table-data-row'}>
-                              <span className="url-number-text">{displayNumber}</span>
+                            <div
+                              className={
+                                isMyUrl
+                                  ? "url-table-grid url-table-data-row"
+                                  : "url-table-grid url-library-table-grid url-table-data-row"
+                              }
+                            >
+                              <span className="url-number-text">
+                                {displayNumber}
+                              </span>
 
                               {isMyUrl && (
                                 <span>
                                   <strong>
-                                    {String('senderName' in item && item.senderName ? item.senderName : item.domain)}
+                                    {String(
+                                      "senderName" in item && item.senderName
+                                        ? item.senderName
+                                        : item.domain,
+                                    )}
                                   </strong>
                                 </span>
                               )}
 
                               <span className="url-link-text">
-                                 {'normalizedUrl' in item ? item.normalizedUrl : ''}
+                                {"normalizedUrl" in item
+                                  ? item.normalizedUrl
+                                  : ""}
                               </span>
 
                               <span>
-                                {item.createdAt?.slice(0, 10)} {item.createdAt?.slice(11, 16)}
+                                {item.createdAt?.slice(0, 10)}{" "}
+                                {item.createdAt?.slice(11, 16)}
                               </span>
 
                               <span>
-                                <span className={`risk-badge ${getRiskClassName(item.riskLevel)}`}>
+                                <span
+                                  className={`risk-badge ${getRiskClassName(item.riskLevel)}`}
+                                >
                                   {getRiskLabel(item.riskLevel)}
                                 </span>
                               </span>
 
-                              <button className="url-detail-toggle" onClick={() => handleToggleReason(item.urlId)} type="button" aria-label={isOpened ? 'URL 설명 닫기' : 'URL 설명 열기'}>
+                              <button
+                                className="url-detail-toggle"
+                                onClick={() => handleToggleReason(item.urlId)}
+                                type="button"
+                                aria-label={
+                                  isOpened ? "URL 설명 닫기" : "URL 설명 열기"
+                                }
+                              >
                                 {isOpened ? <MinusIcon /> : <PlusIcon />}
                               </button>
                             </div>
@@ -395,15 +493,15 @@ const totalPages = Math.max(
                                 <p>· 위험도: {getRiskLabel(item.riskLevel)}</p>
 
                                 <p>
-                                  · 점수:{' '}
-                                  {item.score != null ? item.score : '-'}
+                                  · 점수:{" "}
+                                  {item.score != null ? item.score : "-"}
                                 </p>
 
                                 <p>
-                                  · 설명:{' '}
+                                  · 설명:{" "}
                                   {item.reasonSummary
                                     ? item.reasonSummary
-                                    : '분석 설명이 아직 없습니다.'}
+                                    : "분석 설명이 아직 없습니다."}
                                 </p>
 
                                 {item.detectedRules?.map((rule) => (
@@ -419,7 +517,14 @@ const totalPages = Math.max(
                     {totalPages > 1 && (
                       <div className="url-pagination">
                         {Array.from({ length: totalPages }, (_, index) => (
-                          <button key={index + 1} className={currentPage === index + 1 ? 'is-active' : ''} onClick={() => setCurrentPage(index + 1)} type="button">
+                          <button
+                            key={index + 1}
+                            className={
+                              currentPage === index + 1 ? "is-active" : ""
+                            }
+                            onClick={() => setCurrentPage(index + 1)}
+                            type="button"
+                          >
                             {index + 1}
                           </button>
                         ))}
@@ -434,10 +539,18 @@ const totalPages = Math.max(
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate('service-info')}>서비스 소개</button>
-        <button type="button" onClick={() => onNavigate('terms')}>이용약관</button>
-        <button type="button" onClick={() => onNavigate('privacy')}>개인정보 처리방침</button>
-        <button type="button" onClick={() => onNavigate('security-contact')}>보안 문의</button>
+        <button type="button" onClick={() => onNavigate("service-info")}>
+          서비스 소개
+        </button>
+        <button type="button" onClick={() => onNavigate("terms")}>
+          이용약관
+        </button>
+        <button type="button" onClick={() => onNavigate("privacy")}>
+          개인정보 처리방침
+        </button>
+        <button type="button" onClick={() => onNavigate("security-contact")}>
+          보안 문의
+        </button>
       </footer>
     </div>
   );
