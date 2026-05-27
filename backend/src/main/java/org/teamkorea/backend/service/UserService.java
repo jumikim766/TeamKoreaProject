@@ -22,6 +22,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final CryptoUtil cryptoUtil;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final EmailVerificationService emailVerificationService;
 
     public UserMeResponseDto getMyInfo(Long userId) {
         User user = getActiveUser(userId);
@@ -49,9 +50,7 @@ public class UserService {
 
     @Transactional
     public UserUpdateResponseDto updateMyInfo(Long userId, UserUpdateRequestDto requestDto) {
-        boolean allBlank = (requestDto.getUsername() == null || requestDto.getUsername().isBlank()) &&
-                (requestDto.getEmail() == null || requestDto.getEmail().isBlank()) &&
-                (requestDto.getName() == null || requestDto.getName().isBlank()) &&
+        boolean allBlank = (requestDto.getEmail() == null || requestDto.getEmail().isBlank()) &&
                 (requestDto.getPhone() == null || requestDto.getPhone().isBlank()) &&
                 (requestDto.getGender() == null || requestDto.getGender().isBlank()) &&
                 requestDto.getAge() == null;
@@ -62,31 +61,25 @@ public class UserService {
 
         User user = getActiveUser(userId);
 
-        boolean wantsAccountChange = (requestDto.getUsername() != null && !requestDto.getUsername().isBlank()) ||
-                (requestDto.getEmail() != null && !requestDto.getEmail().isBlank());
+        boolean wantsEmailChange = requestDto.getEmail() != null
+                && !requestDto.getEmail().isBlank()
+                && !requestDto.getEmail().equals(user.getEmail());
 
-        if (wantsAccountChange) {
+        if (wantsEmailChange) {
             if (!"LOCAL".equals(user.getProvider())) {
                 throw new BusinessException(
                         ErrorCode.INVALID_INPUT,
-                        "소셜 로그인 계정은 아이디 또는 이메일을 수정할 수 없습니다.");
+                        "소셜 로그인 계정은 이메일을 수정할 수 없습니다.");
             }
 
-            if (requestDto.getUsername() != null
-                    && !requestDto.getUsername().isBlank()
-                    && !requestDto.getUsername().equals(user.getUsername())
-                    && userRepository.existsByUsername(requestDto.getUsername())) {
-                throw new BusinessException(ErrorCode.CONFLICT, "이미 사용 중인 아이디입니다.");
-            }
-
-            if (requestDto.getEmail() != null
-                    && !requestDto.getEmail().isBlank()
-                    && !requestDto.getEmail().equals(user.getEmail())
-                    && userRepository.existsByEmail(requestDto.getEmail())) {
+            if (userRepository.existsByEmail(requestDto.getEmail())) {
                 throw new BusinessException(ErrorCode.CONFLICT, "이미 사용 중인 이메일입니다.");
             }
+            emailVerificationService.validateVerifiedCode(
+                    requestDto.getEmail(),
+                    "EMAIL_CHANGE");
 
-            user.updateAccountInfo(requestDto.getUsername(), requestDto.getEmail());
+            user.updateEmail(requestDto.getEmail());
         }
 
         byte[] phoneEnc = user.getPhoneEnc();
@@ -96,9 +89,7 @@ public class UserService {
 
         user.updateProfile(
                 phoneEnc,
-                requestDto.getName() != null && !requestDto.getName().isBlank()
-                        ? requestDto.getName()
-                        : user.getName(),
+                user.getName(),
                 requestDto.getGender() != null && !requestDto.getGender().isBlank()
                         ? requestDto.getGender()
                         : user.getGender(),
@@ -144,6 +135,71 @@ public class UserService {
         }
 
         user.changePassword(passwordEncoder.encode(requestDto.getNewPassword()));
+    }
+
+    // 이메일 변경 인증번호 발송
+    @Transactional
+    public void sendEmailChangeCode(Long userId, EmailChangeSendCodeRequestDto requestDto) {
+        User user = getActiveUser(userId);
+
+        // 소셜 로그인 계정 이메일 변경 제한
+        if (!"LOCAL".equals(user.getProvider())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "소셜 로그인 계정은 이메일을 수정할 수 없습니다.");
+        }
+
+        // 현재 이메일과 동일한 경우 차단
+        if (requestDto.getEmail().equals(user.getEmail())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "현재 사용 중인 이메일과 동일합니다.");
+        }
+
+        // 중복 이메일 검사
+        if (userRepository.existsByEmail(requestDto.getEmail())) {
+            throw new BusinessException(
+                    ErrorCode.CONFLICT,
+                    "이미 사용 중인 이메일입니다.");
+        }
+
+        // 인증번호 발송
+        emailVerificationService.sendCode(
+                requestDto.getEmail(),
+                "EMAIL_CHANGE");
+    }
+
+    // 이메일 변경 인증번호 검증
+    @Transactional
+    public void verifyEmailChangeCode(Long userId, EmailChangeVerifyCodeRequestDto requestDto) {
+        User user = getActiveUser(userId);
+
+        // 소셜 로그인 계정 이메일 변경 제한
+        if (!"LOCAL".equals(user.getProvider())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "소셜 로그인 계정은 이메일을 수정할 수 없습니다.");
+        }
+
+        // 현재 이메일과 동일한 경우 차단
+        if (requestDto.getEmail().equals(user.getEmail())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "현재 사용 중인 이메일과 동일합니다.");
+        }
+
+        // 중복 이메일 검사
+        if (userRepository.existsByEmail(requestDto.getEmail())) {
+            throw new BusinessException(
+                    ErrorCode.CONFLICT,
+                    "이미 사용 중인 이메일입니다.");
+        }
+
+        // 인증번호 검증
+        emailVerificationService.verifyCode(
+                requestDto.getEmail(),
+                requestDto.getCode(),
+                "EMAIL_CHANGE");
     }
 
     @Transactional

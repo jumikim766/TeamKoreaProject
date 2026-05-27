@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import type { ViewMode } from "../App";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/AuthPage.css";
@@ -16,21 +17,7 @@ import { saveAccessToken } from "../utils/token";
 import { getErrorMessage } from "../api/errorMessage";
 import "../styles/Dashboard.css";
 
-type PageViewTarget =
-  | "my-mailbox"
-  | "mail-connect"
-  | "my-url"
-  | "url-library"
-  | "notifications"
-  | "notification-settings"
-  | "report-guide"
-  | "report"
-  | "classification-method"
-  | "classification-criteria"
-  | "service-info"
-  | "terms"
-  | "privacy"
-  | "security-contact";
+
 
 type AuthPagesProps = {
   mode: "login" | "signup";
@@ -40,7 +27,7 @@ type AuthPagesProps = {
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
-  onNavigate: (view: PageViewTarget) => void;
+ onNavigate: (view: ViewMode) => void;
   onLoginSuccess: (name?: string) => void;
 };
 
@@ -162,8 +149,11 @@ function AuthPages({
         return;
       }
 
-      saveAccessToken(data.accessToken);
-      localStorage.setItem("userName", data.user?.name ?? "");
+      console.log(data);
+console.log(data.accessToken);
+
+saveAccessToken(data.accessToken);
+localStorage.setItem("userName", data.user?.name ?? "");
       setLoginError("");
       onLoginSuccess(data.user?.name);
     } catch (error) {
