@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/ClassificationPage.css";
@@ -103,7 +104,9 @@ function ClassificationPage({
   onNavigate,
 }: ClassificationPageProps) {
   const items = classificationCriteria;
-  const selectedItem = items[0];
+  const [selectedItem, setSelectedItem] = useState<ClassificationItem | null>(
+    null,
+  );
 
   return (
     <div className="dashboard-shell">
@@ -131,6 +134,13 @@ function ClassificationPage({
 
             <div className="page-side-card">
               <div className="page-side-title">분류기준</div>
+              <button
+                className="side-menu-button is-active"
+                type="button"
+                onClick={() => onNavigate("classification-criteria")}
+              >
+                분류 기준
+              </button>
             </div>
           </aside>
 
@@ -142,13 +152,17 @@ function ClassificationPage({
                 <h1>분류 기준</h1>
               </div>
 
+              <p className="report-description">
+                URL GUARD는 수집된 URL 데이터를 기반으로 위험도를 분석하고 내부
+                기준에 따라 자동 분류합니다.
+              </p>
+
               <div className="classification-content-grid">
                 <section className="classification-list-card">
                   <div className="classification-table-header">
                     <span>항목</span>
                     <span>설명</span>
                     <span>상세 내용</span>
-                    <span>상태</span>
                   </div>
 
                   <div className="classification-table-body">
@@ -156,63 +170,50 @@ function ClassificationPage({
                       <button
                         key={item.id}
                         className="classification-table-row"
+                        onClick={() => setSelectedItem(item)}
                         type="button"
                       >
-                        <span>
-                          <strong>{item.title}</strong>
-                          <small>{item.description}</small>
-                        </span>
-
-                        <span>{item.description}</span>
-
-                        <span>{item.detail}</span>
-
                         <span className="classification-status-cell">
+                          <strong>{item.title}</strong>
                           <span
                             className={`risk-badge ${getRiskClassName(item.status)}`}
                           >
                             {getRiskLabel(item.status)}
                           </span>
                         </span>
+
+                        <span>{item.description}</span>
+
+                        <span>{item.detail}</span>
                       </button>
                     ))}
                   </div>
                 </section>
+                {selectedItem && (
+                  <section className="classification-detail-card">
+                    <div className="classification-detail-box">
+                      <div className="classification-detail-head">
+                        <h2>{selectedItem.title}</h2>
+                        <span
+                          className={`risk-badge ${getRiskClassName(selectedItem.status)}`}
+                        >
+                          {getRiskLabel(selectedItem.status)}
+                        </span>
+                      </div>
 
-                <section className="classification-detail-card">
-                  <div className="classification-detail-box">
-                    <div className="classification-detail-head">
-                      <h2>{selectedItem.title}</h2>
-                      <span
-                        className={`risk-badge ${getRiskClassName(selectedItem.status)}`}
-                      >
-                        {getRiskLabel(selectedItem.status)}
-                      </span>
+                      <div className="classification-meta">
+                        <p>
+                          <strong>분류 설명 :</strong>{" "}
+                          {selectedItem.description}
+                        </p>
+
+                        <p>
+                          <strong>상세 기준 :</strong> {selectedItem.detail}
+                        </p>
+                      </div>
                     </div>
-
-                    <div className="classification-meta">
-                      <p>
-                        <strong>분류 설명 :</strong> {selectedItem.description}
-                      </p>
-
-                      <p>
-                        <strong>상세 기준 :</strong> {selectedItem.detail}
-                      </p>
-
-                      <p>
-                        <strong>적용 상태 :</strong>{" "}
-                        {getRiskLabel(selectedItem.status)}
-                      </p>
-                    </div>
-
-                    <div className="classification-body">
-                      <p>
-                        URL GUARD는 수집된 URL 데이터를 기반으로 위험도를
-                        분석하고 내부 기준에 따라 자동 분류합니다.
-                      </p>
-                    </div>
-                  </div>
-                </section>
+                  </section>
+                )}
               </div>
             </div>
           </section>
