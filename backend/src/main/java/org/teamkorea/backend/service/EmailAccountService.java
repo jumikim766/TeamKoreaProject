@@ -124,7 +124,7 @@ public class EmailAccountService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
 
         if (Boolean.FALSE.equals(account.getActive())) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "비활성화된 이메일 계정입니다.");
+            throw new BusinessException(ErrorCode.EMAIL_ACCOUNT_INACTIVE, "비활성화된 이메일 계정입니다.");
         }
 
         Store store = null;
@@ -136,14 +136,6 @@ public class EmailAccountService {
         int extractedUrlCount = 0;
 
         try {
-            // System.out.println("========== SYNC START ==========");
-            // System.out.println("accountId = " + account.getAccountId());
-            // System.out.println("provider = " + account.getProvider());
-            // System.out.println("email = " + account.getEmail());
-            // System.out.println("loginId = " + account.getLoginId());
-            // System.out.println("imapHost = " + account.getImapHost());
-            // System.out.println("imapPort = " + account.getImapPort());
-
             // 마지막 동기화 시각 조회
             LocalDateTime lastSyncedAt = account.getLastSyncedAt();
 
@@ -154,6 +146,9 @@ public class EmailAccountService {
             props.put("mail.imap.port", String.valueOf(account.getImapPort()));
             props.put("mail.imap.ssl.enable", "true");
             props.put("mail.imap.ssl.trust", "*");
+            props.put("mail.imap.connectiontimeout", "5000");
+            props.put("mail.imap.timeout", "5000");
+            props.put("mail.imap.writetimeout", "5000");
 
             Session session = Session.getInstance(props);
             store = session.getStore("imap");
@@ -161,32 +156,21 @@ public class EmailAccountService {
             // 비밀번호 복호화 후 접속
             String secret = cryptoUtil.decrypt(account.getSecretEnc());
 
-            System.out.println("[DEBUG] host=" + account.getImapHost()
-                    + ", port=" + account.getImapPort()
-                    + ", loginId=" + account.getLoginId()
-                    + ", secretLen=" + (secret == null ? "null" : secret.length()));
-
             store.connect(account.getImapHost(), account.getLoginId(), secret);
 
-            // IMAP에서 접근 가능한 폴더 목록 확인
-            Folder defaultFolder = store.getDefaultFolder();
-            Folder[] folders = defaultFolder.list("*");
+            // // IMAP에서 접근 가능한 폴더 목록 확인
+            // Folder defaultFolder = store.getDefaultFolder();
+            // Folder[] folders = defaultFolder.list("*");
 
-            for (Folder folder : folders) {
-                try {
-                    folder.open(Folder.READ_ONLY);
+            // for (Folder folder : folders) {
+            // try {
+            // folder.open(Folder.READ_ONLY);
 
-                    System.out.println(
-                            "[IMAP FOLDER] "
-                                    + folder.getFullName()
-                                    + " / messageCount = "
-                                    + folder.getMessageCount());
+            // folder.close(false);
 
-                    folder.close(false);
-
-                } catch (Exception ignored) {
-                }
-            }
+            // } catch (Exception ignored) {
+            // }
+            // }
 
             // store.connect(
             // account.getImapHost(),
@@ -200,16 +184,20 @@ public class EmailAccountService {
 
             Message[] messages = inbox.getMessages();
 
-            System.out.println("[SYNC] totalMessages = " + messages.length);
-            System.out.println("[SYNC] lastSyncedAt = " + lastSyncedAt);
-
             // 마지막 동기화 시간이 없으면 최초 동기화로 판단
             boolean isFirstSync = (lastSyncedAt == null);
 
-            // 최초 sync: 전체 메일 확인
-            // 이후 sync: 전체를 무작정 저장하지 않고 lastSyncedAt 이후 메일만 확인
+            // 최초 sync는 전체 확인
+            // 이후 sync는 최신 30개 정도만 확인
             int startIndex = messages.length - 1;
-            int endIndex = 0;
+
+            int endIndex;
+
+            if (isFirstSync) {
+                endIndex = 0;
+            } else {
+                endIndex = Math.max(messages.length - 30, 0);
+            }
 
             for (int i = startIndex; i >= endIndex; i--) {
 
@@ -226,15 +214,11 @@ public class EmailAccountService {
                 // 최초 sync가 아닌 경우 lastSyncedAt 이후 메일만 확인
                 // 최신 메일부터 거꾸로 확인하므로, lastSyncedAt 이전 메일을 만나면 더 볼 필요 없이 종료
                 if (!isFirstSync && lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
-                    skippedEmailCount++;
-                    continue;
+                    break;
                 }
                 String messageUid = buildMessageUid(msg);
 
-                System.out.println("[SYNC] messageUid = " + messageUid);
-
                 boolean exists = emailRepository.existsByMessageUid(messageUid);
-                System.out.println("[SYNC] exists = " + exists);
 
                 // 이미 저장된 메일이면 중복 저장하지 않고 skip
                 if (exists) {
@@ -269,22 +253,16 @@ public class EmailAccountService {
                             receivedAt,
                             extractedUrls);
 
-                    System.out.println("[SYNC] email saved, savedUrlCount = " + savedUrlCount);
-
                     savedEmailCount++;
                     extractedUrlCount += savedUrlCount;
                 } catch (Exception perMailEx) {
                     skippedEmailCount++;
-                    perMailEx.printStackTrace();
 
                     // 지금은 원인 확인 단계라서 저장 실패 원인을 Postman에 바로 보여줌
                     throw new BusinessException(
                             ErrorCode.INTERNAL_ERROR,
                             "메일 저장 실패: " + perMailEx.getClass().getSimpleName() + " : " + perMailEx.getMessage());
                 }
-
-                System.out.println("[SYNC] processing = " + msg.getSubject());
-
             }
 
             // 성공 처리
@@ -298,40 +276,33 @@ public class EmailAccountService {
             result.put("extractedUrlCount", extractedUrlCount);
             result.put("lastSyncedAt", LocalDateTime.now());
 
-            // System.out.println("========== SYNC SUCCESS ==========");
-
             return result;
 
         } catch (BusinessException e) {
             emailSyncStatusService.markFailed(account.getAccountId());
 
-            // 이미 의미 있는 예외는 그대로 던짐
             throw e;
 
         } catch (AuthenticationFailedException e) {
-            emailSyncStatusService.markFailed(account.getAccountId());
+            emailSyncStatusService.markAuthFailedAndDeactivate(account.getAccountId());
 
             throw new BusinessException(
-                    ErrorCode.UNAUTHORIZED,
-                    "이메일 로그인 정보가 올바르지 않습니다.");
+                    ErrorCode.EMAIL_AUTH_FAILED,
+                    "이메일 로그인 정보가 올바르지 않습니다. 이메일 주소, 로그인 ID, 앱 비밀번호를 확인해주세요.");
 
         } catch (MessagingException e) {
             emailSyncStatusService.markFailed(account.getAccountId());
 
-            e.printStackTrace();
-
             throw new BusinessException(
-                    ErrorCode.INVALID_INPUT,
-                    "IMAP 서버 연결 또는 메일함 접근에 실패했습니다.");
+                    ErrorCode.EMAIL_CONNECT_FAILED,
+                    "IMAP 서버 연결 또는 메일함 접근에 실패했습니다. IMAP 설정을 확인해주세요.");
 
         } catch (Exception e) {
             emailSyncStatusService.markFailed(account.getAccountId());
 
-            e.printStackTrace();
-
             throw new BusinessException(
-                    ErrorCode.INTERNAL_ERROR,
-                    e.getClass().getSimpleName() + " : " + e.getMessage());
+                    ErrorCode.EMAIL_SYNC_FAILED,
+                    "이메일 동기화 중 오류가 발생했습니다.");
         } finally {
             try {
                 if (inbox != null && inbox.isOpen()) {
@@ -544,7 +515,9 @@ public class EmailAccountService {
             return sb.toString();
 
         } catch (Exception e) {
-            throw new RuntimeException("해시 생성 실패", e);
+            throw new BusinessException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "메일 고유값 생성 중 오류가 발생했습니다.");
         }
     }
 
@@ -607,14 +580,13 @@ public class EmailAccountService {
 
             // 로그인 실패
             throw new BusinessException(
-                    ErrorCode.UNAUTHORIZED,
+                    ErrorCode.EMAIL_AUTH_FAILED,
                     "이메일 로그인 정보가 올바르지 않습니다.");
-
         } catch (MessagingException e) {
 
             // 서버 연결 실패
             throw new BusinessException(
-                    ErrorCode.INVALID_INPUT,
+                    ErrorCode.EMAIL_CONNECT_FAILED,
                     "IMAP 서버 연결에 실패했습니다. 이메일 또는 IMAP 설정을 확인해주세요.");
 
         } catch (Exception e) {

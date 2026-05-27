@@ -30,4 +30,14 @@ public class EmailSyncStatusService {
 
         account.updateSyncFailed();
     }
+
+    // 인증 실패 계정은 실패 처리 + 비활성화
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markAuthFailedAndDeactivate(Long accountId) {
+        EmailAccount account = emailAccountRepository.findById(accountId)
+                .orElseThrow();
+
+        account.updateSyncFailed();
+        account.deactivate();
+    }
 }
