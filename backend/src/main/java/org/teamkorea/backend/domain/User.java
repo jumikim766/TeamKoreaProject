@@ -114,6 +114,10 @@ public class User {
             this.email = email;
     }
 
+    public void updateEmail(String email) {
+        this.email = email;
+    }
+
     /** 비밀번호 변경 */
     public void changePassword(String encodedPassword) {
         this.passwordHash = encodedPassword;
