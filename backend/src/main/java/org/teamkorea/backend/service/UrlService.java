@@ -20,6 +20,7 @@ import org.teamkorea.backend.exception.BusinessException;
 import org.teamkorea.backend.exception.ErrorCode;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -147,7 +148,7 @@ public class UrlService {
                                 emailUrlPage.getTotalPages());
         }
 
-        // URL 위험도 통계 조회 (에러 해결: 원상 복구 및 SUSPICIOUS 제거 완료)
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         public UrlStatisticsResponseDto getUrlStatistics(
                         Long userId,
                         String scope,
@@ -219,7 +220,6 @@ public class UrlService {
                                 criticalCount,
                                 dangerCount,
                                 warningCount,
-                                suspiciousCount,
                                 safeCount,
                                 unanalyzedCount);
 
