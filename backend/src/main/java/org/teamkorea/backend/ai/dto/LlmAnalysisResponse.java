@@ -13,4 +13,9 @@ public class LlmAnalysisResponse {
     private String reasonSummary;
     private double score;
     private List<String> detectedRules;
+
+    private String llmRiskOpinion;
+    private double confidence;
+    private boolean falsePositivePossibility;
+    private String recommendation;
 }

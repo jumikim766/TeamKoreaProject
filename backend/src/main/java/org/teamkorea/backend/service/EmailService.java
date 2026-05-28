@@ -15,8 +15,10 @@ import org.teamkorea.backend.dto.EmailUrlResponseDto;
 import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlAnalysisRepository;
-import org.springframework.security.access.AccessDeniedException;
 import org.teamkorea.backend.domain.RiskLevel;
+import org.teamkorea.backend.domain.UrlAnalysis;
+import org.teamkorea.backend.exception.BusinessException;
+import org.teamkorea.backend.exception.ErrorCode;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -55,7 +57,7 @@ public class EmailService {
     public EmailDetailResponseDto getEmailDetail(Long userId, Long emailId) {
 
         Email email = emailRepository.findByIdWithAccount(emailId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 이메일을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "해당 이메일을 찾을 수 없습니다."));
 
         // 현재 로그인한 사용자의 이메일인지 검증
         validateEmailOwner(email, userId);
@@ -69,7 +71,11 @@ public class EmailService {
                 .emailId(email.getEmailId())
                 .accountId(email.getAccount() != null ? email.getAccount().getAccountId() : null)
                 .senderEmail(email.getSenderEmail())
-                .senderName(email.getSenderName() != null ? email.getSenderName() : "")
+                // 발신자 이름 없으면 이메일 주소라도 표시
+                .senderName(
+                        email.getSenderName() != null && !email.getSenderName().isBlank()
+                                ? email.getSenderName()
+                                : email.getSenderEmail())
                 .receiverEmail(email.getReceiverEmail())
                 .subject(email.getSubject() != null ? email.getSubject() : "")
                 .bodyText(email.getBodyText() != null ? email.getBodyText() : "")
@@ -85,7 +91,7 @@ public class EmailService {
     public List<EmailUrlResponseDto> getEmailUrls(Long userId, Long emailId) {
 
         Email email = emailRepository.findByIdWithAccount(emailId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 이메일을 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "해당 이메일을 찾을 수 없습니다."));
 
         validateEmailOwner(email, userId);
 
@@ -114,17 +120,20 @@ public class EmailService {
 
         Url url = emailUrl.getUrl();
 
-        String riskLevel = urlAnalysisRepository
+        // 최신 URL 분석 결과 조회
+        // 명세서의 riskLevel, reasonSummary, score를 내려주기 위해 UrlAnalysis를 한 번만 조회
+        UrlAnalysis latestAnalysis = urlAnalysisRepository
                 .findTopByUrl_UrlIdOrderByAnalyzedAtDesc(url.getUrlId())
-                .map(analysis -> analysis.getRiskLevel().name())
-                .orElse("SAFE");
+                .orElse(null);
 
         return EmailUrlResponseDto.builder()
                 .urlId(url.getUrlId())
                 .originalUrl(emailUrl.getRawUrl())
                 .normalizedUrl(url.getNormalizedUrl())
                 .domain(url.getDomain())
-                .riskLevel(riskLevel)
+                .riskLevel(latestAnalysis != null ? latestAnalysis.getRiskLevel().name() : "SAFE")
+                .reasonSummary(latestAnalysis != null ? latestAnalysis.getReasonSummary() : null)
+                .score(latestAnalysis != null ? latestAnalysis.getScore() : null)
                 .build();
     }
 
@@ -137,8 +146,9 @@ public class EmailService {
 
         String preview = bodyText.replaceAll("\\s+", " ").trim();
 
+        // 프론트 메일 리스트 UI에서 너무 긴 미리보기 방지
         if (preview.length() > 100) {
-            return preview.substring(0, 100);
+            return preview.substring(0, 100) + "...";
         }
 
         return preview;
@@ -190,7 +200,8 @@ public class EmailService {
                 email.getAccount().getUser() == null ||
                 !email.getAccount().getUser().getUserId().equals(userId)) {
 
-            throw new AccessDeniedException("해당 이메일에 접근할 권한이 없습니다.");
+            // 공통 예외 응답 형식으로 통일
+            throw new BusinessException(ErrorCode.FORBIDDEN, "해당 이메일에 접근할 권한이 없습니다.");
         }
     }
 }
