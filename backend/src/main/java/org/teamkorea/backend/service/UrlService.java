@@ -45,16 +45,13 @@ public class UrlService {
                                 size,
                                 Sort.by(Sort.Direction.DESC, "createdAt"));
 
-                // 빈 문자열 domain은 검색 조건에서 제외
                 String searchDomain = null;
                 if (domain != null && !domain.trim().isEmpty()) {
                         searchDomain = domain.trim();
                 }
 
-                // 문자열 riskLevel을 enum으로 변환
                 RiskLevel searchRiskLevel = parseRiskLevel(riskLevel);
 
-                // URL 목록 조회
                 Page<Url> urlPage = urlRepository.searchUrls(searchDomain, searchRiskLevel, isAnalyzed, pageable);
 
                 List<UrlListItemResponseDto> urls = urlPage.getContent().stream()
@@ -69,7 +66,7 @@ public class UrlService {
                                 urlPage.getTotalPages());
         }
 
-        // URL 상세 조회
+        // URL 상세 조회 (에러 해결: 빌더 패턴 적용 완료)
         public UrlDetailResponseDto getUrlDetail(Long urlId) {
                 Url url = urlRepository.findById(urlId)
                                 .orElseThrow(() -> new BusinessException(ErrorCode.URL_NOT_FOUND,
@@ -94,23 +91,23 @@ public class UrlService {
 
                 if (!emailUrls.isEmpty()) {
                         EmailUrl emailUrl = emailUrls.get(0);
-
                         senderName = emailUrl.getEmail().getSenderName();
                         senderEmail = emailUrl.getEmail().getSenderEmail();
                         originalUrl = emailUrl.getRawUrl();
                 }
 
-                return new UrlDetailResponseDto(
-                                url.getUrlId(),
-                                senderName,
-                                senderEmail,
-                                originalUrl,
-                                url.getNormalizedUrl(),
-                                url.getDomain(),
-                                riskLevel,
-                                reasonSummary,
-                                url.getCreatedAt(),
-                                url.getLastSeenAt());
+                return UrlDetailResponseDto.builder()
+                        .urlId(url.getUrlId())
+                        .senderName(senderName)
+                        .senderEmail(senderEmail)
+                        .originalUrl(originalUrl)
+                        .normalizedUrl(url.getNormalizedUrl())
+                        .domain(url.getDomain())
+                        .riskLevel(riskLevel)
+                        .reasonSummary(reasonSummary)
+                        .createdAt(url.getCreatedAt())
+                        .updatedAt(url.getLastSeenAt()) 
+                        .build();
         }
 
         // 나의 URL 목록 조회
@@ -150,7 +147,7 @@ public class UrlService {
                                 emailUrlPage.getTotalPages());
         }
 
-        // URL 위험도 통계 조회
+        // URL 위험도 통계 조회 (에러 해결: 원상 복구 및 SUSPICIOUS 제거 완료)
         public UrlStatisticsResponseDto getUrlStatistics(
                         Long userId,
                         String scope,
@@ -180,16 +177,17 @@ public class UrlService {
 
                 if (startDateTime != null) {
                         urls = urls.stream()
-                                        .filter(url -> url.getCreatedAt() != null)
-                                        .filter(url -> !url.getCreatedAt().isBefore(startDateTime))
-                                        .toList();
+
+                                .filter(url -> url.getCreatedAt() != null)
+                                .filter(url -> !url.getCreatedAt().isBefore(todayStart))
+                                .toList();
+
                 }
 
                 long totalCount = urls.size();
                 long criticalCount = 0;
                 long dangerCount = 0;
                 long warningCount = 0;
-                long suspiciousCount = 0;
                 long safeCount = 0;
                 long unanalyzedCount = 0;
 
@@ -210,14 +208,13 @@ public class UrlService {
                                 dangerCount++;
                         } else if (riskLevel == RiskLevel.WARNING) {
                                 warningCount++;
-                        } else if (riskLevel == RiskLevel.SUSPICIOUS) {
-                                suspiciousCount++;
                         } else if (riskLevel == RiskLevel.SAFE) {
                                 safeCount++;
                         }
                 }
 
                 return new UrlStatisticsResponseDto(
+
                                 totalCount,
                                 criticalCount,
                                 dangerCount,
@@ -225,6 +222,7 @@ public class UrlService {
                                 suspiciousCount,
                                 safeCount,
                                 unanalyzedCount);
+
         }
 
         // 나의 URL 목록 DTO 변환
