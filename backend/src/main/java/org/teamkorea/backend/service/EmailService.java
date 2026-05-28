@@ -177,10 +177,9 @@ public class EmailService {
 
         return switch (riskLevel) {
             case SAFE -> 1;
-            case SUSPICIOUS -> 2;
-            case WARNING -> 3;
-            case DANGER -> 4;
-            case CRITICAL -> 5;
+            case WARNING -> 2;
+            case DANGER -> 3;
+            case CRITICAL -> 4;
         };
     }
 
