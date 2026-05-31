@@ -10,6 +10,8 @@ import {
 import {
   getMyUrls,
   analyzeUrlWithLlm,
+  getUrls,
+  type UrlListItem,
   type MyUrlItem,
   type LlmAnalysisResponse,
 } from "../api/urlApi";
@@ -66,6 +68,34 @@ function MinusIcon() {
   return <span>-</span>;
 }
 
+function parseLlmReasonSummary(reasonSummary?: string | null) {
+  if (!reasonSummary) {
+    return {
+      reason: "분석 설명이 아직 없습니다.",
+      recommendation: "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
+      confidence: null as number | null,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(reasonSummary);
+
+    return {
+      reason: parsed.reason ?? reasonSummary,
+      recommendation:
+        parsed.recommendation ?? "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
+      confidence:
+        typeof parsed.confidence === "number" ? parsed.confidence : null,
+    };
+  } catch {
+    return {
+      reason: reasonSummary,
+      recommendation: "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
+      confidence: null as number | null,
+    };
+  }
+}
+
 function UrlPage({
   theme,
   currentView,
@@ -80,7 +110,9 @@ function UrlPage({
   onNavigate,
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
-  const [urlItems, setUrlItems] = useState<MyUrlItem[]>([]);
+  const [urlItems, setUrlItems] = useState<(MyUrlItem | UrlListItem)[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [llmResult, setLlmResult] = useState<LlmAnalysisResponse | null>(null);
   const [analyzingUrlId, setAnalyzingUrlId] = useState<number | null>(null);
   const [selectedLlmUrlId, setSelectedLlmUrlId] = useState<number | null>(null);
@@ -88,21 +120,42 @@ function UrlPage({
   const isMyUrl = currentView === "my-url";
 
   useEffect(() => {
-    const fetchUrls = async () => {
-      try {
+  const fetchUrls = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage("");
+      setUrlItems([]);
+      setOpenedUrlId(null);
+      setLlmResult(null);
+      setSelectedLlmUrlId(null);
+
+      if (currentView === "my-url") {
         const response = await getMyUrls({
           page: 0,
           size: 20,
         });
 
-        setUrlItems(response.urls);
-      } catch (error) {
-        console.error(error);
-      }
-    };
+        setUrlItems(response.urls ?? []);
+      } else {
+        const response = await getUrls({
+          page: 0,
+          size: 20,
+        });
 
-    fetchUrls();
-  }, []);
+        setUrlItems(response.urls ?? []);
+      }
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(
+        "URL 목록을 불러오지 못했습니다. 로그인 또는 서버 상태를 확인해주세요.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchUrls();
+}, [currentView]);
 
   const handleChangeMenu = (nextView: UrlViewMode) => {
     onNavigate(nextView);
@@ -220,7 +273,27 @@ function UrlPage({
                 </div>
 
                 <div className="url-table-body">
-                  {urlItems.map((item, index) => {
+                    {isLoading && (
+                  <div className="url-empty-message">
+                    URL 목록을 불러오는 중입니다...
+                  </div>
+                )}
+
+                {!isLoading && errorMessage && (
+                  <div className="url-empty-message">
+                    {errorMessage}
+                  </div>
+                )}
+
+                {!isLoading && !errorMessage && urlItems.length === 0 && (
+                  <div className="url-empty-message">
+                    표시할 URL이 없습니다.
+                  </div>
+                  )}
+
+  {!isLoading &&
+    !errorMessage &&
+    urlItems.map((item, index) => {
                     const isOpened = openedUrlId === item.urlId;
                     const displayNumber = urlItems.length - index;
                     const riskLevel = item.riskLevel as RiskLevelLabel;
@@ -240,7 +313,11 @@ function UrlPage({
 
                           {isMyUrl && (
                             <span>
-                              <strong>{item.senderName ?? "알 수 없음"}</strong>
+                              <strong>
+                                {"senderName" in item && item.senderName
+                                  ? item.senderName
+                                  : "알 수 없음"}
+                              </strong>
                             </span>
                           )}
 
@@ -315,19 +392,29 @@ function UrlPage({
                           </div>
                         )}
 
-                        {llmResult && selectedLlmUrlId === item.urlId && (
-                          <div className="url-risk-reason-box">
-                            <strong>LLM 분석 결과</strong>
+                        {llmResult && selectedLlmUrlId === item.urlId && (() => {
+                          const parsedSummary = parseLlmReasonSummary(llmResult.reasonSummary);
 
-                            <p>· 위험도: {llmResult.risk}</p>
-                            <p>· 점수: {llmResult.score}</p>
-                            <p>· 설명: {llmResult.reasonSummary}</p>
+                            return (
+                              <div className="url-risk-reason-box">
+                              <strong>LLM 분석 결과</strong>
+
+                              <p>· 위험도: {llmResult.risk}</p>
+                              <p>· 점수: {llmResult.score}점</p>
+
+                            {parsedSummary.confidence !== null && (
+                              <p>· 신뢰도: {Math.round(parsedSummary.confidence * 100)}%</p>
+                            )}
+
+                              <p>· 위험 사유: {parsedSummary.reason}</p>
+                              <p>· 권장 조치: {parsedSummary.recommendation}</p>
 
                             {llmResult.detectedRules?.map((rule) => (
                               <p key={rule}>· 탐지 규칙: {rule}</p>
                             ))}
-                          </div>
-                        )}
+                            </div>
+                            );
+                            })()}
                       </div>
                     );
                   })}
