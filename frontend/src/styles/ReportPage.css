@@ -94,6 +94,19 @@
   line-height: 1.7;
 }
 
+.report-description {
+  font-size: 17px;
+}
+
+.report-link {
+  text-decoration: none;
+  transition: 0.2s;
+}
+
+.report-link:hover {
+  text-decoration: underline;
+}
+
 .report-actions {
   margin-top: 8px;
   display: flex;
@@ -110,7 +123,7 @@
 .report-table-header,
 .report-table-row {
   display: grid;
-  grid-template-columns: 0.8fr 1fr 2.4fr 0.8fr;
+  grid-template-columns: 1.2fr 1.2fr 1.8fr;
   align-items: stretch;
 }
 
@@ -147,7 +160,7 @@
 .report-table-row {
   all: unset;
   display: grid;
-  grid-template-columns: 0.8fr 1fr 2.4fr 0.8fr;
+  grid-template-columns: 1.2fr 1.2fr 1.8fr;
   align-items: stretch;
   border-top: 1px solid var(--line);
   background: #ffffff;
@@ -157,12 +170,7 @@
 
 .report-table-row strong {
   color: var(--text-strong);
-  font-size: 14px;
-}
-
-.report-table-row small {
-  color: var(--muted);
-  font-size: 12px;
+  font-size: 16px;
 }
 
 :root[data-theme="dark"] .report-list-card,

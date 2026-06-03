@@ -51,6 +51,13 @@ public class NotificationService {
         return convertToDto(notification);
     }
 
+    /**
+     * [추가] 안 읽은 알림 개수 조회 (배지용)
+     */
+    public long getUnreadCount(User user) {
+        return notificationRepository.countByUserAndIsReadFalse(user);
+    }
+
     // Entity -> DTO 변환 헬퍼 메서드
     private NotificationResponseDto convertToDto(Notification notification) {
         return NotificationResponseDto.builder()

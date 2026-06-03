@@ -42,7 +42,7 @@ public class ReportService {
                 .url(existingUrl)
                 .reportedUrl(targetUrl) // DB에는 입력받은 URL 그대로 저장
                 .reason(request.getReason())
-                .status("RECEIVED")
+                .status("RECEIVED") // 초기 상태는 무조건 RECEIVED
                 .build();
 
         // 4. DB 저장
@@ -68,5 +68,23 @@ public class ReportService {
                         .status(report.getStatus())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * [추가] 관리자용 신고 상태 변경 로직
+     */
+    @Transactional
+    public void updateReportStatus(Long reportId, String newStatus) {
+        // 1. 유효한 상태값인지 검증 (안전장치)
+        if (!newStatus.equals("RECEIVED") && !newStatus.equals("REVIEWING") && !newStatus.equals("COMPLETED")) {
+            throw new IllegalArgumentException("유효하지 않은 상태값입니다. (RECEIVED, REVIEWING, COMPLETED 중 하나여야 합니다)");
+        }
+
+        // 2. 신고 내역 조회
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 신고 내역입니다."));
+
+        // 3. 상태 업데이트 (JPA Dirty Checking으로 자동 update 쿼리 발생)
+        report.setStatus(newStatus); 
     }
 }

@@ -40,6 +40,12 @@ public class EmailAccountService {
     private final EmailSaveService emailSaveService;
     private final EmailSyncStatusService emailSyncStatusService;
 
+    // 최초 동기화 시 100개씩 끊어서 처리
+    private static final int FIRST_SYNC_BATCH_SIZE = 100;
+
+    // 일반 동기화 시 최신 30개만 확인
+    private static final int NORMAL_SYNC_LIMIT = 30;
+
     // 이메일 계정 등록
     @Transactional
     public EmailAccountResponseDto createEmailAccount(Long userId, EmailAccountRequestDto request) {
@@ -116,6 +122,22 @@ public class EmailAccountService {
         emailAccountRepository.delete(emailAccount);
     }
 
+    // 수동 sync 요청 전 계정 존재/권한/활성 상태만 빠르게 검증
+    @Transactional(readOnly = true)
+    public void validateSyncRequest(Long userId, Long accountId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        EmailAccount account = emailAccountRepository.findByAccountIdAndUser(accountId, user)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
+
+        if (Boolean.FALSE.equals(account.getActive())) {
+            throw new BusinessException(
+                    ErrorCode.EMAIL_ACCOUNT_INACTIVE,
+                    "비활성화된 이메일 계정입니다. 재연동이 필요합니다.");
+        }
+    }
+
     // 이메일 동기화
     // syncEmails 전체를 하나의 긴 트랜잭션으로 묶지 않음
     // 메일 1건 저장은 EmailSaveService에서 처리
@@ -186,89 +208,89 @@ public class EmailAccountService {
             inbox = store.getFolder("INBOX");
             inbox.open(Folder.READ_ONLY);
 
-            Message[] messages = inbox.getMessages();
+            int totalMessageCount = inbox.getMessageCount();
 
             // 마지막 동기화 시간이 없으면 최초 동기화로 판단
             boolean isFirstSync = (lastSyncedAt == null);
 
-            // 최초 sync는 전체 확인
-            // 이후 sync는 최신 30개 정도만 확인
-            int startIndex = messages.length - 1;
+            // 최초 sync는 전체 메일을 100개씩 끊어서 처리
+            // 이후 sync는 최신 30개만 확인
+            int startMessageNumber = totalMessageCount;
+            int endMessageNumber = isFirstSync
+                    ? 1
+                    : Math.max(totalMessageCount - NORMAL_SYNC_LIMIT + 1, 1);
 
-            int endIndex;
+            mailLoop: for (int batchEnd = startMessageNumber; batchEnd >= endMessageNumber; batchEnd -= FIRST_SYNC_BATCH_SIZE) {
 
-            if (isFirstSync) {
-                endIndex = 0;
-            } else {
-                endIndex = Math.max(messages.length - 30, 0);
-            }
+                int batchStart = Math.max(batchEnd - FIRST_SYNC_BATCH_SIZE + 1, endMessageNumber);
 
-            for (int i = startIndex; i >= endIndex; i--) {
+                // JavaMail message number는 1부터 시작
+                Message[] batchMessages = inbox.getMessages(batchStart, batchEnd);
 
-                Message msg = messages[i];
+                // 최신 메일부터 처리하기 위해 역순
+                for (int j = batchMessages.length - 1; j >= 0; j--) {
 
-                collectedEmailCount++;
+                    Message msg = batchMessages[j];
 
-                LocalDateTime receivedAt = msg.getReceivedDate() != null
-                        ? LocalDateTime.ofInstant(
-                                msg.getReceivedDate().toInstant(),
-                                ZoneId.systemDefault())
-                        : LocalDateTime.now();
+                    collectedEmailCount++;
 
-                // 최초 sync가 아닌 경우 lastSyncedAt 이후 메일만 확인
-                // 최신 메일부터 거꾸로 확인하므로, lastSyncedAt 이전 메일을 만나면 더 볼 필요 없이 종료
-                if (!isFirstSync && lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
-                    break;
-                }
-                String messageUid = buildMessageUid(msg);
+                    LocalDateTime receivedAt = msg.getReceivedDate() != null
+                            ? LocalDateTime.ofInstant(
+                                    msg.getReceivedDate().toInstant(),
+                                    ZoneId.systemDefault())
+                            : LocalDateTime.now();
 
-                boolean exists = emailRepository.existsByMessageUid(messageUid);
+                    // 최초 sync가 아닌 경우 lastSyncedAt 이후 메일만 확인
+                    // 최신 메일부터 확인 중이므로, 이전 메일을 만나면 전체 batch 반복 종료
+                    if (!isFirstSync && lastSyncedAt != null && !receivedAt.isAfter(lastSyncedAt)) {
+                        break mailLoop;
+                    }
 
-                // 이미 저장된 메일이면 중복 저장하지 않고 skip
-                if (exists) {
-                    skippedEmailCount++;
-                    continue;
-                }
+                    String messageUid = buildMessageUid(msg);
 
-                String subject = msg.getSubject();
+                    boolean exists = emailRepository.existsByMessageUid(messageUid);
 
-                // HTML 본문과 텍스트 본문을 따로 추출
-                EmailBody emailBody = getEmailBody(msg);
+                    // 이미 저장된 메일이면 중복 저장하지 않고 skip
+                    if (exists) {
+                        skippedEmailCount++;
+                        continue;
+                    }
 
-                String bodyText = emailBody.bodyText();
-                String bodyHtml = emailBody.bodyHtml();
+                    String subject = msg.getSubject();
 
-                // URL은 텍스트 본문 + HTML 본문 둘 다에서 추출
-                List<String> extractedUrls = extractUrls(
-                        (bodyText != null ? bodyText : "") + " " + (bodyHtml != null ? bodyHtml : ""));
+                    EmailBody emailBody = getEmailBody(msg);
 
-                // 메일 1건 처리 실패가 sync 전체를 죽이지 않게 try-catch로 감쌈
-                try {
-                    // 저장된 URL 개수 반환
-                    int savedUrlCount = emailSaveService.saveEmailAndUrls(
-                            userId,
-                            account,
-                            messageUid,
-                            extractSenderName(msg),
-                            extractSenderEmail(msg),
-                            account.getEmail(),
-                            subject,
-                            bodyText,
-                            bodyHtml,
-                            receivedAt,
-                            extractedUrls);
+                    String bodyText = emailBody.bodyText();
+                    String bodyHtml = emailBody.bodyHtml();
 
-                    // 저장 성공 시 카운트 증가
-                    savedEmailCount++;
-                    extractedUrlCount += savedUrlCount;
-                } catch (Exception perMailEx) {
-                    skippedEmailCount++;
+                    List<String> extractedUrls = extractUrls(
+                            (bodyText != null ? bodyText : "") + " " + (bodyHtml != null ? bodyHtml : ""));
 
-                    // 메일 1건 저장 실패가 전체 sync 실패로 이어지지 않게 처리
-                    log.warn("[EMAIL SYNC] 메일 1건 저장 실패 - accountId={}, messageUid={}, reason={}",
-                            account.getAccountId(), messageUid, perMailEx.getMessage());
+                    try {
+                        int savedUrlCount = emailSaveService.saveEmailAndUrls(
+                                userId,
+                                account,
+                                messageUid,
+                                extractSenderName(msg),
+                                extractSenderEmail(msg),
+                                account.getEmail(),
+                                subject,
+                                bodyText,
+                                bodyHtml,
+                                receivedAt,
+                                extractedUrls);
 
-                    continue;
+                        savedEmailCount++;
+                        extractedUrlCount += savedUrlCount;
+
+                    } catch (Exception perMailEx) {
+                        skippedEmailCount++;
+
+                        log.warn("[EMAIL SYNC] 메일 1건 저장 실패 - accountId={}, messageUid={}, reason={}",
+                                account.getAccountId(), messageUid, perMailEx.getMessage());
+
+                        continue;
+                    }
                 }
             }
 

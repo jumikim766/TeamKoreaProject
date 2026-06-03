@@ -2,7 +2,6 @@ type NavTarget =
   | "my-mailbox"
   | "mail-connect"
   | "my-url"
-  | "url-statistics"
   | "url-library"
   | "notifications"
   | "notification-settings"
@@ -29,7 +28,6 @@ const navItems: {
   {
     title: "URL 관리",
     links: [
-      { label: "URL 통계", view: "url-statistics" },
       { label: "나의 URL", view: "my-url" },
       { label: "전체 URL 모음", view: "url-library" },
     ],

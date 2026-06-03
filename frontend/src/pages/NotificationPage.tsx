@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ViewMode } from '../App';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import {
-  getNotifications,
-  getUnreadCount,
-  readNotification,
-  type NotificationResponse,
-} from '../api/notificationApi';
+import { getUnreadCount, readNotification } from '../api/notificationApi';
 import '../styles/NotificationPage.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -37,22 +38,6 @@ interface NotificationPageProps {
   onNavigate: (view: ViewMode) => void;
 }
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString('ko-KR');
-};
-
-const convertNotification = (
-  item: NotificationResponse
-): NotificationItem => ({
-  id: item.notificationId,
-  title: item.title,
-  summary: item.message,
-  content: item.message,
-  date: formatDate(item.createdAt),
-  type: '알림',
-  isRead: item.isRead,
-});
-
 function NotificationPage({
   theme,
   currentView,
@@ -71,69 +56,53 @@ function NotificationPage({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-
   const [pushEnabled, setPushEnabled] = useState(true);
 
-  const selectedNotification = useMemo(
-    () => notifications.find((item) => item.id === selectedId) ?? null,
-    [notifications, selectedId]
-  );
+  const selectedNotification = useMemo(() => {
+    return notifications.find((item) => item.id === selectedId) ?? null;
+  }, [notifications, selectedId]);
 
-  const showErrorOnce = (message: string) => {
+  const showErrorOnce = useCallback((message: string) => {
     if (!hasShownErrorRef.current) {
       alert(message);
       hasShownErrorRef.current = true;
     }
-  };
+  }, []);
 
-  const fetchUnreadCount = async () => {
+  const loadUnreadCount = useCallback(async () => {
     try {
       const count = await getUnreadCount();
+
       setUnreadCount(count);
+
       window.dispatchEvent(new Event('notification-updated'));
     } catch {
       showErrorOnce('알림 정보를 불러오지 못했습니다.');
     }
-  };
+  }, [showErrorOnce]);
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-
-      const data = await getNotifications();
-      const converted = data.map(convertNotification);
-
-      setNotifications(converted);
-
-      if (converted.length > 0) {
-        setSelectedId((prev) => prev ?? converted[0].id);
-      } else {
-        setSelectedId(null);
-      }
-    } catch {
-      showErrorOnce('알림 정보를 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return;
     }
-  };
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadUnreadCount();
+  }, [isLoggedIn, currentView, loadUnreadCount]);
 
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      return;
+    }
 
-    
-    fetchUnreadCount();
-  }, [isLoggedIn, currentView]);
+    const timer = window.setInterval(() => {
+      loadUnreadCount();
+    }, 30000);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-   const timer = window.setInterval(() => {
-  fetchUnreadCount();
-}, 30000);
-
-    return () => window.clearInterval(timer);
-  }, [isLoggedIn]);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isLoggedIn, loadUnreadCount]);
 
   const handleSelectNotification = async (id: number) => {
     try {
@@ -150,7 +119,7 @@ function NotificationPage({
           )
         );
 
-        await fetchUnreadCount();
+        await loadUnreadCount();
       }
     } catch {
       alert('알림 읽음 처리에 실패했습니다.');
@@ -239,11 +208,7 @@ function NotificationPage({
                     </div>
 
                     <div className="notification-list">
-                      {loading ? (
-                        <div className="notification-empty">
-                          알림을 불러오는 중입니다.
-                        </div>
-                      ) : notifications.length === 0 ? (
+                      {notifications.length === 0 ? (
                         <div className="notification-empty">
                           새로운 알림이 없습니다.
                         </div>
@@ -274,6 +239,7 @@ function NotificationPage({
                             </div>
 
                             <strong>{item.title}</strong>
+
                             <p>{item.summary}</p>
                           </button>
                         ))
@@ -322,6 +288,7 @@ function NotificationPage({
                   <div className="notification-setting-row">
                     <div>
                       <strong>위험 URL 탐지 알림</strong>
+
                       <p>고위험 URL이 새로 탐지되면 알림을 받습니다.</p>
                     </div>
 

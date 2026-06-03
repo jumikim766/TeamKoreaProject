@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.teamkorea.backend.domain.EmailAccount;
 import org.teamkorea.backend.repository.EmailAccountRepository;
+import org.teamkorea.backend.exception.BusinessException;
+import org.teamkorea.backend.exception.ErrorCode;
 
 @Service
 @RequiredArgsConstructor
@@ -17,7 +19,7 @@ public class EmailSyncStatusService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markSuccess(Long accountId) {
         EmailAccount account = emailAccountRepository.findById(accountId)
-                .orElseThrow();
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
 
         account.updateSyncSuccess();
     }
@@ -26,8 +28,7 @@ public class EmailSyncStatusService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markFailed(Long accountId) {
         EmailAccount account = emailAccountRepository.findById(accountId)
-                .orElseThrow();
-
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
         account.updateSyncFailed();
     }
 
@@ -35,7 +36,7 @@ public class EmailSyncStatusService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markAuthFailedAndDeactivate(Long accountId) {
         EmailAccount account = emailAccountRepository.findById(accountId)
-                .orElseThrow();
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
 
         account.updateSyncFailed();
         account.deactivate();
