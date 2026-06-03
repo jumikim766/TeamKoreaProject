@@ -12,16 +12,21 @@ import org.teamkorea.backend.security.CryptoUtil;
 import org.teamkorea.backend.exception.BusinessException;
 import org.teamkorea.backend.exception.ErrorCode;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Base64;
+import java.io.UnsupportedEncodingException;
 
 import jakarta.mail.internet.MimeUtility;
 import jakarta.mail.internet.InternetAddress;
@@ -131,6 +136,13 @@ public class EmailAccountService {
         EmailAccount account = emailAccountRepository.findByAccountIdAndUser(accountId, user)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
 
+        // 이미 동기화 중인 계정이면 중복 sync 요청 차단
+        if ("PROCESSING".equals(account.getLastSyncStatus())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_INPUT,
+                    "이미 이메일 동기화가 진행 중입니다.");
+        }
+
         if (Boolean.FALSE.equals(account.getActive())) {
             throw new BusinessException(
                     ErrorCode.EMAIL_ACCOUNT_INACTIVE,
@@ -148,6 +160,9 @@ public class EmailAccountService {
 
         EmailAccount account = emailAccountRepository.findByAccountIdAndUser(accountId, user)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
+
+        // sync 시작 상태 저장
+        emailSyncStatusService.markProcessing(account.getAccountId());
 
         if (Boolean.FALSE.equals(account.getActive())) {
             throw new BusinessException(ErrorCode.EMAIL_ACCOUNT_INACTIVE, "비활성화된 이메일 계정입니다.");
@@ -402,17 +417,32 @@ public class EmailAccountService {
     }
 
     // 이메일 본문 추출 결과를 담는 record
-    private record EmailBody(String bodyText, String bodyHtml) {
+    private record EmailBody(String bodyText, String bodyHtml, Map<String, String> cidImageMap) {
     }
 
     // 이메일 본문 추출
     private EmailBody getEmailBody(Part part) throws Exception {
+        Map<String, String> cidImageMap = new HashMap<>();
+
+        EmailBody body = extractEmailBody(part, cidImageMap);
+
+        String bodyHtml = removeCidImages(body.bodyHtml());
+
+        return new EmailBody(body.bodyText(), bodyHtml, cidImageMap);
+    }
+
+    // 이메일 본문/HTML/inline CID 이미지 재귀 추출
+    private EmailBody extractEmailBody(Part part, Map<String, String> cidImageMap) throws Exception {
+
+        if (isInlineImage(part)) {
+            return new EmailBody("", null, cidImageMap);
+        }
 
         // 일반 텍스트 메일
         if (part.isMimeType("text/plain")) {
             Object content = part.getContent();
             String text = content != null ? content.toString() : "";
-            return new EmailBody(text, null);
+            return new EmailBody(text, null, cidImageMap);
         }
 
         // HTML 메일
@@ -422,7 +452,7 @@ public class EmailAccountService {
             String text = htmlToText(html);
 
             // HTML 원본은 bodyHtml에 저장
-            return new EmailBody(text, html);
+            return new EmailBody(text, html, cidImageMap);
         }
 
         // multipart 메일
@@ -435,7 +465,7 @@ public class EmailAccountService {
             for (int i = 0; i < multipart.getCount(); i++) {
                 BodyPart bodyPart = multipart.getBodyPart(i);
 
-                EmailBody childBody = getEmailBody(bodyPart);
+                EmailBody childBody = extractEmailBody(bodyPart, cidImageMap);
 
                 // text/plain 본문 저장
                 if (bodyText.isBlank()
@@ -457,10 +487,74 @@ public class EmailAccountService {
                 bodyText = htmlToText(bodyHtml);
             }
 
-            return new EmailBody(bodyText, bodyHtml);
+            return new EmailBody(bodyText, bodyHtml, cidImageMap);
         }
 
-        return new EmailBody("", null);
+        return new EmailBody("", null, cidImageMap);
+    }
+
+    // inline 이미지 여부 확인
+    private boolean isInlineImage(Part part) throws Exception {
+        String disposition = part.getDisposition();
+        String contentType = part.getContentType();
+
+        return contentType != null
+                && contentType.toLowerCase().startsWith("image/")
+                && (Part.INLINE.equalsIgnoreCase(disposition) || getContentId(part) != null);
+    }
+
+    // Content-ID 추출
+    private String getContentId(Part part) throws MessagingException {
+        String[] headers = part.getHeader("Content-ID");
+
+        if (headers == null || headers.length == 0 || headers[0] == null) {
+            return null;
+        }
+
+        return headers[0]
+                .replace("<", "")
+                .replace(">", "")
+                .trim();
+    }
+
+    // CID 이미지 저장
+    private void saveCidImage(Part part, Map<String, String> cidImageMap) throws Exception {
+        String contentId = getContentId(part);
+
+        if (contentId == null || contentId.isBlank()) {
+            return;
+        }
+
+        String contentType = part.getContentType();
+
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            return;
+        }
+
+        String mimeType = contentType.split(";")[0].trim();
+
+        try (InputStream inputStream = part.getInputStream();
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+
+            inputStream.transferTo(outputStream);
+
+            String base64 = Base64.getEncoder().encodeToString(outputStream.toByteArray());
+
+            // HTML의 src="cid:..."를 data URL로 교체하기 위한 값
+            cidImageMap.put(contentId, "data:" + mimeType + ";base64," + base64);
+        }
+    }
+
+    // HTML 내부 cid 이미지 제거
+    // CID 이미지를 base64로 저장하면 body_html이 너무 커져 DB 저장 실패가 날 수 있음
+    private String removeCidImages(String html) {
+        if (html == null || html.isBlank()) {
+            return html;
+        }
+
+        return html
+                .replaceAll("(?i)<img[^>]+src=[\"']cid:[^\"']+[\"'][^>]*>", "")
+                .replaceAll("(?i)src=[\"']cid:[^\"']+[\"']", "");
     }
 
     // HTML 태그 제거 후 텍스트 변환
@@ -503,10 +597,26 @@ public class EmailAccountService {
             }
 
             if (froms[0] instanceof InternetAddress internetAddress) {
-                return internetAddress.getAddress();
+                String address = internetAddress.getAddress();
+
+                return address != null && !address.isBlank()
+                        ? address.trim()
+                        : null;
             }
 
-            return froms[0].toString();
+            String rawFrom = froms[0].toString();
+
+            if (rawFrom == null || rawFrom.isBlank()) {
+                return null;
+            }
+
+            InternetAddress[] parsedAddresses = InternetAddress.parse(rawFrom, false);
+
+            if (parsedAddresses.length > 0 && parsedAddresses[0].getAddress() != null) {
+                return parsedAddresses[0].getAddress().trim();
+            }
+
+            return rawFrom;
 
         } catch (Exception e) {
             return null;
@@ -519,20 +629,58 @@ public class EmailAccountService {
             Address[] froms = msg.getFrom();
 
             if (froms == null || froms.length == 0) {
-                return null;
+                return "알 수 없음";
             }
 
-            if (froms[0] instanceof InternetAddress internetAddress) {
-                // MIME 인코딩된 발신자 이름 디코딩
-                return internetAddress.getPersonal() != null
-                        ? MimeUtility.decodeText(internetAddress.getPersonal())
-                        : null;
+            InternetAddress internetAddress;
+
+            if (froms[0] instanceof InternetAddress address) {
+                internetAddress = address;
+            } else {
+                InternetAddress[] parsedAddresses = InternetAddress.parse(froms[0].toString(), false);
+
+                if (parsedAddresses.length == 0) {
+                    return "알 수 없음";
+                }
+
+                internetAddress = parsedAddresses[0];
             }
 
-            return null;
+            String personal = decodeMimeText(internetAddress.getPersonal());
+
+            if (personal != null && !personal.isBlank()) {
+                return personal.trim();
+            }
+
+            String address = internetAddress.getAddress();
+
+            if (address != null && !address.isBlank()) {
+                return address.trim();
+            }
+
+            String rawText = decodeMimeText(froms[0].toString());
+
+            return rawText != null && !rawText.isBlank()
+                    ? rawText.trim()
+                    : "알 수 없음";
 
         } catch (Exception e) {
+            return "알 수 없음";
+        }
+    }
+
+    // MIME 인코딩된 텍스트 디코딩
+    private String decodeMimeText(String text) {
+        if (text == null || text.isBlank()) {
             return null;
+        }
+
+        try {
+            return MimeUtility.decodeText(text);
+        } catch (UnsupportedEncodingException e) {
+            return text;
+        } catch (Exception e) {
+            return text;
         }
     }
 

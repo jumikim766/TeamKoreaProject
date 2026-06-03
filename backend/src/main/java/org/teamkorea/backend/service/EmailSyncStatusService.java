@@ -15,6 +15,15 @@ public class EmailSyncStatusService {
 
     private final EmailAccountRepository emailAccountRepository;
 
+    // sync 시작 상태는 별도 트랜잭션으로 저장
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markProcessing(Long accountId) {
+        EmailAccount account = emailAccountRepository.findById(accountId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "이메일 계정을 찾을 수 없습니다."));
+
+        account.updateSyncProcessing();
+    }
+
     // sync 성공 상태는 별도 트랜잭션으로 저장
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markSuccess(Long accountId) {
