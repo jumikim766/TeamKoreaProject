@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ChartBox from "../components/ChartBox";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/UrlPage.css";
@@ -10,18 +11,17 @@ import {
 import {
   getMyUrls,
   analyzeUrlWithLlm,
-  getUrls,
-  type UrlListItem,
   type MyUrlItem,
   type LlmAnalysisResponse,
 } from "../api/urlApi";
 
 type ThemeMode = "light" | "dark";
-type UrlViewMode = "my-url" | "url-library";
+type UrlViewMode = "url-statistics" | "my-url" | "url-library";
 
 type PageViewTarget =
   | "my-mailbox"
   | "mail-connect"
+  | "url-statistics"
   | "my-url"
   | "url-library"
   | "notifications"
@@ -49,14 +49,20 @@ interface UrlPageProps {
   onNavigate: (view: PageViewTarget) => void;
 }
 
+const PAGE_SIZE = 10;
+
 const pageInfo = {
+  "url-statistics": {
+    title: "URL 통계",
+    description: "이메일에서 탐지된 URL의 위험도 통계를 확인할 수 있습니다.",
+  },
   "my-url": {
     title: "나의 URL",
-    description: "연동된 이메일에서 탐지된 URL 분석 결과를 확인할 수 있습니다.",
+    description: "내 이메일에서 추출된 URL과 위험도 분석 결과를 확인합니다.",
   },
   "url-library": {
     title: "전체 URL 모음",
-    description: "수집된 URL 분석 결과를 목록 형태로 확인할 수 있습니다.",
+    description: "전체 URL 분석 결과를 모아 확인합니다.",
   },
 };
 
@@ -68,45 +74,11 @@ function MinusIcon() {
   return <span>-</span>;
 }
 
-function parseLlmReasonSummary(reasonSummary?: string | null) {
-  if (!reasonSummary) {
-    return {
-      reason: "분석 설명이 아직 없습니다.",
-      recommendation: "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
-      confidence: null as number | null,
-      falsePositivePossibility: null as boolean | null,
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(reasonSummary);
-
-    return {
-      reason: parsed.reason ?? reasonSummary,
-      recommendation:
-        parsed.recommendation ?? "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
-      confidence:
-        typeof parsed.confidence === "number" ? parsed.confidence : null,
-      falsePositivePossibility:
-        typeof parsed.falsePositivePossibility === "boolean"
-          ? parsed.falsePositivePossibility
-          : null,
-    };
-  } catch {
-    return {
-      reason: reasonSummary,
-      recommendation: "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
-      confidence: null as number | null,
-      falsePositivePossibility: null as boolean | null,
-    };
-  }
-}
-
 function UrlPage({
   theme,
   currentView,
   isLoggedIn = false,
-  userName = "사용자",
+  userName = "팀코",
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -116,55 +88,37 @@ function UrlPage({
   onNavigate,
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
-  const [urlItems, setUrlItems] = useState<(MyUrlItem | UrlListItem)[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [urlItems, setUrlItems] = useState<MyUrlItem[]>([]);
   const [llmResult, setLlmResult] = useState<LlmAnalysisResponse | null>(null);
   const [analyzingUrlId, setAnalyzingUrlId] = useState<number | null>(null);
   const [selectedLlmUrlId, setSelectedLlmUrlId] = useState<number | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState("1234@5678.com");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const isMyUrl = currentView === "my-url";
+  const isStatistics = currentView === "url-statistics";
 
   useEffect(() => {
-  const fetchUrls = async () => {
-    try {
-      setIsLoading(true);
-      setErrorMessage("");
-      setUrlItems([]);
-      setOpenedUrlId(null);
-      setLlmResult(null);
-      setSelectedLlmUrlId(null);
-
-      if (currentView === "my-url") {
+    const fetchUrls = async () => {
+      try {
         const response = await getMyUrls({
           page: 0,
-          size: 20,
+          size: 100,
         });
 
-        setUrlItems(response.urls ?? []);
-      } else {
-        const response = await getUrls({
-          page: 0,
-          size: 20,
-        });
-
-        setUrlItems(response.urls ?? []);
+        setUrlItems(response.urls);
+      } catch (error) {
+        console.error(error);
       }
-    } catch (error) {
-      console.error(error);
-      setErrorMessage(
-        "URL 목록을 불러오지 못했습니다. 로그인 또는 서버 상태를 확인해주세요.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
-  fetchUrls();
-}, [currentView]);
+    fetchUrls();
+  }, []);
 
-  const handleChangeMenu = (nextView: UrlViewMode) => {
-    onNavigate(nextView);
+  const handleChangeMenu = (view: UrlViewMode) => {
+    setCurrentPage(1);
+    setOpenedUrlId(null);
+    onNavigate(view);
   };
 
   const handleToggleReason = (id: number) => {
@@ -188,6 +142,32 @@ function UrlPage({
       setAnalyzingUrlId(null);
     }
   };
+
+  const myTotalCount = urlItems.length;
+  const myHighRiskCount = urlItems.filter(
+    (item) => item.riskLevel === "DANGER"
+  ).length;
+
+  const chartData = [
+    {
+      name: "안전",
+      value: urlItems.filter((item) => item.riskLevel === "SAFE").length,
+    },
+    {
+      name: "주의",
+      value: urlItems.filter((item) => item.riskLevel === "WARNING").length,
+    },
+    {
+      name: "위험",
+      value: urlItems.filter((item) => item.riskLevel === "DANGER").length,
+    },
+  ];
+
+  const totalPages = Math.ceil(urlItems.length / PAGE_SIZE);
+  const pagedUrlItems = urlItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   return (
     <div className="dashboard-shell">
@@ -215,6 +195,18 @@ function UrlPage({
 
             <div className="page-side-card">
               <div className="page-side-title">URL 관리</div>
+
+              <button
+                className={
+                  currentView === "url-statistics"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
+                }
+                onClick={() => handleChangeMenu("url-statistics")}
+                type="button"
+              >
+                URL 통계
+              </button>
 
               <button
                 className={
@@ -250,189 +242,212 @@ function UrlPage({
                 <p>{pageInfo[currentView].description}</p>
               </div>
 
-              <section className="url-list-card">
-                <div className="url-list-head">
-                  <div>
-                    <h2 className="url-list-title">
-                      {pageInfo[currentView].title}
-                    </h2>
-                    <p className="url-list-count">
-                      총 <strong>{urlItems.length}</strong>건 · 최신 링크가 위에
-                      표시됩니다.
-                    </p>
+              {isStatistics ? (
+                <section className="url-stat-grid">
+                  <div className="url-stat-card">
+                    <span>내 이메일 전체 링크</span>
+                    <strong>{myTotalCount.toLocaleString()}개</strong>
+                    <p>연동된 이메일에서 탐지된 전체 링크 수입니다.</p>
                   </div>
-                </div>
 
-                <div
-                  className={
-                    isMyUrl
-                      ? "url-table-grid url-table-header-row"
-                      : "url-table-grid url-library-table-grid url-table-header-row"
-                  }
-                >
-                  <span>번호</span>
-                  {isMyUrl && <span>보낸 사람</span>}
-                  <span>URL</span>
-                  <span>검사일시</span>
-                  <span>위험도</span>
-                  <span>설명</span>
-                </div>
-
-                <div className="url-table-body">
-                    {isLoading && (
-                  <div className="url-empty-message">
-                    URL 목록을 불러오는 중입니다...
+                  <div className="url-stat-card">
+                    <span>고위험 링크</span>
+                    <strong>{myHighRiskCount.toLocaleString()}개</strong>
+                    <p>DANGER로 분류된 링크 수입니다.</p>
                   </div>
-                )}
 
-                {!isLoading && errorMessage && (
-                  <div className="url-empty-message">
-                    {errorMessage}
+                  <div className="url-stat-chart">
+                    <ChartBox
+                      title="내 URL 위험도 통계"
+                      caption="이메일 링크 분석 기준"
+                      total={`${myTotalCount.toLocaleString()}개`}
+                      data={chartData}
+                    />
                   </div>
-                )}
-
-                {!isLoading && !errorMessage && urlItems.length === 0 && (
-                  <div className="url-empty-message">
-                    표시할 URL이 없습니다.
-                  </div>
+                </section>
+              ) : (
+                <>
+                  {isMyUrl && (
+                    <div className="url-top-bar">
+                      <select
+                        className="url-filter-select"
+                        value={selectedAccount}
+                        onChange={(event) =>
+                          setSelectedAccount(event.target.value)
+                        }
+                      >
+                        <option value="1234@5678.com">1234@5678.com</option>
+                        <option value="8765@4321.com">8765@4321.com</option>
+                        <option value="abcd@efgh.com">abcd@efgh.com</option>
+                      </select>
+                    </div>
                   )}
 
-  {!isLoading &&
-    !errorMessage &&
-    urlItems.map((item, index) => {
-                    const isOpened = openedUrlId === item.urlId;
-                    const displayNumber = urlItems.length - index;
-                    const riskLevel = item.riskLevel as RiskLevelLabel;
+                  <section className="url-list-card">
+                    <div className="url-list-head">
+                      <div>
+                        <h2 className="url-list-title">
+                          {pageInfo[currentView].title}
+                        </h2>
+                        <p className="url-list-count">
+                          총 <strong>{urlItems.length}</strong>건 · 최신 링크가
+                          위에 표시됩니다.
+                        </p>
+                      </div>
+                    </div>
 
-                    return (
-                      <div className="url-row-block" key={item.urlId}>
-                        <div
-                          className={
-                            isMyUrl
-                              ? "url-table-grid url-table-data-row"
-                              : "url-table-grid url-library-table-grid url-table-data-row"
-                          }
-                        >
-                          <span className="url-number-text">
-                            {displayNumber}
-                          </span>
+                    <div
+                      className={
+                        isMyUrl
+                          ? "url-table-grid url-table-header-row"
+                          : "url-table-grid url-library-table-grid url-table-header-row"
+                      }
+                    >
+                      <span>번호</span>
+                      {isMyUrl && <span>보낸 사람</span>}
+                      <span>URL</span>
+                      <span>검사일시</span>
+                      <span>위험도</span>
+                      <span>설명</span>
+                    </div>
 
-                          {isMyUrl && (
-                            <span>
-                              <strong>
-                                {"senderName" in item && item.senderName
-                                  ? item.senderName
-                                  : "알 수 없음"}
-                              </strong>
-                            </span>
-                          )}
+                    <div className="url-table-body">
+                      {pagedUrlItems.map((item, index) => {
+                        const isOpened = openedUrlId === item.urlId;
+                        const displayNumber =
+                          urlItems.length -
+                          ((currentPage - 1) * PAGE_SIZE + index);
 
-                          <span className="url-link-text">
-                            {item.normalizedUrl}
-                          </span>
-
-                          <span>
-                            {item.createdAt
-                              ? new Date(item.createdAt).toLocaleString()
-                              : "-"}
-                          </span>
-
-                          <span>
-                            <span
-                              className={`risk-badge ${getRiskClassName(
-                                riskLevel,
-                              )}`}
-                            >
-                              {getRiskLabel(riskLevel)}
-                            </span>
-                          </span>
-
-                          <div className="url-action-buttons">
-                            <button
-                              className="url-detail-toggle"
-                              onClick={() => handleToggleReason(item.urlId)}
-                              type="button"
-                              aria-label={
-                                isOpened ? "URL 설명 닫기" : "URL 설명 열기"
+                        return (
+                          <div className="url-row-block" key={item.urlId}>
+                            <div
+                              className={
+                                isMyUrl
+                                  ? "url-table-grid url-table-data-row"
+                                  : "url-table-grid url-library-table-grid url-table-data-row"
                               }
                             >
-                              {isOpened ? <MinusIcon /> : <PlusIcon />}
-                            </button>
+                              <span className="url-number-text">
+                                {displayNumber}
+                              </span>
 
-                            <button
-                              className="url-detail-toggle"
-                              onClick={() => handleLlmAnalyze(item.urlId)}
-                              type="button"
-                              disabled={analyzingUrlId === item.urlId}
-                            >
-                              {analyzingUrlId === item.urlId
-                                ? "분석 중..."
-                                : "LLM 분석"}
-                            </button>
-                          </div>
-                        </div>
+                              {isMyUrl && (
+                                <span>
+                                  <strong>
+                                    {item.senderName ?? item.domain ?? "알 수 없음"}
+                                  </strong>
+                                </span>
+                              )}
 
-                        {isOpened && (
-                          <div className="url-risk-reason-box">
-                            <strong>위험 분석 결과</strong>
+                              <span className="url-link-text">
+                                {item.normalizedUrl}
+                              </span>
 
-                            <p>· 위험도: {getRiskLabel(riskLevel)}</p>
+                              <span>
+                                {item.createdAt?.slice(0, 10)}{" "}
+                                {item.createdAt?.slice(11, 16)}
+                              </span>
 
-                            <p>
-                              · 점수:{" "}
-                              {item.score !== null && item.score !== undefined
-                                ? item.score
-                                : "-"}
-                            </p>
+                              <span>
+                                <span
+                                  className={`risk-badge ${getRiskClassName(
+                                    item.riskLevel as RiskLevelLabel
+                                  )}`}
+                                >
+                                  {getRiskLabel(
+                                    item.riskLevel as RiskLevelLabel
+                                  )}
+                                </span>
+                              </span>
 
-                            <p>
-                              · 설명:{" "}
-                              {item.reasonSummary
-                                ? item.reasonSummary
-                                : "분석 설명이 아직 없습니다."}
-                            </p>
-
-                            {item.detectedRules?.map((rule) => (
-                              <p key={rule}>· 탐지 규칙: {rule}</p>
-                            ))}
-                          </div>
-                        )}
-
-                        {llmResult && selectedLlmUrlId === item.urlId && (() => {
-                          const parsedSummary = parseLlmReasonSummary(llmResult.reasonSummary);
-
-                            return (
-                              <div className="url-risk-reason-box">
-                              <strong>LLM 분석 결과</strong>
-
-                              <p>· 위험도: {llmResult.risk}</p>
-                              <p>· 점수: {llmResult.score}점</p>
-
-                            {parsedSummary.confidence !== null && (
-                              <p>· 신뢰도: {Math.round(parsedSummary.confidence * 100)}%</p>
-                            )}
-
-                            {parsedSummary.falsePositivePossibility !== null && (
-                              <p>
-                                · 오탐 가능성:{" "}
-                            {parsedSummary.falsePositivePossibility ? "있음" : "낮음"}
-                              </p>
-                            )}
-
-                              <p>· 위험 사유: {parsedSummary.reason}</p>
-                              <p>· 권장 조치: {parsedSummary.recommendation}</p>
-
-                            {llmResult.detectedRules?.map((rule) => (
-                              <p key={rule}>· 탐지 규칙: {rule}</p>
-                            ))}
+                              <button
+                                className="url-detail-toggle"
+                                onClick={() => handleToggleReason(item.urlId)}
+                                type="button"
+                                aria-label={
+                                  isOpened ? "URL 설명 닫기" : "URL 설명 열기"
+                                }
+                              >
+                                {isOpened ? <MinusIcon /> : <PlusIcon />}
+                              </button>
                             </div>
-                            );
-                            })()}
+
+                            <div className="url-row-actions">
+                              <button
+                                className="url-detail-toggle"
+                                onClick={() => handleLlmAnalyze(item.urlId)}
+                                type="button"
+                              >
+                                {analyzingUrlId === item.urlId
+                                  ? "분석 중..."
+                                  : "LLM 분석"}
+                              </button>
+                            </div>
+
+                            {isOpened && (
+                              <div className="url-risk-reason-box">
+                                <strong>위험 분석 결과</strong>
+                                <p>
+                                  · 위험도:{" "}
+                                  {getRiskLabel(
+                                    item.riskLevel as RiskLevelLabel
+                                  )}
+                                </p>
+                                <p>
+                                  · 점수:{" "}
+                                  {item.score != null ? item.score : "-"}
+                                </p>
+                                <p>
+                                  · 설명:{" "}
+                                  {item.reasonSummary
+                                    ? item.reasonSummary
+                                    : "분석 설명이 아직 없습니다."}
+                                </p>
+
+                                {item.detectedRules?.map((rule) => (
+                                  <p key={rule}>· 탐지 규칙: {rule}</p>
+                                ))}
+                              </div>
+                            )}
+
+                            {llmResult && selectedLlmUrlId === item.urlId && (
+                              <div className="url-risk-reason-box">
+                                <strong>LLM 분석 결과</strong>
+                                <p>· 위험도: {llmResult.risk}</p>
+                                <p>· 점수: {llmResult.score}</p>
+                                <p>· 설명: {llmResult.reasonSummary}</p>
+
+                                {llmResult.detectedRules.map((rule) => (
+                                  <p key={rule}>· {rule}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {totalPages > 1 && (
+                      <div className="url-pagination">
+                        {Array.from({ length: totalPages }, (_, index) => (
+                          <button
+                            key={index + 1}
+                            className={
+                              currentPage === index + 1
+                                ? "url-page-button is-active"
+                                : "url-page-button"
+                            }
+                            onClick={() => setCurrentPage(index + 1)}
+                            type="button"
+                          >
+                            {index + 1}
+                          </button>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
+                    )}
+                  </section>
+                </>
+              )}
             </div>
           </section>
         </div>

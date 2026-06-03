@@ -1,19 +1,40 @@
 package org.teamkorea.backend.ai;
 
 import org.springframework.stereotype.Service;
+import org.teamkorea.backend.ai.dto.DomainAgeResult;
 import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
+import org.teamkorea.backend.ai.dto.LlmVoteResult;
+import org.teamkorea.backend.ai.dto.UrlFeatureResult;
 import org.teamkorea.backend.ai.prompt.LlmPromptBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class LlmAnalysisService {
 
-    private final LlmClient llmClient;
+    private final OpenPhishService openPhishService;
+    private final MultiLlmClient multiLlmClient;
+    private final UrlFeatureExtractor urlFeatureExtractor;
+    private final WhitelistService whitelistService;
+    private final ShortUrlResolverService shortUrlResolverService;
+    private final DomainAgeService domainAgeService;
 
-    public LlmAnalysisService(LlmClient llmClient) {
-        this.llmClient = llmClient;
+    public LlmAnalysisService(
+            MultiLlmClient multiLlmClient,
+            UrlFeatureExtractor urlFeatureExtractor,
+            OpenPhishService openPhishService,
+            WhitelistService whitelistService,
+            ShortUrlResolverService shortUrlResolverService,
+            DomainAgeService domainAgeService
+    ) {
+        this.multiLlmClient = multiLlmClient;
+        this.urlFeatureExtractor = urlFeatureExtractor;
+        this.openPhishService = openPhishService;
+        this.whitelistService = whitelistService;
+        this.shortUrlResolverService = shortUrlResolverService;
+        this.domainAgeService = domainAgeService;
     }
 
     public LlmAnalysisResponse analyze(
@@ -26,35 +47,108 @@ public class LlmAnalysisService {
     ) {
         List<String> detectedRules = new ArrayList<>();
 
-        String initialRisk = calculateRisk(url, domain, detectedRules);
-        double calculatedScore = calculateScore(url, initialRisk);
-        String calculatedRisk = determineFinalRisk(calculatedScore);
+        String resolvedUrl = shortUrlResolverService.resolve(url);
+        String resolvedDomain = normalizeDomain(resolvedUrl, null);
+
+        if (resolvedDomain == null || resolvedDomain.isBlank()) {
+            resolvedDomain = normalizeDomain(url, domain);
+        }
+
+        DomainAgeResult domainAgeResult =
+                domainAgeService.checkDomainAge(resolvedDomain);
+
+        boolean redirected = !safeEquals(url, resolvedUrl);
+
+        if (redirected) {
+            detectedRules.add("단축 URL 리다이렉트 추적");
+            detectedRules.add("최종 URL: " + resolvedUrl);
+        }
+
+        if (whitelistService.isWhitelisted(resolvedDomain)) {
+            return createWhitelistResponse(resolvedDomain, detectedRules);
+        }
+
+        String initialRisk = calculateRisk(resolvedUrl, resolvedDomain, detectedRules);
+        double calculatedScore = calculateScore(resolvedUrl, initialRisk);
+
+        UrlFeatureResult featureResult =
+                urlFeatureExtractor.extract(resolvedUrl, resolvedDomain);
+
+        boolean foundInOpenPhish =
+                openPhishService.isPhishingUrl(resolvedUrl);
+
+        addFeatureRules(featureResult, detectedRules);
+
+        double combinedScore = Math.max(
+                calculatedScore,
+                featureResult.getSuspiciousScore()
+        );
+
+        combinedScore = applyDomainAgeScore(
+                combinedScore,
+                domainAgeResult,
+                detectedRules
+        );
+
+        if (featureResult.isHasShortUrlService()
+                && redirected
+                && (
+                featureResult.isHasBrandImpersonation()
+                        || featureResult.isHasSubdomainBrandImpersonation()
+        )) {
+            combinedScore = Math.max(combinedScore, 90);
+            detectedRules.add("단축 URL + 리다이렉트 + 브랜드 사칭 조합");
+        }
+
+        if (redirected && combinedScore < 70) {
+            combinedScore = Math.max(combinedScore, 60);
+            detectedRules.add("리다이렉트 URL 위험도 보정");
+        }
+
+        if (foundInOpenPhish) {
+            combinedScore = Math.max(combinedScore, 70);
+            detectedRules.add("OpenPhish 실제 피싱 DB 탐지");
+        }
+
+        combinedScore = Math.min(combinedScore, 100);
+
+        String calculatedRisk = determineFinalRisk(combinedScore);
 
         String prompt = LlmPromptBuilder.buildPrompt(
-                url,
-                domain,
+                resolvedUrl,
+                resolvedDomain,
                 calculatedRisk,
-                calculatedScore,
+                combinedScore,
                 detectedRules,
                 null,
                 null
         );
 
-        String reason = llmClient.call(prompt);
+        List<LlmVoteResult> votes = multiLlmClient.vote(prompt, calculatedRisk);
 
-        if (reason == null || reason.contains("LLM 분석 중 오류가 발생했습니다")) {
-            reason = createFallbackReason(calculatedRisk, detectedRules);
-        }
+        String llmRiskOpinion = decideByMajority(votes, calculatedRisk);
+        double confidence = averageConfidence(votes);
+
+        String reason = buildVoteReason(
+                votes,
+                calculatedRisk,
+                detectedRules,
+                featureResult,
+                domainAgeResult
+        );
+
+        double finalScore = adjustScoreByLlm(combinedScore, llmRiskOpinion);
+        String finalRisk = determineFinalRisk(finalScore);
 
         return new LlmAnalysisResponse(
-                calculatedRisk,
+                finalRisk,
                 reason,
-                calculatedScore,
+                finalScore,
                 detectedRules,
-                calculatedRisk,
-                0.5,
+                llmRiskOpinion,
+                confidence,
                 false,
-                "의심스러운 링크는 클릭하지 말고 공식 홈페이지나 앱을 통해 직접 접속하세요."
+                createRecommendation(finalRisk)
         );
     }
 
@@ -67,43 +161,101 @@ public class LlmAnalysisService {
             String emailSubject,
             String emailBody
     ) {
-        String prompt = LlmPromptBuilder.buildPrompt(
-                url,
-                domain,
-                ruleRisk,
+        if (detectedRules == null) {
+            detectedRules = new ArrayList<>();
+        }
+
+        String resolvedUrl = shortUrlResolverService.resolve(url);
+        String resolvedDomain = normalizeDomain(resolvedUrl, null);
+
+        if (resolvedDomain == null || resolvedDomain.isBlank()) {
+            resolvedDomain = normalizeDomain(url, domain);
+        }
+
+        DomainAgeResult domainAgeResult =
+                domainAgeService.checkDomainAge(resolvedDomain);
+
+        boolean redirected = !safeEquals(url, resolvedUrl);
+
+        if (redirected) {
+            detectedRules.add("단축 URL 리다이렉트 추적");
+            detectedRules.add("최종 URL: " + resolvedUrl);
+        }
+
+        if (whitelistService.isWhitelisted(resolvedDomain)) {
+            return createWhitelistResponse(resolvedDomain, detectedRules);
+        }
+
+        UrlFeatureResult featureResult =
+                urlFeatureExtractor.extract(resolvedUrl, resolvedDomain);
+
+        addFeatureRules(featureResult, detectedRules);
+
+        double combinedScore = Math.max(
                 ruleScore,
+                featureResult.getSuspiciousScore()
+        );
+
+        combinedScore = applyDomainAgeScore(
+                combinedScore,
+                domainAgeResult,
+                detectedRules
+        );
+
+        if (featureResult.isHasShortUrlService()
+                && redirected
+                && (
+                featureResult.isHasBrandImpersonation()
+                        || featureResult.isHasSubdomainBrandImpersonation()
+        )) {
+            combinedScore = Math.max(combinedScore, 90);
+            detectedRules.add("단축 URL + 리다이렉트 + 브랜드 사칭 조합");
+        }
+
+        if (redirected && combinedScore < 70) {
+            combinedScore = Math.max(combinedScore, 60);
+            detectedRules.add("리다이렉트 URL 위험도 보정");
+        }
+
+        boolean foundInOpenPhish =
+                openPhishService.isPhishingUrl(resolvedUrl);
+
+        if (foundInOpenPhish) {
+            combinedScore = Math.max(combinedScore, 70);
+            detectedRules.add("OpenPhish 실제 피싱 DB 탐지");
+        }
+
+        combinedScore = Math.min(combinedScore, 100);
+
+        String combinedRisk = determineFinalRisk(combinedScore);
+
+        String prompt = LlmPromptBuilder.buildPrompt(
+                resolvedUrl,
+                resolvedDomain,
+                combinedRisk,
+                combinedScore,
                 detectedRules,
                 emailSubject,
                 emailBody
         );
 
-        String llmText = llmClient.call(prompt);
+        List<LlmVoteResult> votes = multiLlmClient.vote(prompt, combinedRisk);
 
-        String llmRiskOpinion = extractJsonString(llmText, "llmRiskOpinion", ruleRisk);
-        double confidence = extractJsonDouble(llmText, "confidence", 0.5);
+        String llmRiskOpinion = decideByMajority(votes, combinedRisk);
+        double confidence = averageConfidence(votes);
+
         boolean falsePositivePossibility =
-                extractJsonBoolean(llmText, "falsePositivePossibility", false);
+                "SAFE".equals(llmRiskOpinion) && !"SAFE".equals(combinedRisk);
 
-        String reason = extractJsonString(
-                llmText,
-                "reason",
-                createFallbackReason(ruleRisk, detectedRules)
+        String reason = buildVoteReason(
+                votes,
+                combinedRisk,
+                detectedRules,
+                featureResult,
+                domainAgeResult
         );
 
-        String recommendation = extractJsonString(
-                llmText,
-                "recommendation",
-                "의심스러운 링크는 클릭하지 말고 공식 홈페이지나 앱을 통해 직접 접속하세요."
-        );
-
-        double finalScore = ruleScore;
-
-        if ("DANGER".equals(llmRiskOpinion) && ruleScore < 70) {
-            finalScore = Math.max(ruleScore, 70);
-        } else if ("WARNING".equals(llmRiskOpinion) && ruleScore < 30) {
-            finalScore = Math.max(ruleScore, 30);
-        }
-
+        double finalScore = adjustScoreByLlm(combinedScore, llmRiskOpinion);
         String finalRisk = determineFinalRisk(finalScore);
 
         return new LlmAnalysisResponse(
@@ -114,8 +266,249 @@ public class LlmAnalysisService {
                 llmRiskOpinion,
                 confidence,
                 falsePositivePossibility,
-                recommendation
+                createRecommendation(finalRisk)
         );
+    }
+
+    private double applyDomainAgeScore(
+            double combinedScore,
+            DomainAgeResult domainAgeResult,
+            List<String> detectedRules
+    ) {
+        if (domainAgeResult == null || !domainAgeResult.isChecked()) {
+            return combinedScore;
+        }
+
+        if (!domainAgeResult.isNewDomain()) {
+            return combinedScore;
+        }
+
+        if (domainAgeResult.getAgeDays() <= 30) {
+            detectedRules.add("신규 생성 도메인 (30일 이내)");
+            return Math.max(combinedScore, 85);
+        }
+
+        detectedRules.add("신규 생성 도메인 (90일 이내)");
+        return Math.max(combinedScore, 70);
+    }
+
+    private LlmAnalysisResponse createWhitelistResponse(
+            String domain,
+            List<String> existingRules
+    ) {
+        List<String> detectedRules = new ArrayList<>();
+
+        if (existingRules != null) {
+            detectedRules.addAll(existingRules);
+        }
+
+        detectedRules.add("화이트리스트 등록 도메인");
+
+        return new LlmAnalysisResponse(
+                "SAFE",
+                "신뢰 가능한 공식 도메인(" + domain + ")으로 등록되어 있어 안전한 URL로 판단했습니다.",
+                0.0,
+                detectedRules,
+                "SAFE",
+                1.0,
+                false,
+                "공식 도메인으로 판단되지만, 개인정보 입력 전 주소가 정확한지 한 번 더 확인하세요."
+        );
+    }
+
+    private void addFeatureRules(
+            UrlFeatureResult featureResult,
+            List<String> detectedRules
+    ) {
+        if (featureResult == null || detectedRules == null) {
+            return;
+        }
+
+        if (featureResult.isHasIpAddress()) {
+            detectedRules.add("Feature: IP 주소 사용");
+        }
+
+        if (featureResult.isHasPunycode()) {
+            detectedRules.add("Feature: Punycode 사용");
+        }
+
+        if (featureResult.getDomainLength() >= 30) {
+            detectedRules.add("Feature: 도메인 길이 과다");
+        }
+
+        if (featureResult.getHyphenCount() >= 2) {
+            detectedRules.add("Feature: 하이픈 과다");
+        }
+
+        if (featureResult.getDotCount() >= 3) {
+            detectedRules.add("Feature: 서브도메인 과다");
+        }
+
+        if (featureResult.getDigitCount() >= 3) {
+            detectedRules.add("Feature: 숫자 과다");
+        }
+
+        if (featureResult.isHasSuspiciousKeyword()) {
+            detectedRules.add("Feature: 의심 키워드 포함");
+        }
+
+        if (featureResult.isHasSuspiciousTld()) {
+            detectedRules.add("Feature: 의심 TLD 사용");
+        }
+
+        if (featureResult.isHasBrandImpersonation()) {
+            detectedRules.add("Feature: 브랜드 사칭 의심");
+        }
+
+        if (featureResult.isHasSubdomainBrandImpersonation()) {
+            detectedRules.add("Feature: 서브도메인 브랜드 사칭 의심");
+        }
+
+        if (featureResult.isHasShortUrlService()) {
+            detectedRules.add("Feature: 단축 URL 서비스 사용");
+        }
+    }
+
+    private String decideByMajority(List<LlmVoteResult> votes, String ruleRisk) {
+        if (votes == null || votes.isEmpty()) {
+            return ruleRisk;
+        }
+
+        long dangerCount = votes.stream()
+                .filter(LlmVoteResult::isSuccess)
+                .filter(v -> "DANGER".equals(v.getRisk()))
+                .count();
+
+        long warningCount = votes.stream()
+                .filter(LlmVoteResult::isSuccess)
+                .filter(v -> "WARNING".equals(v.getRisk()))
+                .count();
+
+        long safeCount = votes.stream()
+                .filter(LlmVoteResult::isSuccess)
+                .filter(v -> "SAFE".equals(v.getRisk()))
+                .count();
+
+        if (dangerCount >= 2) {
+            return "DANGER";
+        }
+
+        if (dangerCount + warningCount >= 2) {
+            return "WARNING";
+        }
+
+        if (safeCount >= 2) {
+            return "SAFE";
+        }
+
+        return ruleRisk;
+    }
+
+    private double averageConfidence(List<LlmVoteResult> votes) {
+        if (votes == null || votes.isEmpty()) {
+            return 0.5;
+        }
+
+        return votes.stream()
+                .filter(LlmVoteResult::isSuccess)
+                .mapToDouble(LlmVoteResult::getConfidence)
+                .average()
+                .orElse(0.5);
+    }
+
+    private String buildVoteReason(
+            List<LlmVoteResult> votes,
+            String ruleRisk,
+            List<String> detectedRules,
+            UrlFeatureResult featureResult,
+            DomainAgeResult domainAgeResult
+    ) {
+        String ruleReason = createFallbackReason(ruleRisk, detectedRules);
+        String featureSummary = buildFeatureSummary(featureResult, domainAgeResult);
+
+        if (votes == null || votes.isEmpty()) {
+            return ruleReason + " " + featureSummary;
+        }
+
+        String voteSummary = votes.stream()
+                .map(v -> v.getProvider() + "=" + v.getRisk())
+                .collect(Collectors.joining(", "));
+
+        String detailReason = votes.stream()
+                .filter(LlmVoteResult::isSuccess)
+                .map(v -> "[" + v.getProvider() + "] " + v.getReason())
+                .collect(Collectors.joining(" "));
+
+        if (detailReason.isBlank()) {
+            detailReason = ruleReason;
+        }
+
+        return "규칙 기반 판단: " + ruleRisk
+                + ". LLM 다수결 결과: " + voteSummary
+                + ". " + detailReason
+                + " " + featureSummary;
+    }
+
+    private String buildFeatureSummary(
+            UrlFeatureResult featureResult,
+            DomainAgeResult domainAgeResult
+    ) {
+        if (featureResult == null) {
+            return "";
+        }
+
+        String domainAgeSummary = "";
+
+        if (domainAgeResult != null && domainAgeResult.isChecked()) {
+            domainAgeSummary =
+                    ", domainAgeDays=" + domainAgeResult.getAgeDays()
+                            + ", domainCreatedDate=" + domainAgeResult.getCreatedDate()
+                            + ", rootDomain=" + domainAgeResult.getRootDomain();
+        }
+
+        return "[URL Feature 분석] "
+                + "domainLength=" + featureResult.getDomainLength()
+                + ", hyphenCount=" + featureResult.getHyphenCount()
+                + ", dotCount=" + featureResult.getDotCount()
+                + ", digitCount=" + featureResult.getDigitCount()
+                + ", ipAddress=" + featureResult.isHasIpAddress()
+                + ", punycode=" + featureResult.isHasPunycode()
+                + ", suspiciousKeyword=" + featureResult.isHasSuspiciousKeyword()
+                + ", suspiciousTld=" + featureResult.isHasSuspiciousTld()
+                + ", subdomainBrandImpersonation=" + featureResult.isHasSubdomainBrandImpersonation()
+                + ", shortUrlService=" + featureResult.isHasShortUrlService()
+                + ", featureScore=" + featureResult.getSuspiciousScore()
+                + ", openPhishChecked=true"
+                + domainAgeSummary
+                + ".";
+    }
+
+    private double adjustScoreByLlm(double ruleScore, String llmRiskOpinion) {
+        if ("DANGER".equals(llmRiskOpinion) && ruleScore < 70) {
+            return Math.max(ruleScore, 70);
+        }
+
+        if ("WARNING".equals(llmRiskOpinion) && ruleScore < 30) {
+            return Math.max(ruleScore, 30);
+        }
+
+        if ("SAFE".equals(llmRiskOpinion) && ruleScore >= 70) {
+            return 50;
+        }
+
+        return ruleScore;
+    }
+
+    private String createRecommendation(String risk) {
+        if ("DANGER".equals(risk)) {
+            return "악성 또는 피싱 가능성이 높으므로 링크를 클릭하지 말고 즉시 삭제하거나 신고하세요.";
+        }
+
+        if ("WARNING".equals(risk)) {
+            return "의심 요소가 있으므로 개인정보 입력을 피하고 공식 홈페이지나 앱을 통해 직접 접속하세요.";
+        }
+
+        return "현재 분석 기준에서는 큰 위험 요소가 발견되지 않았지만, 개인정보 입력 전 주소를 한 번 더 확인하세요.";
     }
 
     private String calculateRisk(String url, String domain, List<String> detectedRules) {
@@ -180,14 +573,6 @@ public class LlmAnalysisService {
 
         if (domain != null && domain.split("\\.").length >= 4) {
             detectedRules.add("서브도메인 과다 사용");
-        }
-
-        if (domain != null &&
-                (domain.contains("naver.com")
-                        || domain.contains("google.com")
-                        || domain.contains("kakao.com"))) {
-            detectedRules.add("신뢰 가능한 도메인");
-            return "SAFE";
         }
 
         if (!detectedRules.isEmpty()) {
@@ -296,6 +681,14 @@ public class LlmAnalysisService {
         return "SAFE";
     }
 
+    private String normalizeDomain(String url, String domain) {
+        if (domain != null && !domain.isBlank()) {
+            return domain.toLowerCase();
+        }
+
+        return extractDomain(url);
+    }
+
     private String extractDomain(String url) {
         try {
             return java.net.URI.create(url).getHost();
@@ -303,71 +696,12 @@ public class LlmAnalysisService {
             return null;
         }
     }
-private String extractJsonString(String text, String key, String defaultValue) {
-    if (text == null || text.isBlank()) {
-        return defaultValue;
-    }
 
-    try {
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-                "\"" + key + "\"\\s*:\\s*\"([^\"]*)\""
-        );
-
-        java.util.regex.Matcher matcher = pattern.matcher(text);
-
-        if (matcher.find()) {
-            return matcher.group(1);
+    private boolean safeEquals(String a, String b) {
+        if (a == null) {
+            return b == null;
         }
 
-        return defaultValue;
-    } catch (Exception e) {
-        return defaultValue;
+        return a.equals(b);
     }
-}
-
-private double extractJsonDouble(String text, String key, double defaultValue) {
-    if (text == null || text.isBlank()) {
-        return defaultValue;
-    }
-
-    try {
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-                "\"" + key + "\"\\s*:\\s*([0-9.]+)"
-        );
-
-        java.util.regex.Matcher matcher = pattern.matcher(text);
-
-        if (matcher.find()) {
-            return Double.parseDouble(matcher.group(1));
-        }
-
-        return defaultValue;
-    } catch (Exception e) {
-        return defaultValue;
-    }
-}
-
-private boolean extractJsonBoolean(String text, String key, boolean defaultValue) {
-    if (text == null || text.isBlank()) {
-        return defaultValue;
-    }
-
-    try {
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-                "\"" + key + "\"\\s*:\\s*(true|false)"
-        );
-
-        java.util.regex.Matcher matcher = pattern.matcher(text);
-
-        if (matcher.find()) {
-            return Boolean.parseBoolean(matcher.group(1));
-        }
-
-        return defaultValue;
-    } catch (Exception e) {
-        return defaultValue;
-    }
-}
-    
-
 }
