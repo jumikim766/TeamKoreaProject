@@ -12,19 +12,23 @@ import java.util.stream.Collectors;
 
 @Service
 public class LlmAnalysisService {
+
     private final OpenPhishService openPhishService;
     private final MultiLlmClient multiLlmClient;
     private final UrlFeatureExtractor urlFeatureExtractor;
-    
+    private final WhitelistService whitelistService;
+
     public LlmAnalysisService(
-        MultiLlmClient multiLlmClient,
-        UrlFeatureExtractor urlFeatureExtractor,
-        OpenPhishService openPhishService
-) {
-    this.multiLlmClient = multiLlmClient;
-    this.urlFeatureExtractor = urlFeatureExtractor;
-    this.openPhishService = openPhishService;
-}
+            MultiLlmClient multiLlmClient,
+            UrlFeatureExtractor urlFeatureExtractor,
+            OpenPhishService openPhishService,
+            WhitelistService whitelistService
+    ) {
+        this.multiLlmClient = multiLlmClient;
+        this.urlFeatureExtractor = urlFeatureExtractor;
+        this.openPhishService = openPhishService;
+        this.whitelistService = whitelistService;
+    }
 
     public LlmAnalysisResponse analyze(
             String url,
@@ -36,40 +40,40 @@ public class LlmAnalysisService {
     ) {
         List<String> detectedRules = new ArrayList<>();
 
-        String initialRisk = calculateRisk(url, domain, detectedRules);
+        String normalizedDomain = normalizeDomain(url, domain);
+
+        if (whitelistService.isWhitelisted(normalizedDomain)) {
+            return createWhitelistResponse(normalizedDomain);
+        }
+
+        String initialRisk = calculateRisk(url, normalizedDomain, detectedRules);
         double calculatedScore = calculateScore(url, initialRisk);
 
         UrlFeatureResult featureResult =
-                urlFeatureExtractor.extract(url, domain);
-        
-                boolean foundInOpenPhish =
-        openPhishService.isPhishingUrl(url);
+                urlFeatureExtractor.extract(url, normalizedDomain);
 
-       
+        boolean foundInOpenPhish =
+                openPhishService.isPhishingUrl(url);
 
         addFeatureRules(featureResult, detectedRules);
 
         double combinedScore = Math.max(
-        calculatedScore,
-        featureResult.getSuspiciousScore()
-);
+                calculatedScore,
+                featureResult.getSuspiciousScore()
+        );
 
-if (foundInOpenPhish) {
+        if (foundInOpenPhish) {
+            combinedScore = Math.max(combinedScore, 70);
+            detectedRules.add("OpenPhish 실제 피싱 DB 탐지");
+        }
 
-    combinedScore = Math.max(combinedScore, 70);
-
-    detectedRules.add(
-            "OpenPhish 실제 피싱 DB 탐지"
-    );
-}
-
-combinedScore = Math.min(combinedScore, 100);
+        combinedScore = Math.min(combinedScore, 100);
 
         String calculatedRisk = determineFinalRisk(combinedScore);
 
         String prompt = LlmPromptBuilder.buildPrompt(
                 url,
-                domain,
+                normalizedDomain,
                 calculatedRisk,
                 combinedScore,
                 detectedRules,
@@ -117,8 +121,14 @@ combinedScore = Math.min(combinedScore, 100);
             detectedRules = new ArrayList<>();
         }
 
+        String normalizedDomain = normalizeDomain(url, domain);
+
+        if (whitelistService.isWhitelisted(normalizedDomain)) {
+            return createWhitelistResponse(normalizedDomain);
+        }
+
         UrlFeatureResult featureResult =
-                urlFeatureExtractor.extract(url, domain);
+                urlFeatureExtractor.extract(url, normalizedDomain);
 
         addFeatureRules(featureResult, detectedRules);
 
@@ -127,11 +137,21 @@ combinedScore = Math.min(combinedScore, 100);
                 featureResult.getSuspiciousScore()
         );
 
+        boolean foundInOpenPhish =
+                openPhishService.isPhishingUrl(url);
+
+        if (foundInOpenPhish) {
+            combinedScore = Math.max(combinedScore, 70);
+            detectedRules.add("OpenPhish 실제 피싱 DB 탐지");
+        }
+
+        combinedScore = Math.min(combinedScore, 100);
+
         String combinedRisk = determineFinalRisk(combinedScore);
 
         String prompt = LlmPromptBuilder.buildPrompt(
                 url,
-                domain,
+                normalizedDomain,
                 combinedRisk,
                 combinedScore,
                 detectedRules,
@@ -157,8 +177,6 @@ combinedScore = Math.min(combinedScore, 100);
         double finalScore = adjustScoreByLlm(combinedScore, llmRiskOpinion);
         String finalRisk = determineFinalRisk(finalScore);
 
-        String recommendation = createRecommendation(finalRisk);
-
         return new LlmAnalysisResponse(
                 finalRisk,
                 reason,
@@ -167,7 +185,23 @@ combinedScore = Math.min(combinedScore, 100);
                 llmRiskOpinion,
                 confidence,
                 falsePositivePossibility,
-                recommendation
+                createRecommendation(finalRisk)
+        );
+    }
+
+    private LlmAnalysisResponse createWhitelistResponse(String domain) {
+        List<String> detectedRules = new ArrayList<>();
+        detectedRules.add("화이트리스트 등록 도메인");
+
+        return new LlmAnalysisResponse(
+                "SAFE",
+                "신뢰 가능한 공식 도메인(" + domain + ")으로 등록되어 있어 안전한 URL로 판단했습니다.",
+                0.0,
+                detectedRules,
+                "SAFE",
+                1.0,
+                false,
+                "공식 도메인으로 판단되지만, 개인정보 입력 전 주소가 정확한지 한 번 더 확인하세요."
         );
     }
 
@@ -210,6 +244,9 @@ combinedScore = Math.min(combinedScore, 100);
         if (featureResult.isHasSuspiciousTld()) {
             detectedRules.add("Feature: 의심 TLD 사용");
         }
+        if (featureResult.isHasBrandImpersonation()) {
+    detectedRules.add("Feature: 브랜드 사칭 의심");
+}
     }
 
     private String decideByMajority(List<LlmVoteResult> votes, String ruleRisk) {
@@ -402,18 +439,10 @@ combinedScore = Math.min(combinedScore, 100);
             detectedRules.add("서브도메인 과다 사용");
         }
 
-        if (domain != null &&
-                (domain.contains("naver.com")
-                        || domain.contains("google.com")
-                        || domain.contains("kakao.com"))) {
-            detectedRules.add("신뢰 가능한 도메인");
-            return "SAFE";
-        }
-
         if (!detectedRules.isEmpty()) {
             return "WARNING";
         }
-
+       
         return "SAFE";
     }
 
@@ -514,6 +543,14 @@ combinedScore = Math.min(combinedScore, 100);
         }
 
         return "SAFE";
+    }
+
+    private String normalizeDomain(String url, String domain) {
+        if (domain != null && !domain.isBlank()) {
+            return domain.toLowerCase();
+        }
+
+        return extractDomain(url);
     }
 
     private String extractDomain(String url) {

@@ -10,7 +10,8 @@ public class UrlFeatureExtractor {
         System.out.println("URL = " + url);
 System.out.println("DOMAIN = " + domain);
 System.out.println("Suspicious TLD = " + hasSuspiciousTld(domain));
-
+boolean hasBrandImpersonation =
+        containsBrandImpersonation(domain);
         if (url == null) {
             url = "";
         }
@@ -32,6 +33,7 @@ System.out.println("Suspicious TLD = " + hasSuspiciousTld(domain));
 
         boolean hasSuspiciousKeyword =
                 containsSuspiciousKeyword(url);
+        
 
         boolean hasSuspiciousTld =
                 hasSuspiciousTld(domain);
@@ -44,7 +46,8 @@ System.out.println("Suspicious TLD = " + hasSuspiciousTld(domain));
                 hasIpAddress,
                 hasPunycode,
                 hasSuspiciousKeyword,
-                hasSuspiciousTld
+                hasSuspiciousTld,
+                hasBrandImpersonation
         );
 
         return new UrlFeatureResult(
@@ -56,7 +59,8 @@ System.out.println("Suspicious TLD = " + hasSuspiciousTld(domain));
                 hasPunycode,
                 hasSuspiciousKeyword,
                 hasSuspiciousTld,
-                score
+hasBrandImpersonation,
+score
         );
     }
 
@@ -84,7 +88,36 @@ System.out.println("Suspicious TLD = " + hasSuspiciousTld(domain));
                 || lower.contains("paypal")
                 || lower.contains("confirm");
     }
+    private boolean containsBrandImpersonation(
+        String domain
+) {
 
+    if (domain == null) {
+        return false;
+    }
+
+    String lower = domain.toLowerCase();
+
+    return (
+            lower.contains("google")
+            || lower.contains("naver")
+            || lower.contains("kakao")
+            || lower.contains("paypal")
+            || lower.contains("microsoft")
+            || lower.contains("apple")
+            || lower.contains("amazon")
+    )
+    &&
+    !(
+            lower.endsWith("google.com")
+            || lower.endsWith("naver.com")
+            || lower.endsWith("kakao.com")
+            || lower.endsWith("paypal.com")
+            || lower.endsWith("microsoft.com")
+            || lower.endsWith("apple.com")
+            || lower.endsWith("amazon.com")
+    );
+}
     private boolean hasSuspiciousTld(String domain) {
     if (domain == null) {
         return false;
@@ -108,10 +141,11 @@ System.out.println("Suspicious TLD = " + hasSuspiciousTld(domain));
             boolean hasIpAddress,
             boolean hasPunycode,
             boolean hasSuspiciousKeyword,
-            boolean hasSuspiciousTld
+            boolean hasSuspiciousTld,
+            boolean hasBrandImpersonation
     ) {
         double score = 0;
-
+        
         if (domainLength >= 30) {
             score += 15;
         }
@@ -143,6 +177,9 @@ System.out.println("Suspicious TLD = " + hasSuspiciousTld(domain));
         if (hasSuspiciousTld) {
             score += 20;
         }
+        if (hasBrandImpersonation) {
+    score += 35;
+}
 
         return Math.min(score, 100);
     }
