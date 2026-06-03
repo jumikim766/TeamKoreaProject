@@ -8,7 +8,12 @@ import {
 import type { ViewMode } from '../App';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import { getUnreadCount, readNotification } from '../api/notificationApi';
+import {
+  getNotifications,
+  getUnreadCount,
+  readNotification,
+  type NotificationResponse,
+} from '../api/notificationApi';
 import '../styles/NotificationPage.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -23,6 +28,20 @@ interface NotificationItem {
   content: string;
   isRead: boolean;
 }
+
+const toNotificationItem = (
+  notification: NotificationResponse
+): NotificationItem => {
+  return {
+    id: notification.notificationId,
+    title: notification.title,
+    summary: notification.message,
+    date: new Date(notification.createdAt).toLocaleString(),
+    type: 'URL 알림',
+    content: notification.message,
+    isRead: notification.isRead,
+  };
+};
 
 interface NotificationPageProps {
   theme: ThemeMode;
@@ -69,6 +88,27 @@ function NotificationPage({
     }
   }, []);
 
+const loadNotifications = useCallback(async () => {
+  try {
+    const response = await getNotifications();
+    const items = response.map(toNotificationItem);
+
+    setNotifications(items);
+
+    if (items.length > 0) {
+      setSelectedId((prevSelectedId) => {
+        const exists = items.some((item) => item.id === prevSelectedId);
+
+        return exists ? prevSelectedId : items[0].id;
+      });
+    } else {
+      setSelectedId(null);
+    }
+  } catch {
+    showErrorOnce('알림 목록을 불러오지 못했습니다.');
+  }
+}, [showErrorOnce]);
+
   const loadUnreadCount = useCallback(async () => {
     try {
       const count = await getUnreadCount();
@@ -87,8 +127,9 @@ function NotificationPage({
     }
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadNotifications();
     loadUnreadCount();
-  }, [isLoggedIn, currentView, loadUnreadCount]);
+  }, [isLoggedIn, currentView, loadNotifications, loadUnreadCount]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -120,6 +161,7 @@ function NotificationPage({
         );
 
         await loadUnreadCount();
+        await loadNotifications();
       }
     } catch {
       alert('알림 읽음 처리에 실패했습니다.');

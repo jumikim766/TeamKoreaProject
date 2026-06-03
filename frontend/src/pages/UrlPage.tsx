@@ -74,6 +74,7 @@ function parseLlmReasonSummary(reasonSummary?: string | null) {
       reason: "분석 설명이 아직 없습니다.",
       recommendation: "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
       confidence: null as number | null,
+      falsePositivePossibility: null as boolean | null,
     };
   }
 
@@ -86,12 +87,17 @@ function parseLlmReasonSummary(reasonSummary?: string | null) {
         parsed.recommendation ?? "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
       confidence:
         typeof parsed.confidence === "number" ? parsed.confidence : null,
+      falsePositivePossibility:
+        typeof parsed.falsePositivePossibility === "boolean"
+          ? parsed.falsePositivePossibility
+          : null,
     };
   } catch {
     return {
       reason: reasonSummary,
       recommendation: "의심스러운 링크는 클릭하지 않는 것이 좋습니다.",
       confidence: null as number | null,
+      falsePositivePossibility: null as boolean | null,
     };
   }
 }
@@ -404,6 +410,13 @@ function UrlPage({
 
                             {parsedSummary.confidence !== null && (
                               <p>· 신뢰도: {Math.round(parsedSummary.confidence * 100)}%</p>
+                            )}
+
+                            {parsedSummary.falsePositivePossibility !== null && (
+                              <p>
+                                · 오탐 가능성:{" "}
+                            {parsedSummary.falsePositivePossibility ? "있음" : "낮음"}
+                              </p>
                             )}
 
                               <p>· 위험 사유: {parsedSummary.reason}</p>
