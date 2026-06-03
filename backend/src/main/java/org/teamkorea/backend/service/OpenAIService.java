@@ -11,11 +11,11 @@ import java.util.Map;
 @Service
 public class OpenAIService {
 
-    @Value("${openai.api-key}")
-    private String apiKey;
+    @Value("${openai.api-key:}")
+private String apiKey;
 
-    @Value("${openai.model}")
-    private String model;
+@Value("${openai.model:gpt-4o-mini}")
+private String model;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -31,7 +31,8 @@ public class OpenAIService {
                 """.formatted(url);
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(apiKey);
+        String cleanApiKey = apiKey.trim().replace("\"", "");
+headers.setBearerAuth(cleanApiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body = Map.of(

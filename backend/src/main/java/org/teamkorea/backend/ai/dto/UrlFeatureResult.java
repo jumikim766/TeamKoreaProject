@@ -17,6 +17,8 @@ public class UrlFeatureResult {
     private boolean hasSuspiciousKeyword;
     private boolean hasSuspiciousTld;
     private boolean hasBrandImpersonation;
+    private boolean hasSubdomainBrandImpersonation;
+    private boolean hasShortUrlService;
 
     private double suspiciousScore;
 }

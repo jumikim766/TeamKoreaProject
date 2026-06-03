@@ -1,6 +1,7 @@
 package org.teamkorea.backend.ai;
 
 import org.springframework.stereotype.Service;
+import org.teamkorea.backend.ai.dto.DomainAgeResult;
 import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
 import org.teamkorea.backend.ai.dto.LlmVoteResult;
 import org.teamkorea.backend.ai.dto.UrlFeatureResult;
@@ -17,17 +18,23 @@ public class LlmAnalysisService {
     private final MultiLlmClient multiLlmClient;
     private final UrlFeatureExtractor urlFeatureExtractor;
     private final WhitelistService whitelistService;
+    private final ShortUrlResolverService shortUrlResolverService;
+    private final DomainAgeService domainAgeService;
 
     public LlmAnalysisService(
             MultiLlmClient multiLlmClient,
             UrlFeatureExtractor urlFeatureExtractor,
             OpenPhishService openPhishService,
-            WhitelistService whitelistService
+            WhitelistService whitelistService,
+            ShortUrlResolverService shortUrlResolverService,
+            DomainAgeService domainAgeService
     ) {
         this.multiLlmClient = multiLlmClient;
         this.urlFeatureExtractor = urlFeatureExtractor;
         this.openPhishService = openPhishService;
         this.whitelistService = whitelistService;
+        this.shortUrlResolverService = shortUrlResolverService;
+        this.domainAgeService = domainAgeService;
     }
 
     public LlmAnalysisResponse analyze(
@@ -40,20 +47,35 @@ public class LlmAnalysisService {
     ) {
         List<String> detectedRules = new ArrayList<>();
 
-        String normalizedDomain = normalizeDomain(url, domain);
+        String resolvedUrl = shortUrlResolverService.resolve(url);
+        String resolvedDomain = normalizeDomain(resolvedUrl, null);
 
-        if (whitelistService.isWhitelisted(normalizedDomain)) {
-            return createWhitelistResponse(normalizedDomain);
+        if (resolvedDomain == null || resolvedDomain.isBlank()) {
+            resolvedDomain = normalizeDomain(url, domain);
         }
 
-        String initialRisk = calculateRisk(url, normalizedDomain, detectedRules);
-        double calculatedScore = calculateScore(url, initialRisk);
+        DomainAgeResult domainAgeResult =
+                domainAgeService.checkDomainAge(resolvedDomain);
+
+        boolean redirected = !safeEquals(url, resolvedUrl);
+
+        if (redirected) {
+            detectedRules.add("단축 URL 리다이렉트 추적");
+            detectedRules.add("최종 URL: " + resolvedUrl);
+        }
+
+        if (whitelistService.isWhitelisted(resolvedDomain)) {
+            return createWhitelistResponse(resolvedDomain, detectedRules);
+        }
+
+        String initialRisk = calculateRisk(resolvedUrl, resolvedDomain, detectedRules);
+        double calculatedScore = calculateScore(resolvedUrl, initialRisk);
 
         UrlFeatureResult featureResult =
-                urlFeatureExtractor.extract(url, normalizedDomain);
+                urlFeatureExtractor.extract(resolvedUrl, resolvedDomain);
 
         boolean foundInOpenPhish =
-                openPhishService.isPhishingUrl(url);
+                openPhishService.isPhishingUrl(resolvedUrl);
 
         addFeatureRules(featureResult, detectedRules);
 
@@ -61,6 +83,27 @@ public class LlmAnalysisService {
                 calculatedScore,
                 featureResult.getSuspiciousScore()
         );
+
+        combinedScore = applyDomainAgeScore(
+                combinedScore,
+                domainAgeResult,
+                detectedRules
+        );
+
+        if (featureResult.isHasShortUrlService()
+                && redirected
+                && (
+                featureResult.isHasBrandImpersonation()
+                        || featureResult.isHasSubdomainBrandImpersonation()
+        )) {
+            combinedScore = Math.max(combinedScore, 90);
+            detectedRules.add("단축 URL + 리다이렉트 + 브랜드 사칭 조합");
+        }
+
+        if (redirected && combinedScore < 70) {
+            combinedScore = Math.max(combinedScore, 60);
+            detectedRules.add("리다이렉트 URL 위험도 보정");
+        }
 
         if (foundInOpenPhish) {
             combinedScore = Math.max(combinedScore, 70);
@@ -72,8 +115,8 @@ public class LlmAnalysisService {
         String calculatedRisk = determineFinalRisk(combinedScore);
 
         String prompt = LlmPromptBuilder.buildPrompt(
-                url,
-                normalizedDomain,
+                resolvedUrl,
+                resolvedDomain,
                 calculatedRisk,
                 combinedScore,
                 detectedRules,
@@ -90,7 +133,8 @@ public class LlmAnalysisService {
                 votes,
                 calculatedRisk,
                 detectedRules,
-                featureResult
+                featureResult,
+                domainAgeResult
         );
 
         double finalScore = adjustScoreByLlm(combinedScore, llmRiskOpinion);
@@ -121,14 +165,29 @@ public class LlmAnalysisService {
             detectedRules = new ArrayList<>();
         }
 
-        String normalizedDomain = normalizeDomain(url, domain);
+        String resolvedUrl = shortUrlResolverService.resolve(url);
+        String resolvedDomain = normalizeDomain(resolvedUrl, null);
 
-        if (whitelistService.isWhitelisted(normalizedDomain)) {
-            return createWhitelistResponse(normalizedDomain);
+        if (resolvedDomain == null || resolvedDomain.isBlank()) {
+            resolvedDomain = normalizeDomain(url, domain);
+        }
+
+        DomainAgeResult domainAgeResult =
+                domainAgeService.checkDomainAge(resolvedDomain);
+
+        boolean redirected = !safeEquals(url, resolvedUrl);
+
+        if (redirected) {
+            detectedRules.add("단축 URL 리다이렉트 추적");
+            detectedRules.add("최종 URL: " + resolvedUrl);
+        }
+
+        if (whitelistService.isWhitelisted(resolvedDomain)) {
+            return createWhitelistResponse(resolvedDomain, detectedRules);
         }
 
         UrlFeatureResult featureResult =
-                urlFeatureExtractor.extract(url, normalizedDomain);
+                urlFeatureExtractor.extract(resolvedUrl, resolvedDomain);
 
         addFeatureRules(featureResult, detectedRules);
 
@@ -137,8 +196,29 @@ public class LlmAnalysisService {
                 featureResult.getSuspiciousScore()
         );
 
+        combinedScore = applyDomainAgeScore(
+                combinedScore,
+                domainAgeResult,
+                detectedRules
+        );
+
+        if (featureResult.isHasShortUrlService()
+                && redirected
+                && (
+                featureResult.isHasBrandImpersonation()
+                        || featureResult.isHasSubdomainBrandImpersonation()
+        )) {
+            combinedScore = Math.max(combinedScore, 90);
+            detectedRules.add("단축 URL + 리다이렉트 + 브랜드 사칭 조합");
+        }
+
+        if (redirected && combinedScore < 70) {
+            combinedScore = Math.max(combinedScore, 60);
+            detectedRules.add("리다이렉트 URL 위험도 보정");
+        }
+
         boolean foundInOpenPhish =
-                openPhishService.isPhishingUrl(url);
+                openPhishService.isPhishingUrl(resolvedUrl);
 
         if (foundInOpenPhish) {
             combinedScore = Math.max(combinedScore, 70);
@@ -150,8 +230,8 @@ public class LlmAnalysisService {
         String combinedRisk = determineFinalRisk(combinedScore);
 
         String prompt = LlmPromptBuilder.buildPrompt(
-                url,
-                normalizedDomain,
+                resolvedUrl,
+                resolvedDomain,
                 combinedRisk,
                 combinedScore,
                 detectedRules,
@@ -171,7 +251,8 @@ public class LlmAnalysisService {
                 votes,
                 combinedRisk,
                 detectedRules,
-                featureResult
+                featureResult,
+                domainAgeResult
         );
 
         double finalScore = adjustScoreByLlm(combinedScore, llmRiskOpinion);
@@ -189,8 +270,38 @@ public class LlmAnalysisService {
         );
     }
 
-    private LlmAnalysisResponse createWhitelistResponse(String domain) {
+    private double applyDomainAgeScore(
+            double combinedScore,
+            DomainAgeResult domainAgeResult,
+            List<String> detectedRules
+    ) {
+        if (domainAgeResult == null || !domainAgeResult.isChecked()) {
+            return combinedScore;
+        }
+
+        if (!domainAgeResult.isNewDomain()) {
+            return combinedScore;
+        }
+
+        if (domainAgeResult.getAgeDays() <= 30) {
+            detectedRules.add("신규 생성 도메인 (30일 이내)");
+            return Math.max(combinedScore, 85);
+        }
+
+        detectedRules.add("신규 생성 도메인 (90일 이내)");
+        return Math.max(combinedScore, 70);
+    }
+
+    private LlmAnalysisResponse createWhitelistResponse(
+            String domain,
+            List<String> existingRules
+    ) {
         List<String> detectedRules = new ArrayList<>();
+
+        if (existingRules != null) {
+            detectedRules.addAll(existingRules);
+        }
+
         detectedRules.add("화이트리스트 등록 도메인");
 
         return new LlmAnalysisResponse(
@@ -244,9 +355,18 @@ public class LlmAnalysisService {
         if (featureResult.isHasSuspiciousTld()) {
             detectedRules.add("Feature: 의심 TLD 사용");
         }
+
         if (featureResult.isHasBrandImpersonation()) {
-    detectedRules.add("Feature: 브랜드 사칭 의심");
-}
+            detectedRules.add("Feature: 브랜드 사칭 의심");
+        }
+
+        if (featureResult.isHasSubdomainBrandImpersonation()) {
+            detectedRules.add("Feature: 서브도메인 브랜드 사칭 의심");
+        }
+
+        if (featureResult.isHasShortUrlService()) {
+            detectedRules.add("Feature: 단축 URL 서비스 사용");
+        }
     }
 
     private String decideByMajority(List<LlmVoteResult> votes, String ruleRisk) {
@@ -300,10 +420,11 @@ public class LlmAnalysisService {
             List<LlmVoteResult> votes,
             String ruleRisk,
             List<String> detectedRules,
-            UrlFeatureResult featureResult
+            UrlFeatureResult featureResult,
+            DomainAgeResult domainAgeResult
     ) {
         String ruleReason = createFallbackReason(ruleRisk, detectedRules);
-        String featureSummary = buildFeatureSummary(featureResult);
+        String featureSummary = buildFeatureSummary(featureResult, domainAgeResult);
 
         if (votes == null || votes.isEmpty()) {
             return ruleReason + " " + featureSummary;
@@ -328,9 +449,21 @@ public class LlmAnalysisService {
                 + " " + featureSummary;
     }
 
-    private String buildFeatureSummary(UrlFeatureResult featureResult) {
+    private String buildFeatureSummary(
+            UrlFeatureResult featureResult,
+            DomainAgeResult domainAgeResult
+    ) {
         if (featureResult == null) {
             return "";
+        }
+
+        String domainAgeSummary = "";
+
+        if (domainAgeResult != null && domainAgeResult.isChecked()) {
+            domainAgeSummary =
+                    ", domainAgeDays=" + domainAgeResult.getAgeDays()
+                            + ", domainCreatedDate=" + domainAgeResult.getCreatedDate()
+                            + ", rootDomain=" + domainAgeResult.getRootDomain();
         }
 
         return "[URL Feature 분석] "
@@ -342,8 +475,11 @@ public class LlmAnalysisService {
                 + ", punycode=" + featureResult.isHasPunycode()
                 + ", suspiciousKeyword=" + featureResult.isHasSuspiciousKeyword()
                 + ", suspiciousTld=" + featureResult.isHasSuspiciousTld()
+                + ", subdomainBrandImpersonation=" + featureResult.isHasSubdomainBrandImpersonation()
+                + ", shortUrlService=" + featureResult.isHasShortUrlService()
                 + ", featureScore=" + featureResult.getSuspiciousScore()
                 + ", openPhishChecked=true"
+                + domainAgeSummary
                 + ".";
     }
 
@@ -442,7 +578,7 @@ public class LlmAnalysisService {
         if (!detectedRules.isEmpty()) {
             return "WARNING";
         }
-       
+
         return "SAFE";
     }
 
@@ -559,5 +695,13 @@ public class LlmAnalysisService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private boolean safeEquals(String a, String b) {
+        if (a == null) {
+            return b == null;
+        }
+
+        return a.equals(b);
     }
 }
