@@ -43,7 +43,7 @@ const navItems: {
     title: "신고하기",
     links: [
       { label: "신고 안내", view: "report-guide" },
-      { label: "신고하기", view: "report" },
+      { label: "제보하기", view: "report" },
     ],
   },
   {
