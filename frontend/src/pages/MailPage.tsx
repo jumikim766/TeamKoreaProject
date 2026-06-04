@@ -577,20 +577,20 @@ function MailPage({
             ) : (
               <div className="mail-section">
                 <div className="page-head mail-connect-head">
-                  <div>
-                    <p className="eyebrow"></p>
+                  <div className="mail-head-row">
                     <h1>이메일 연동하기</h1>
-                  </div>
 
-                  <button
-                    className="mail-guide-button"
-                    type="button"
-                    onClick={() => setShowMailGuide(true)}
-                    aria-label="메일 연동 방법 보기"
-                  >
-                    i
-                  </button>
+                    <button
+                      className="mail-guide-button"
+                      type="button"
+                      onClick={() => setShowMailGuide(true)}
+                      aria-label="메일 연동 방법 보기"
+                    >
+                      메일 연동 방법
+                    </button>
+                  </div>
                 </div>
+
                 {showMailGuide && (
                   <div
                     className="mail-guide-backdrop"
@@ -600,62 +600,47 @@ function MailPage({
                       className="mail-guide-modal"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      <div className="mail-guide-modal-head">
-                        <h2>메일 연동 방법</h2>
-                        <button
-                          type="button"
-                          onClick={() => setShowMailGuide(false)}
-                        >
-                          ×
-                        </button>
-                      </div>
-
                       <p>
-                        URL GUARD에서 메일을 분석하려면 메일 계정의 IMAP 사용
-                        설정과 앱 비밀번호가 필요합니다.
+                        * 메일을 연동하려면 메일 계정의 IMAP 사용 설정과 앱
+                        비밀번호가 필요합니다.
                       </p>
 
-                      <h3>공통 입력값</h3>
-                      <ul>
-                        <li>이메일: 실제 사용하는 메일 주소</li>
-                        <li>로그인 ID: 보통 이메일 주소와 동일</li>
-                        <li>
-                          비밀번호: 일반 비밀번호가 아니라 앱 비밀번호 입력 권장
-                        </li>
-                      </ul>
-
-                      <h3>GMAIL</h3>
+                      <h4>공통 입력값</h4>
                       <p>
-                        Google 계정에서 2단계 인증을 켠 뒤 앱 비밀번호를
-                        발급받아 입력하세요.
+                        - 이메일 : 실제 사용하는 메일 주소
+                        <br />
+                        - 로그인 ID : 보통 이메일 주소와 동일
+                        <br />- 비밀번호 : 앱 비밀번호 (OUTLOOK, CUSTOM은 일반
+                        비밀번호)
                       </p>
 
-                      <h3>NAVER</h3>
+                      <h4>GMAIL / NAVER / DAUM</h4>
                       <p>
-                        네이버 메일 환경설정에서 IMAP 사용을 허용한 뒤 앱
-                        비밀번호를 입력하세요.
+                        1. 2단계 인증 설정
+                        <br />
+                        2. 앱 비밀번호 발급
+                        <br />
+                        3. IMAP 사용 허용
                       </p>
 
-                      <h3>DAUM</h3>
+                      <h4>OUTLOOK</h4>
                       <p>
-                        Daum 메일 환경설정에서 IMAP 사용을 허용하고 외부 앱
-                        비밀번호를 사용하세요.
+                        1. 2단계 인증 설정
+                        <br />
+                        2. 앱 암호 발급
+                        <br />
+                        3. IMAP 사용 허용
                       </p>
 
-                      <h3>OUTLOOK</h3>
+                      <h4>CUSTOM (학교/회사 메일)</h4>
                       <p>
-                        Microsoft 계정 보안 설정에서 앱 암호를 발급하거나 IMAP
-                        접근을 허용해야 합니다.
-                      </p>
-
-                      <h3>CUSTOM</h3>
-                      <p>
-                        학교/회사 메일은 CUSTOM을 선택한 뒤 IMAP Host와 Port를
-                        직접 입력하세요. 보통 Port는 993입니다.
+                        IMAP Host와 Port 입력
+                        <br />
+                        (보통 Port는 993)
                       </p>
 
                       <button
-                        className="primary-button mail-guide-close-button"
+                        className="mail-guide-close-button "
                         type="button"
                         onClick={() => setShowMailGuide(false)}
                       >
