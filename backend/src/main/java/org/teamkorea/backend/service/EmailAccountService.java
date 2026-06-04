@@ -27,6 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Base64;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 
 import jakarta.mail.internet.MimeUtility;
 import jakarta.mail.internet.InternetAddress;
@@ -646,7 +647,7 @@ public class EmailAccountService {
                 internetAddress = parsedAddresses[0];
             }
 
-            String personal = decodeMimeText(internetAddress.getPersonal());
+            String personal = fixBrokenKorean(decodeMimeText(internetAddress.getPersonal()));
 
             if (personal != null && !personal.isBlank()) {
                 return personal.trim();
@@ -658,7 +659,7 @@ public class EmailAccountService {
                 return address.trim();
             }
 
-            String rawText = decodeMimeText(froms[0].toString());
+            String rawText = fixBrokenKorean(decodeMimeText(froms[0].toString()));
 
             return rawText != null && !rawText.isBlank()
                     ? rawText.trim()
@@ -682,6 +683,32 @@ public class EmailAccountService {
         } catch (Exception e) {
             return text;
         }
+    }
+
+    // 깨진 한글 발신자명 복구
+    private String fixBrokenKorean(String text) {
+        if (text == null || text.isBlank()) {
+            return text;
+        }
+
+        String cleaned = text.trim();
+
+        if (cleaned.startsWith("\"") && cleaned.endsWith("\"")) {
+            cleaned = cleaned.substring(1, cleaned.length() - 1);
+        }
+
+        try {
+            String fixed = new String(
+                    cleaned.getBytes(StandardCharsets.ISO_8859_1),
+                    Charset.forName("MS949"));
+
+            if (fixed.matches(".*[가-힣].*")) {
+                return fixed;
+            }
+        } catch (Exception ignored) {
+        }
+
+        return cleaned;
     }
 
     // url 해시 생성
