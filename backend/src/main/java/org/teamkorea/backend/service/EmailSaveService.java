@@ -1,6 +1,5 @@
 package org.teamkorea.backend.service;
 
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +14,8 @@ import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.net.IDN;
@@ -37,7 +38,7 @@ public class EmailSaveService {
     private final EmailRepository emailRepository;
     private final UrlRepository urlRepository;
     private final EmailUrlRepository emailUrlRepository;
-private final AnalysisService analysisService;
+    private final UrlAnalysisAsyncService urlAnalysisAsyncService;
 
     // URL 정규화 시 제거할 광고/추적 파라미터 목록
     private static final Set<String> TRACKING_PARAMS = Set.of(
@@ -149,16 +150,20 @@ private final AnalysisService analysisService;
                             .linkText(null)
                             .build());
 
-try {
-    analysisService.analyzeWithLlmAndSave(
-            userId,
-            savedUrl.getUrlId(),
-            subject,
-            bodyText
-    );
-} catch (Exception e) {
-    System.out.println("[FINAL ANALYSIS ERROR] urlId = " + savedUrl.getUrlId());
-}
+            Long savedUrlId = savedUrl.getUrlId();
+
+            // 이메일/URL 저장 트랜잭션이 정상 commit된 후 URL 분석 실행
+            // 분석 실패해도 이미 저장된 이메일과 URL은 롤백되지 않음
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    urlAnalysisAsyncService.analyzeUrlAsync(
+                            userId,
+                            savedUrlId,
+                            subject,
+                            bodyText);
+                }
+            });
             // 실제 저장/연결 처리된 URL 개수 증가
             extractedUrlCount++;
         }
@@ -166,8 +171,7 @@ try {
         // 실제 저장/연결 처리된 URL 개수 반환
         return extractedUrlCount;
     }
-   
-  
+
     private String extractDomain(String url) {
         try {
             URI uri = new URI(url);

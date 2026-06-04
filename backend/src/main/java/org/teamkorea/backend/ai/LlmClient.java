@@ -34,10 +34,11 @@ public class LlmClient {
                     ),
                     "temperature", 0.2
             );
+String cleanApiKey = apiKey.trim().replace("\"", "");
 
             Map response = restClient.post()
                     .uri("https://api.openai.com/v1/chat/completions")
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + cleanApiKey)
                     .header("Content-Type", "application/json")
                     .body(requestBody)
                     .retrieve()

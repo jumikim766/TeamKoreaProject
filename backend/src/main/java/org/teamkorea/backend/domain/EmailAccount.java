@@ -67,13 +67,18 @@ public class EmailAccount {
         }
     }
 
+    // 이메일 동기화 시작 시 상태 갱신
+    public void updateSyncProcessing() {
+        this.lastSyncStatus = "PROCESSING";
+    }
+
     // 이메일 동기화 성공 시 상태 갱신
     public void updateSyncSuccess() {
         this.lastSyncStatus = "SUCCESS";
         this.lastSyncedAt = LocalDateTime.now();
     }
 
-    /// 이메일 동기화 실패 시 상태 갱신
+    // 이메일 동기화 실패 시 상태 갱신
     public void updateSyncFailed() {
         this.lastSyncStatus = "FAILED";
     }
