@@ -16,6 +16,7 @@ import SecurityContactPage from "./pages/SecurityContactPage";
 import "./styles/Dashboard.css";
 import { clearAccessToken, getAccessToken } from "./utils/token";
 import { logout } from "./api/authApi";
+import { getUnreadCount } from "./api/notificationApi";
 
 type ThemeMode = "light" | "dark";
 
@@ -23,6 +24,8 @@ export type ViewMode =
   | "dashboard"
   | "login"
   | "signup"
+  | "find-username"
+  | "password-reset"
   | "mypage"
   | "my-mailbox"
   | "mail-connect"
@@ -45,6 +48,8 @@ const viewToPath: Record<ViewMode, string> = {
   dashboard: "/",
   login: "/login",
   signup: "/signup",
+  "find-username": "/find-username",
+  "password-reset": "/password-reset",
   mypage: "/mypage",
   "my-mailbox": "/my-mailbox",
   "mail-connect": "/mail-connect",
@@ -121,6 +126,7 @@ function App() {
     Boolean(getAccessToken()),
   );
   const [userName, setUserName] = useState<string>(getSavedUserName);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -133,6 +139,24 @@ function App() {
     setUserName(hasToken ? getSavedUserName() : "사용자");
   };
 
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const fetchUnreadCount = async () => {
+      try {
+        const count = await getUnreadCount();
+        setUnreadCount(count);
+      } catch (error) {
+        console.error("읽지 않은 알림 개수 조회 실패:", error);
+      }
+    };
+
+    fetchUnreadCount();
+  }, [isLoggedIn, view]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -148,7 +172,15 @@ function App() {
   }, []);
 
   
-  const protectedViews: ViewMode[] = ["notifications", "notification-settings"];
+  const protectedViews: ViewMode[] = [
+    "my-mailbox",
+    "mail-connect",
+    "url-statistics",
+    "my-url",
+    "url-library",
+    "notifications",
+    "notification-settings",
+  ];
 
 const handleNavigate = (nextView: ViewMode, replace = false) => {
   refreshLoginState();
@@ -193,6 +225,10 @@ const handleNavigate = (nextView: ViewMode, replace = false) => {
     handleNavigate("mypage");
   };
 
+  const handleGoNotifications = () => {
+    handleNavigate("notifications");
+  };
+
   const handleLogout = async () => {
   try {
     await logout();
@@ -202,8 +238,8 @@ const handleNavigate = (nextView: ViewMode, replace = false) => {
     clearAccessToken();
     localStorage.removeItem("userName");
     setIsLoggedIn(false);
-
-    window.history.pushState(null, "", "/login");
+    setUserName("사용자");
+    handleNavigate("login");
   }
 };
 
@@ -214,6 +250,8 @@ const handleNavigate = (nextView: ViewMode, replace = false) => {
     onGoLogin: handleGoLogin,
     onGoSignup: handleGoSignup,
     onGoMyPage: handleGoMyPage,
+    onGoNotifications: handleGoNotifications,
+    unreadCount,
   };
 
   const authProps = {
@@ -240,7 +278,7 @@ const handleNavigate = (nextView: ViewMode, replace = false) => {
     );
   }
 
-  if (view === "login" || view === "signup") {
+  if (view === "login" || view === "signup" || view === "find-username" || view === "password-reset") {
     return (
       <AuthPage
         {...sharedProps}
