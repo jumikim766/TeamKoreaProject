@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import type { ViewMode } from "../App";
 import ChartBox from "../components/ChartBox";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/UrlPage.css";
+import Pagination from "../components/Pagination";
 import {
   getRiskClassName,
   getRiskLabel,
@@ -18,22 +20,7 @@ import {
 type ThemeMode = "light" | "dark";
 type UrlViewMode = "url-statistics" | "my-url" | "url-library";
 
-type PageViewTarget =
-  | "my-mailbox"
-  | "mail-connect"
-  | "url-statistics"
-  | "my-url"
-  | "url-library"
-  | "notifications"
-  | "notification-settings"
-  | "report-guide"
-  | "report"
-  | "classification-method"
-  | "classification-criteria"
-  | "service-info"
-  | "terms"
-  | "privacy"
-  | "security-contact";
+type PageViewTarget = ViewMode;
 
 interface UrlPageProps {
   theme: ThemeMode;
@@ -46,6 +33,8 @@ interface UrlPageProps {
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
+  onGoNotifications?: () => void;
+  unreadCount?: number;
   onNavigate: (view: PageViewTarget) => void;
 }
 
@@ -85,6 +74,8 @@ function UrlPage({
   onGoLogin,
   onGoSignup,
   onGoMyPage,
+  onGoNotifications,
+  unreadCount = 0,
   onNavigate,
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
@@ -163,7 +154,13 @@ function UrlPage({
     },
   ];
 
-  const totalPages = Math.ceil(urlItems.length / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(urlItems.length / PAGE_SIZE));
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const pagedUrlItems = urlItems.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
@@ -181,10 +178,12 @@ function UrlPage({
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
         onGoMyPage={onGoMyPage}
+        onGoNotifications={onGoNotifications}
+        unreadCount={unreadCount}
         onToggleTheme={onToggleTheme}
       />
 
-      <Navbar onNavigate={onNavigate} />
+      <Navbar currentView={currentView} onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -427,24 +426,11 @@ function UrlPage({
                       })}
                     </div>
 
-                    {totalPages > 1 && (
-                      <div className="url-pagination">
-                        {Array.from({ length: totalPages }, (_, index) => (
-                          <button
-                            key={index + 1}
-                            className={
-                              currentPage === index + 1
-                                ? "url-page-button is-active"
-                                : "url-page-button"
-                            }
-                            onClick={() => setCurrentPage(index + 1)}
-                            type="button"
-                          >
-                            {index + 1}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <Pagination
+  currentPage={currentPage}
+  totalPages={totalPages}
+  onPageChange={setCurrentPage}
+/>
                   </section>
                 </>
               )}

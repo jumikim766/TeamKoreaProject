@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import type { ViewMode } from "../App";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/MailPage.css";
 import { getRiskClassName, getRiskLabel } from "../utils/riskLevel";
 // 백엔드에서 내려준 에러 message를 화면에 보여주기 위한 공통 함수
 import { getErrorMessage } from "../api/errorMessage";
+import Pagination from "../components/Pagination";
 
 // API 함수
 import {
@@ -27,21 +29,7 @@ import type {
 type ThemeMode = "light" | "dark";
 type MailViewMode = "my-mailbox" | "mail-connect";
 
-type PageViewTarget =
-  | "my-mailbox"
-  | "mail-connect"
-  | "my-url"
-  | "url-library"
-  | "notifications"
-  | "notification-settings"
-  | "report-guide"
-  | "report"
-  | "classification-method"
-  | "classification-criteria"
-  | "service-info"
-  | "terms"
-  | "privacy"
-  | "security-contact";
+type PageViewTarget = ViewMode;
 
 interface MailPageProps {
   theme: ThemeMode;
@@ -54,6 +42,8 @@ interface MailPageProps {
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
+  onGoNotifications?: () => void;
+  unreadCount?: number;
   onNavigate: (view: PageViewTarget) => void;
 }
 
@@ -68,6 +58,8 @@ function MailPage({
   onGoLogin,
   onGoSignup,
   onGoMyPage,
+  onGoNotifications,
+  unreadCount = 0,
   onNavigate,
 }: MailPageProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
@@ -345,6 +337,22 @@ function MailPage({
     }
   };
 
+
+  const renderMailPagination = () => {
+  return (
+    <>
+      <Pagination
+        currentPage={page + 1}
+        totalPages={totalPages}
+        onPageChange={(nextPage) => setPage(nextPage - 1)}
+      />
+      {totalElements > 0 && (
+        <p className="mail-total-count">총 {totalElements}개</p>
+      )}
+    </>
+  );
+};
+
   return (
     <div className="dashboard-shell">
       <Header
@@ -357,10 +365,12 @@ function MailPage({
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
         onGoMyPage={onGoMyPage}
+        onGoNotifications={onGoNotifications}
+        unreadCount={unreadCount}
         onToggleTheme={onToggleTheme}
       />
 
-      <Navbar onNavigate={onNavigate} />
+      <Navbar currentView={currentView} onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -456,32 +466,7 @@ function MailPage({
                           )}
                         </div>
                       </section>
-
-                      <div className="mail-pagination">
-                        <button
-                          type="button"
-                          disabled={page === 0}
-                          onClick={() => setPage((prev) => prev - 1)}
-                        >
-                          이전
-                        </button>
-
-                        <span>
-                          {totalPages === 0 ? 0 : page + 1} / {totalPages}
-                        </span>
-
-                        <button
-                          type="button"
-                          disabled={page + 1 >= totalPages}
-                          onClick={() => setPage((prev) => prev + 1)}
-                        >
-                          다음
-                        </button>
-
-                        <span className="mail-total-count">
-                          총 {totalElements}개
-                        </span>
-                      </div>
+                      {renderMailPagination()}
                     </>
                   ) : (
                     <>
@@ -545,31 +530,7 @@ function MailPage({
                           ))}
                         </div>
                       </section>
-                      <div className="mail-pagination">
-                        <button
-                          type="button"
-                          disabled={page === 0}
-                          onClick={() => setPage((prev) => prev - 1)}
-                        >
-                          이전
-                        </button>
-
-                        <span>
-                          {totalPages === 0 ? 0 : page + 1} / {totalPages}
-                        </span>
-
-                        <button
-                          type="button"
-                          disabled={page + 1 >= totalPages}
-                          onClick={() => setPage((prev) => prev + 1)}
-                        >
-                          다음
-                        </button>
-
-                        <span className="mail-total-count">
-                          총 {totalElements}개
-                        </span>
-                      </div>
+                      {renderMailPagination()}
                     </>
                   )}
                 </div>

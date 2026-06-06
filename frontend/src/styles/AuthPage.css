@@ -94,8 +94,22 @@
   font-weight: 800;
 }
 
-.login-password-rules li::before {
-  content: "✓ ";
+.login-password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  color: #94a3b8;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.login-password-rules li.active {
+  color: #2563eb;
+}
+
+.password-rule-check {
+  flex-shrink: 0;
 }
 
 .login-password-rules li.active {
@@ -368,7 +382,7 @@
   transition: all 0.2s ease;
 }
 
-/* 비활성화 */
+/* 鍮꾪솢�깊솕 */
 .email-verify-button-row button:disabled {
   background: #bfdbfe;
   color: #ffffff;
@@ -376,7 +390,7 @@
   opacity: 1;
 }
 
-/* 활성화 */
+/* �쒖꽦�� */
 .email-verify-button-row button:not(:disabled) {
   background: #2563eb;
   color: #ffffff;
@@ -395,4 +409,46 @@
   align-items: flex-start;
   padding-top: 90px;
   background: rgba(15, 23, 42, 0.35);
+}
+.auth-find-links {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 38px;
+  color: #94a3b8;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.auth-find-links button {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.auth-sub-title {
+  margin: 0 0 34px;
+  color: #111827;
+  font-size: 30px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.auth-result-box {
+  margin-top: 6px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: #eff6ff;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.auth-result-box strong {
+  color: #2563eb;
 }

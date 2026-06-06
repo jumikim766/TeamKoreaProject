@@ -13,6 +13,7 @@ type ThemeMode = 'light' | 'dark';
 interface DashboardProps {
   theme: ThemeMode;
   isLoggedIn: boolean;
+  userName?: string;
   onLogout: () => void;
   onToggleTheme: () => void;
   onGoHome: () => void;
@@ -25,6 +26,7 @@ interface DashboardProps {
 function Dashboard({
   theme,
   isLoggedIn,
+  userName = "사용자",
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -38,6 +40,12 @@ function Dashboard({
   const [todayStats, setTodayStats] = useState<UrlStatistics | null>(null);
 
   useEffect(() => {
+    if (!isLoggedIn) {
+      setAllStats(null);
+      setTodayStats(null);
+      return;
+    }
+
     const fetchDashboardStatistics = async () => {
       try {
         const [all, today] = await Promise.all([
@@ -53,7 +61,7 @@ function Dashboard({
     };
 
     fetchDashboardStatistics();
-  }, []);
+  }, [isLoggedIn]);
 
   const totalCollection = [
     { name: '심각', value: allStats?.criticalCount ?? 0 },
@@ -80,6 +88,7 @@ function Dashboard({
         currentView="dashboard"
         theme={theme}
         isLoggedIn={isLoggedIn}
+        userName={userName}
         onLogout={onLogout}
         onGoHome={onGoHome}
         onGoLogin={onGoLogin}
