@@ -440,7 +440,7 @@ function UrlPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate("service-info")}>
+        <button type="button" onClick={() => onNavigate("guide")}>
           서비스 소개
         </button>
         <button type="button" onClick={() => onNavigate("terms")}>

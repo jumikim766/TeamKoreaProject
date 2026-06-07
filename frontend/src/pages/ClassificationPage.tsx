@@ -14,6 +14,7 @@ type ClassificationViewMode =
   | "classification-criteria";
 
 type PageViewTarget =
+  | "guide"
   | "my-mailbox"
   | "mail-connect"
   | "my-url"
@@ -122,7 +123,7 @@ function ClassificationPage({
         onToggleTheme={onToggleTheme}
       />
 
-      <Navbar onNavigate={onNavigate} />
+      <Navbar onNavigate={(view) => onNavigate(view as PageViewTarget)} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -220,7 +221,7 @@ function ClassificationPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate("service-info")}>
+        <button type="button" onClick={() => onNavigate("guide")}>
           서비스 소개
         </button>
 
