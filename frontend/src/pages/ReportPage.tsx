@@ -52,6 +52,7 @@ function ReportPage({
 }: ReportPageProps) {
   const [reportUrl, setReportUrl] = useState("");
   const [reportReason, setReportReason] = useState("");
+  const [isCustomReason, setIsCustomReason] = useState(false);
 
   return (
     <div className="dashboard-shell">
@@ -100,7 +101,7 @@ function ReportPage({
                 onClick={() => onNavigate("report")}
                 type="button"
               >
-                신고하기
+                제보하기
               </button>
             </div>
           </aside>
@@ -201,51 +202,70 @@ function ReportPage({
               <div className="report-section">
                 <div className="page-head">
                   <p className="eyebrow"></p>
-                  <h1>신고하기</h1>
+                  <h1>제보하기</h1>
                 </div>
 
                 <div className="report-connect-box">
+                  <h2>URL 입력</h2>
                   <input
-                    className="report-connect-input"
-                    placeholder="신고할 URL을 입력하세요."
+                    className="url-report-input"
+                    placeholder="제보할 URL을 입력하세요."
                     type="text"
                     value={reportUrl}
                     onChange={(event) => setReportUrl(event.target.value)}
                   />
-
-                  <button
-                    className="primary-button"
-                    type="button"
-                    onClick={() => alert("신고가 접수되었습니다.")}
-                  >
-                    신고 접수
-                  </button>
                 </div>
-
-                <div className="report-connect-divider" />
-
                 <div className="connected-report-section">
-                  <h2>신고 사유</h2>
-
-                  <textarea
-                    className="report-connect-input"
-                    style={{ minHeight: "160px", resize: "vertical" }}
-                    placeholder="의심되는 이유를 입력해주세요."
-                    value={reportReason}
-                    onChange={(event) => setReportReason(event.target.value)}
-                  />
+                  <h2>이유 입력</h2>
 
                   <div className="connected-report-list">
-                    <div className="connected-report-row">
-                      <span>피싱 사이트로 의심됩니다.</span>
-                    </div>
-                    <div className="connected-report-row">
-                      <span>로그인 정보를 요구합니다.</span>
-                    </div>
-                    <div className="connected-report-row">
-                      <span>알 수 없는 파일 다운로드를 유도합니다.</span>
+                    <div className="report-reason-list">
+                      <label>
+                        <input type="checkbox" /> 피싱/스팸/광고 사이트로
+                        의심됩니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 로그인 정보 입력을 요구합니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 개인정보 입력을 요구합니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 금융정보 입력을 요구합니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 알 수 없는 파일 다운로드를
+                        유도합니다.
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={isCustomReason}
+                          onChange={(event) =>
+                            setIsCustomReason(event.target.checked)
+                          }
+                        />
+                        직접 입력
+                      </label>
                     </div>
                   </div>
+
+                  {isCustomReason && (
+                    <textarea
+                      className="reason-report-input"
+                      placeholder="의심되는 이유를 입력하세요."
+                      value={reportReason}
+                      onChange={(event) => setReportReason(event.target.value)}
+                    />
+                  )}
+
+                  <button
+                    className="report-button"
+                    type="button"
+                    onClick={() => alert("제보가 접수되었습니다.")}
+                  >
+                    제보하기
+                  </button>
                 </div>
               </div>
             )}
