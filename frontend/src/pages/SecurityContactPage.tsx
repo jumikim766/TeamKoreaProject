@@ -6,6 +6,7 @@ import "../styles/Dashboard.css";
 type ThemeMode = "light" | "dark";
 
 type PageViewTarget =
+  | "guide"
   | "my-mailbox"
   | "mail-connect"
   | "my-url"
@@ -63,7 +64,7 @@ function SecurityContactPage({
         onToggleTheme={onToggleTheme}
       />
 
-      <Navbar onNavigate={onNavigate} />
+      <Navbar onNavigate={(view) => onNavigate(view as PageViewTarget)} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -128,7 +129,7 @@ function SecurityContactPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate("service-info")}>
+        <button type="button" onClick={() => onNavigate("guide")}>
           서비스 소개
         </button>
         <button type="button" onClick={() => onNavigate("terms")}>

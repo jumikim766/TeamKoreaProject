@@ -609,7 +609,7 @@ function MyPage({
       )}
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate("service-info")}>서비스 소개</button>
+        <button type="button" onClick={() => onNavigate("guide")}>서비스 소개</button>
         <button type="button" onClick={() => onNavigate("terms")}>이용약관</button>
         <button type="button" onClick={() => onNavigate("privacy")}>개인정보 처리방침</button>
         <button type="button" onClick={() => onNavigate("security-contact")}>보안 문의</button>
