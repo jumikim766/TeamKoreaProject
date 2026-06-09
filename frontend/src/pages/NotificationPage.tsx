@@ -1,13 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ViewMode } from '../App';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import {
-  getNotifications,
-  getUnreadCount,
-  readNotification,
-  type NotificationResponse,
-} from '../api/notificationApi';
+import { readNotification } from '../api/notificationApi';
 import '../styles/NotificationPage.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -22,20 +17,6 @@ interface NotificationItem {
   content: string;
   isRead: boolean;
 }
-
-const toNotificationItem = (
-  notification: NotificationResponse
-): NotificationItem => {
-  return {
-    id: notification.notificationId,
-    title: notification.title,
-    summary: notification.message,
-    date: new Date(notification.createdAt).toLocaleString(),
-    type: 'URL 알림',
-    content: notification.message,
-    isRead: notification.isRead,
-  };
-};
 
 interface NotificationPageProps {
   theme: ThemeMode;
@@ -59,7 +40,7 @@ const initialNotifications: NotificationItem[] = [
       '메일 기반 수집 데이터에서 매우 위험 URL 3건이 추가 탐지되었습니다.',
     content:
       '메일 기반 수집 데이터에서 매우 위험 URL 3건이 추가 탐지되었습니다. URL 관리 페이지에서 상세 링크와 위험도를 확인해 주세요.',
-    date: '2026. 03. 25. 오후 12:34',
+    date: '2026. 06. 10. 오후 2:14',
     type: '위험 URL',
     isRead: false,
   },
@@ -68,8 +49,8 @@ const initialNotifications: NotificationItem[] = [
     title: '이메일 연동 상태가 정상입니다.',
     summary: '연동된 메일 계정의 동기화가 정상적으로 완료되었습니다.',
     content:
-      '연동된 메일 계정의 동기화가 정상적으로 완료되었습니다. 마지막 점검 시간은 10:15이며 현재 오류는 없습니다.',
-    date: '2026. 03. 25. 오전 10:15',
+      '연동된 메일 계정의 동기화가 정상적으로 완료되었습니다. 마지막 점검 시간은 오후 1:42이며 현재 오류는 없습니다.',
+    date: '2026. 06. 10. 오후 1:42',
     type: '메일 연동',
     isRead: true,
   },
@@ -79,7 +60,7 @@ const initialNotifications: NotificationItem[] = [
     summary: '사용자가 신고한 URL 1건이 검토 완료 상태로 변경되었습니다.',
     content:
       '사용자가 신고한 URL 1건이 검토 완료 상태로 변경되었습니다. 신고 내역 페이지에서 조치 결과를 확인할 수 있습니다.',
-    date: '2026. 03. 24. 오후 5:02',
+    date: '2026. 06. 09. 오후 7:18',
     type: '신고 처리',
     isRead: false,
   },
@@ -105,73 +86,20 @@ function NotificationPage({
     initialNotifications[0]?.id ?? null
   );
 
-const [pushEnabled, setPushEnabled] = useState(true);
-const [serverUnreadCount, setServerUnreadCount] = useState<number | null>(null);
-const hasShownErrorRef = useRef(false);
+  const [pushEnabled, setPushEnabled] = useState(true);
 
-const localUnreadCount = useMemo(() => {
-  return notifications.filter((item) => !item.isRead).length;
-}, [notifications]);
+  const unreadCount = useMemo(() => {
+    return notifications.filter((item) => !item.isRead).length;
+  }, [notifications]);
 
-const unreadCount = serverUnreadCount ?? localUnreadCount;
+  const selectedNotification = useMemo(() => {
+    return notifications.find((item) => item.id === selectedId) ?? null;
+  }, [notifications, selectedId]);
 
-const selectedNotification = useMemo(() => {
-  return notifications.find((item) => item.id === selectedId) ?? null;
-}, [notifications, selectedId]);
+  const handleSelectNotification = async (id: number) => {
+    setSelectedId(id);
 
-const showErrorOnce = useCallback((message: string) => {
-  if (!hasShownErrorRef.current) {
-    alert(message);
-    hasShownErrorRef.current = true;
-  }
-}, []);
-
-const loadNotifications = useCallback(async () => {
-  try {
-    const response = await getNotifications();
-    const items = response.map(toNotificationItem);
-
-    setNotifications(items);
-
-    if (items.length > 0) {
-      setSelectedId((prevSelectedId) => {
-        const exists = items.some((item) => item.id === prevSelectedId);
-
-        return exists ? prevSelectedId : items[0].id;
-      });
-    } else {
-      setSelectedId(null);
-    }
-  } catch {
-    showErrorOnce('알림 목록을 불러오지 못했습니다.');
-  }
-}, [showErrorOnce]);
-
-const loadUnreadCount = useCallback(async () => {
-  try {
-    const count = await getUnreadCount();
-
-    setServerUnreadCount(count);
-
-    window.dispatchEvent(new Event('notification-updated'));
-  } catch {
-    showErrorOnce('알림 정보를 불러오지 못했습니다.');
-  }
-}, [showErrorOnce]);
-
-useEffect(() => {
-  if (!isLoggedIn) {
-    return;
-  }
-
-  loadNotifications();
-  loadUnreadCount();
-}, [isLoggedIn, currentView, loadNotifications, loadUnreadCount]);
-
-const handleSelectNotification = async (id: number) => {
-  setSelectedId(id);
-
-  const target = notifications.find((item) => item.id === id);
+    const target = notifications.find((item) => item.id === id);
 
     if (!target || target.isRead) {
       return;
@@ -184,12 +112,10 @@ const handleSelectNotification = async (id: number) => {
     );
 
     try {
-  await readNotification(id);
-  await loadUnreadCount();
-  await loadNotifications();
-} catch {
-  console.warn('백엔드 읽음 처리 API 호출 실패');
-}
+      await readNotification(id);
+    } catch {
+      console.warn('백엔드 읽음 처리 API 호출 실패');
+    }
   };
 
   const handleDeleteNotification = (id: number) => {
@@ -197,9 +123,8 @@ const handleSelectNotification = async (id: number) => {
 
     setNotifications(nextNotifications);
 
-if (selectedId === id) {
-  setSelectedId(nextNotifications[0]?.id ?? null);
-
+    if (selectedId === id) {
+      setSelectedId(nextNotifications[0]?.id ?? null);
     }
   };
 
@@ -323,7 +248,6 @@ if (selectedId === id) {
                             </div>
 
                             <strong>{item.title}</strong>
-
                             <p>{item.summary}</p>
                           </button>
                         ))
@@ -391,7 +315,6 @@ if (selectedId === id) {
                   <div className="notification-setting-row">
                     <div>
                       <strong>위험 URL 탐지 알림</strong>
-
                       <p>고위험 URL이 새로 탐지되면 알림을 받습니다.</p>
                     </div>
 
