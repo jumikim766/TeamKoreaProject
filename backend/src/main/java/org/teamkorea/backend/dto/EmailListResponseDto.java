@@ -13,6 +13,7 @@ public class EmailListResponseDto {
 
     private Long emailId;
     private String senderName;
+    private String senderEmail;
     private String subject;
     private String previewText;
     private LocalDateTime receivedAt;

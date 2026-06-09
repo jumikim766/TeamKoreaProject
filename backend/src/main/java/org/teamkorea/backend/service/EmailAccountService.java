@@ -27,6 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Base64;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 
 import jakarta.mail.internet.MimeUtility;
 import jakarta.mail.internet.InternetAddress;
@@ -625,11 +626,13 @@ public class EmailAccountService {
 
     // 발신자 이름 추출
     private String extractSenderName(Message msg) {
+        String senderEmail = extractSenderEmail(msg);
+
         try {
             Address[] froms = msg.getFrom();
 
             if (froms == null || froms.length == 0) {
-                return "알 수 없음";
+                return senderEmail;
             }
 
             InternetAddress internetAddress;
@@ -640,48 +643,213 @@ public class EmailAccountService {
                 InternetAddress[] parsedAddresses = InternetAddress.parse(froms[0].toString(), false);
 
                 if (parsedAddresses.length == 0) {
-                    return "알 수 없음";
+                    return senderEmail;
                 }
 
                 internetAddress = parsedAddresses[0];
             }
 
-            String personal = decodeMimeText(internetAddress.getPersonal());
+            String personal = fixBrokenKoreanText(internetAddress.getPersonal());
 
             if (personal != null && !personal.isBlank()) {
                 return personal.trim();
             }
 
-            String address = internetAddress.getAddress();
+            String rawFrom = getFirstHeader(msg, "From");
 
-            if (address != null && !address.isBlank()) {
-                return address.trim();
+            if (rawFrom != null && !rawFrom.isBlank()) {
+
+                try {
+                    String decoded = MimeUtility.decodeText(
+                            fixBrokenEncodedWord(rawFrom));
+
+                    decoded = fixMojibakeKorean(decoded);
+
+                    InternetAddress[] parsedAddresses = InternetAddress.parse(decoded, false);
+
+                    if (parsedAddresses.length > 0) {
+
+                        String parsedPersonal = parsedAddresses[0].getPersonal();
+
+                        if (parsedPersonal != null &&
+                                !parsedPersonal.isBlank()) {
+                            return parsedPersonal.trim();
+                        }
+                    }
+
+                    return decoded;
+
+                } catch (Exception ignored) {
+                }
             }
 
-            String rawText = decodeMimeText(froms[0].toString());
-
-            return rawText != null && !rawText.isBlank()
-                    ? rawText.trim()
-                    : "알 수 없음";
+            return senderEmail;
 
         } catch (Exception e) {
-            return "알 수 없음";
+            return senderEmail;
         }
     }
 
-    // MIME 인코딩된 텍스트 디코딩
-    private String decodeMimeText(String text) {
+    // 메일 헤더 첫 번째 값 추출
+    private String getFirstHeader(Message msg, String headerName) {
+        try {
+            String[] headers = msg.getHeader(headerName);
+
+            if (headers == null || headers.length == 0) {
+                return null;
+            }
+
+            return headers[0];
+
+        } catch (MessagingException e) {
+            return null;
+        }
+    }
+
+    // MIME 인코딩/깨진 한글 복구
+    private String fixBrokenKoreanText(String text) {
         if (text == null || text.isBlank()) {
             return null;
         }
 
+        String fixedText = fixBrokenEncodedWord(text);
+
         try {
-            return MimeUtility.decodeText(text);
+            fixedText = MimeUtility.decodeText(fixedText);
         } catch (UnsupportedEncodingException e) {
+            // decode 실패 시 원문 유지
+        } catch (Exception e) {
+            // decode 실패 시 원문 유지
+        }
+
+        fixedText = fixMojibakeKorean(fixedText);
+
+        fixedText = decodeMimeManually(fixedText);
+
+        return fixedText != null && !fixedText.isBlank()
+                ? fixedText.trim()
+                : null;
+    }
+
+    // =?ks_c_5601-1987?B?...?= 형태가 앞쪽 = 없이 깨져 들어온 경우 보정
+    private String fixBrokenEncodedWord(String text) {
+        if (text == null || text.isBlank()) {
             return text;
+        }
+
+        String fixedText = text.trim();
+
+        if (fixedText.startsWith("?") && fixedText.contains("?B?") && fixedText.endsWith("?=")) {
+            fixedText = "=" + fixedText;
+        }
+
+        fixedText = fixedText.replace("?ks_c_5601-1987?", "?EUC-KR?");
+        fixedText = fixedText.replace("?KS_C_5601-1987?", "?EUC-KR?");
+        fixedText = fixedText.replace("?euc-kr?", "?EUC-KR?");
+        fixedText = fixedText.replace("?EUC-KR?", "?EUC-KR?");
+
+        return fixedText;
+    }
+
+    // 이미 ¸íÁöÀü¹®´ëÇÐ 처럼 깨진 한글을 MS949 기준으로 복구
+    private String fixMojibakeKorean(String text) {
+        if (text == null || text.isBlank()) {
+            return text;
+        }
+
+        if (!looksLikeMojibake(text)) {
+            return text;
+        }
+
+        try {
+            byte[] bytes = text.getBytes(StandardCharsets.ISO_8859_1);
+            return new String(bytes, Charset.forName("MS949"));
         } catch (Exception e) {
             return text;
         }
+    }
+
+    // 깨진 한글에서 자주 보이는 문자 포함 여부
+    private boolean looksLikeMojibake(String text) {
+        return text.contains("¸")
+                || text.contains("Á")
+                || text.contains("À")
+                || text.contains("¹")
+                || text.contains("º")
+                || text.contains("Ç")
+                || text.contains("Ð")
+                || text.contains("¿")
+                || text.contains("¾")
+                || text.contains("Ã")
+                || text.contains("¼");
+    }
+
+    // MimeUtility가 못 푸는 encoded-word 직접 디코딩
+    private String decodeMimeManually(String text) {
+        try {
+            Pattern pattern = Pattern.compile("=\\?([^?]+)\\?([BQbq])\\?([^?]+)\\?=");
+            Matcher matcher = pattern.matcher(text);
+
+            StringBuffer result = new StringBuffer();
+
+            while (matcher.find()) {
+                String charsetName = matcher.group(1);
+                String encoding = matcher.group(2);
+                String encodedText = matcher.group(3);
+
+                if (charsetName.equalsIgnoreCase("EUC-KR")
+                        || charsetName.equalsIgnoreCase("ks_c_5601-1987")
+                        || charsetName.equalsIgnoreCase("ks_c_5601_1987")
+                        || charsetName.equalsIgnoreCase("ksc5601")) {
+                    charsetName = "MS949";
+                }
+
+                byte[] bytes;
+
+                if (encoding.equalsIgnoreCase("B")) {
+                    bytes = Base64.getDecoder().decode(encodedText);
+                } else {
+                    bytes = encodedText
+                            .replace("_", " ")
+                            .getBytes(StandardCharsets.ISO_8859_1);
+                }
+
+                String decoded = new String(bytes, Charset.forName(charsetName));
+                matcher.appendReplacement(result, Matcher.quoteReplacement(decoded));
+            }
+
+            matcher.appendTail(result);
+            return result.toString();
+
+        } catch (Exception e) {
+            return text;
+        }
+    }
+
+    // 깨진 한글 발신자명 복구
+    private String fixBrokenKorean(String text) {
+        if (text == null || text.isBlank()) {
+            return text;
+        }
+
+        String cleaned = text.trim();
+
+        if (cleaned.startsWith("\"") && cleaned.endsWith("\"")) {
+            cleaned = cleaned.substring(1, cleaned.length() - 1);
+        }
+
+        try {
+            String fixed = new String(
+                    cleaned.getBytes(StandardCharsets.ISO_8859_1),
+                    Charset.forName("MS949"));
+
+            if (fixed.matches(".*[가-힣].*")) {
+                return fixed;
+            }
+        } catch (Exception ignored) {
+        }
+
+        return cleaned;
     }
 
     // url 해시 생성
