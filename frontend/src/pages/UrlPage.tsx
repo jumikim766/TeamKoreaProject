@@ -10,9 +10,7 @@ import {
 } from "../utils/riskLevel";
 import {
   getMyUrls,
-  analyzeUrlWithLlm,
   type MyUrlItem,
-  type LlmAnalysisResponse,
 } from "../api/urlApi";
 
 type ThemeMode = "light" | "dark";
@@ -89,9 +87,6 @@ function UrlPage({
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
   const [urlItems, setUrlItems] = useState<MyUrlItem[]>([]);
-  const [llmResult, setLlmResult] = useState<LlmAnalysisResponse | null>(null);
-  const [analyzingUrlId, setAnalyzingUrlId] = useState<number | null>(null);
-  const [selectedLlmUrlId, setSelectedLlmUrlId] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState("1234@5678.com");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -121,26 +116,8 @@ function UrlPage({
     onNavigate(view);
   };
 
-  const handleToggleReason = async (urlId: number) => {
-  if (openedUrlId === urlId) {
-    setOpenedUrlId(null);
-    return;
-  }
-
-  try {
-    setOpenedUrlId(urlId);
-    setAnalyzingUrlId(urlId);
-
-    const result = await analyzeUrlWithLlm(urlId);
-
-    setLlmResult(result);
-    setSelectedLlmUrlId(urlId);
-  } catch (error) {
-    console.error(error);
-    alert("LLM 분석 중 오류가 발생했습니다.");
-  } finally {
-    setAnalyzingUrlId(null);
-  }
+ const handleToggleReason = (urlId: number) => {
+  setOpenedUrlId((prevId) => (prevId === urlId ? null : urlId));
 };
 
  
@@ -369,27 +346,23 @@ function UrlPage({
                                   isOpened ? "URL 설명 닫기" : "URL 설명 열기"
                                 }
                               >
-                                {analyzingUrlId === item.urlId
-  ? "..."
-  : isOpened
-    ? <MinusIcon />
-    : <PlusIcon />}
+                                {isOpened ? <MinusIcon /> : <PlusIcon />}
                               </button>
                             </div>
 
 
-                            {isOpened && llmResult && selectedLlmUrlId === item.urlId && (
-                              <div className="url-risk-reason-box">
-                                <strong>LLM 분석 결과</strong>
-                                <p>· 위험도: {llmResult.risk}</p>
-                                <p>· 점수: {llmResult.score}</p>
-                                <p>· 설명: {llmResult.reasonSummary}</p>
+                            {isOpened && (
+  <div className="url-risk-reason-box">
+    <strong>LLM 분석 결과</strong>
+    <p>· 위험도: {item.riskLevel}</p>
+    <p>· 점수: {item.score ?? "-"}</p>
+    <p>· 설명: {item.reasonSummary ?? "분석 설명이 없습니다."}</p>
 
-                                {llmResult.detectedRules.map((rule) => (
-                                  <p key={rule}>· {rule}</p>
-                                ))}
-                              </div>
-                            )}
+    {item.detectedRules?.map((rule) => (
+      <p key={rule}>· {rule}</p>
+    ))}
+  </div>
+)}
                           </div>
                         );
                       })}
