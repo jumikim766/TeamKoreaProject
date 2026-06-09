@@ -84,6 +84,11 @@ public class UrlService {
                                 .map(UrlAnalysis::getReasonSummary)
                                 .orElse(null);
 
+                Integer score = latestAnalysis
+        .map(a -> a.getScore() != null
+                ? a.getScore().intValue()
+                : 0)
+        .orElse(0);
                 List<EmailUrl> emailUrls = emailUrlRepository.findByUrlIdWithEmail(urlId);
 
                 String senderName = null;
@@ -233,31 +238,40 @@ public class UrlService {
                 Optional<UrlAnalysis> latestAnalysis = urlAnalysisRepository
                                 .findTopByUrl_UrlIdOrderByAnalyzedAtDesc(url.getUrlId());
 
-                boolean analyzed = latestAnalysis.isPresent();
+              boolean analyzed = latestAnalysis.isPresent();
 
-                String riskLevel = latestAnalysis
-                                .map(analysis -> analysis.getRiskLevel().name())
-                                .orElse("SAFE");
+String riskLevel = latestAnalysis
+        .map(analysis -> analysis.getRiskLevel().name())
+        .orElse("SAFE");
 
-                String reasonSummary = latestAnalysis
-                                .map(UrlAnalysis::getReasonSummary)
-                                .orElse(null);
+Integer score = latestAnalysis
+        .map(a -> a.getScore() != null
+                ? a.getScore().intValue()
+                : 0)
+        .orElse(0);
 
-                return new MyUrlItemResponseDto(
-                                url.getUrlId(),
-                                emailUrl.getEmail().getEmailId(),
-                                emailUrl.getEmail().getAccount().getAccountId(),
-                                emailUrl.getEmail().getSenderName(),
-                                emailUrl.getEmail().getSenderEmail(),
-                                emailUrl.getEmail().getSubject(),
-                                emailUrl.getRawUrl(),
-                                url.getNormalizedUrl(),
-                                url.getDomain(),
-                                riskLevel,
-                                reasonSummary,
-                                analyzed,
-                                emailUrl.getEmail().getReceivedAt(),
-                                emailUrl.getCreatedAt());
+String reasonSummary = latestAnalysis
+        .map(UrlAnalysis::getReasonSummary)
+        .orElse(null);
+
+return new MyUrlItemResponseDto(
+        url.getUrlId(),
+        emailUrl.getEmail().getEmailId(),
+        emailUrl.getEmail().getAccount().getAccountId(),
+        emailUrl.getEmail().getSenderName(),
+        emailUrl.getEmail().getSenderEmail(),
+        emailUrl.getEmail().getSubject(),
+        emailUrl.getRawUrl(),
+        url.getNormalizedUrl(),
+        url.getDomain(),
+        riskLevel,
+        score,
+        reasonSummary,
+        null,
+        analyzed,
+        emailUrl.getEmail().getReceivedAt(),
+        emailUrl.getCreatedAt()
+);
         }
 
         private UrlListItemResponseDto toListItem(Url url) {

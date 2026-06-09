@@ -12,9 +12,7 @@ import {
 } from "../utils/riskLevel";
 import {
   getMyUrls,
-  analyzeUrlWithLlm,
   type MyUrlItem,
-  type LlmAnalysisResponse,
 } from "../api/urlApi";
 
 type ThemeMode = "light" | "dark";
@@ -80,9 +78,6 @@ function UrlPage({
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
   const [urlItems, setUrlItems] = useState<MyUrlItem[]>([]);
-  const [llmResult, setLlmResult] = useState<LlmAnalysisResponse | null>(null);
-  const [analyzingUrlId, setAnalyzingUrlId] = useState<number | null>(null);
-  const [selectedLlmUrlId, setSelectedLlmUrlId] = useState<number | null>(null);
   const [selectedAccount, setSelectedAccount] = useState("1234@5678.com");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -112,28 +107,11 @@ function UrlPage({
     onNavigate(view);
   };
 
-  const handleToggleReason = (id: number) => {
-    setOpenedUrlId((prevId) => (prevId === id ? null : id));
-  };
+ const handleToggleReason = (urlId: number) => {
+  setOpenedUrlId((prevId) => (prevId === urlId ? null : urlId));
+};
 
-  const handleLlmAnalyze = async (urlId: number) => {
-    try {
-      setAnalyzingUrlId(urlId);
-
-      const result = await analyzeUrlWithLlm(urlId);
-
-      setLlmResult(result);
-      setSelectedLlmUrlId(urlId);
-
-      alert("LLM 분석이 완료되었습니다.");
-    } catch (error) {
-      console.error(error);
-      alert("LLM 분석 중 오류가 발생했습니다.");
-    } finally {
-      setAnalyzingUrlId(null);
-    }
-  };
-
+ 
   const myTotalCount = urlItems.length;
   const myHighRiskCount = urlItems.filter(
     (item) => item.riskLevel === "DANGER"
@@ -169,7 +147,7 @@ function UrlPage({
   return (
     <div className="dashboard-shell">
       <Header
-        currentView={currentView}
+        currentView="dashboard"
         theme={theme}
         isLoggedIn={isLoggedIn}
         userName={userName}
@@ -371,56 +349,19 @@ function UrlPage({
                               </button>
                             </div>
 
-                            <div className="url-row-actions">
-                              <button
-                                className="url-detail-toggle"
-                                onClick={() => handleLlmAnalyze(item.urlId)}
-                                type="button"
-                              >
-                                {analyzingUrlId === item.urlId
-                                  ? "분석 중..."
-                                  : "LLM 분석"}
-                              </button>
-                            </div>
 
                             {isOpened && (
-                              <div className="url-risk-reason-box">
-                                <strong>위험 분석 결과</strong>
-                                <p>
-                                  · 위험도:{" "}
-                                  {getRiskLabel(
-                                    item.riskLevel as RiskLevelLabel
-                                  )}
-                                </p>
-                                <p>
-                                  · 점수:{" "}
-                                  {item.score != null ? item.score : "-"}
-                                </p>
-                                <p>
-                                  · 설명:{" "}
-                                  {item.reasonSummary
-                                    ? item.reasonSummary
-                                    : "분석 설명이 아직 없습니다."}
-                                </p>
+  <div className="url-risk-reason-box">
+    <strong>LLM 분석 결과</strong>
+    <p>· 위험도: {item.riskLevel}</p>
+    <p>· 점수: {item.score ?? "-"}</p>
+    <p>· 설명: {item.reasonSummary ?? "분석 설명이 없습니다."}</p>
 
-                                {item.detectedRules?.map((rule) => (
-                                  <p key={rule}>· 탐지 규칙: {rule}</p>
-                                ))}
-                              </div>
-                            )}
-
-                            {llmResult && selectedLlmUrlId === item.urlId && (
-                              <div className="url-risk-reason-box">
-                                <strong>LLM 분석 결과</strong>
-                                <p>· 위험도: {llmResult.risk}</p>
-                                <p>· 점수: {llmResult.score}</p>
-                                <p>· 설명: {llmResult.reasonSummary}</p>
-
-                                {llmResult.detectedRules.map((rule) => (
-                                  <p key={rule}>· {rule}</p>
-                                ))}
-                              </div>
-                            )}
+    {item.detectedRules?.map((rule) => (
+      <p key={rule}>· {rule}</p>
+    ))}
+  </div>
+)}
                           </div>
                         );
                       })}

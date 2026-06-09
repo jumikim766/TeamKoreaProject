@@ -16,7 +16,12 @@ public class UrlAnalysisAsyncService {
     public void analyzeUrlAsync(Long userId, Long urlId, String emailSubject, String emailBody) {
         try {
             // 현재 AnalysisService에 존재하는 규칙 기반 URL 분석 메서드 호출
-            analysisService.analyzeAndSave(userId, urlId);
+           analysisService.analyzeWithLlmAndSave(
+        userId,
+        urlId,
+        emailSubject,
+        emailBody
+);
 
         } catch (Exception e) {
             // URL 분석 실패가 이메일 저장 실패로 이어지면 안 됨
