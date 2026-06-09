@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ViewMode } from '../App';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
@@ -57,6 +51,40 @@ interface NotificationPageProps {
   onNavigate: (view: ViewMode) => void;
 }
 
+const initialNotifications: NotificationItem[] = [
+  {
+    id: 1,
+    title: '고위험 URL이 탐지되었습니다.',
+    summary:
+      '메일 기반 수집 데이터에서 매우 위험 URL 3건이 추가 탐지되었습니다.',
+    content:
+      '메일 기반 수집 데이터에서 매우 위험 URL 3건이 추가 탐지되었습니다. URL 관리 페이지에서 상세 링크와 위험도를 확인해 주세요.',
+    date: '2026. 03. 25. 오후 12:34',
+    type: '위험 URL',
+    isRead: false,
+  },
+  {
+    id: 2,
+    title: '이메일 연동 상태가 정상입니다.',
+    summary: '연동된 메일 계정의 동기화가 정상적으로 완료되었습니다.',
+    content:
+      '연동된 메일 계정의 동기화가 정상적으로 완료되었습니다. 마지막 점검 시간은 10:15이며 현재 오류는 없습니다.',
+    date: '2026. 03. 25. 오전 10:15',
+    type: '메일 연동',
+    isRead: true,
+  },
+  {
+    id: 3,
+    title: '신고 접수 건 처리 상태가 변경되었습니다.',
+    summary: '사용자가 신고한 URL 1건이 검토 완료 상태로 변경되었습니다.',
+    content:
+      '사용자가 신고한 URL 1건이 검토 완료 상태로 변경되었습니다. 신고 내역 페이지에서 조치 결과를 확인할 수 있습니다.',
+    date: '2026. 03. 24. 오후 5:02',
+    type: '신고 처리',
+    isRead: false,
+  },
+];
+
 function NotificationPage({
   theme,
   currentView,
@@ -70,23 +98,33 @@ function NotificationPage({
   onGoMyPage,
   onNavigate,
 }: NotificationPageProps) {
-  const hasShownErrorRef = useRef(false);
+  const [notifications, setNotifications] =
+    useState<NotificationItem[]>(initialNotifications);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [pushEnabled, setPushEnabled] = useState(true);
+  const [selectedId, setSelectedId] = useState<number | null>(
+    initialNotifications[0]?.id ?? null
+  );
 
-  const selectedNotification = useMemo(() => {
-    return notifications.find((item) => item.id === selectedId) ?? null;
-  }, [notifications, selectedId]);
+const [pushEnabled, setPushEnabled] = useState(true);
+const [serverUnreadCount, setServerUnreadCount] = useState<number | null>(null);
+const hasShownErrorRef = useRef(false);
 
-  const showErrorOnce = useCallback((message: string) => {
-    if (!hasShownErrorRef.current) {
-      alert(message);
-      hasShownErrorRef.current = true;
-    }
-  }, []);
+const localUnreadCount = useMemo(() => {
+  return notifications.filter((item) => !item.isRead).length;
+}, [notifications]);
+
+const unreadCount = serverUnreadCount ?? localUnreadCount;
+
+const selectedNotification = useMemo(() => {
+  return notifications.find((item) => item.id === selectedId) ?? null;
+}, [notifications, selectedId]);
+
+const showErrorOnce = useCallback((message: string) => {
+  if (!hasShownErrorRef.current) {
+    alert(message);
+    hasShownErrorRef.current = true;
+  }
+}, []);
 
 const loadNotifications = useCallback(async () => {
   try {
@@ -109,62 +147,59 @@ const loadNotifications = useCallback(async () => {
   }
 }, [showErrorOnce]);
 
-  const loadUnreadCount = useCallback(async () => {
-    try {
-      const count = await getUnreadCount();
+const loadUnreadCount = useCallback(async () => {
+  try {
+    const count = await getUnreadCount();
 
-      setUnreadCount(count);
+    setServerUnreadCount(count);
 
-      window.dispatchEvent(new Event('notification-updated'));
-    } catch {
-      showErrorOnce('알림 정보를 불러오지 못했습니다.');
-    }
-  }, [showErrorOnce]);
+    window.dispatchEvent(new Event('notification-updated'));
+  } catch {
+    showErrorOnce('알림 정보를 불러오지 못했습니다.');
+  }
+}, [showErrorOnce]);
 
-  useEffect(() => {
-    if (!isLoggedIn) {
+useEffect(() => {
+  if (!isLoggedIn) {
+    return;
+  }
+
+  loadNotifications();
+  loadUnreadCount();
+}, [isLoggedIn, currentView, loadNotifications, loadUnreadCount]);
+
+const handleSelectNotification = async (id: number) => {
+  setSelectedId(id);
+
+  const target = notifications.find((item) => item.id === id);
+
+    if (!target || target.isRead) {
       return;
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadNotifications();
-    loadUnreadCount();
-  }, [isLoggedIn, currentView, loadNotifications, loadUnreadCount]);
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, isRead: true } : item
+      )
+    );
 
-  useEffect(() => {
-    if (!isLoggedIn) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      loadUnreadCount();
-    }, 30000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [isLoggedIn, loadUnreadCount]);
-
-  const handleSelectNotification = async (id: number) => {
     try {
-      setSelectedId(id);
+  await readNotification(id);
+  await loadUnreadCount();
+  await loadNotifications();
+} catch {
+  console.warn('백엔드 읽음 처리 API 호출 실패');
+}
+  };
 
-      const target = notifications.find((item) => item.id === id);
+  const handleDeleteNotification = (id: number) => {
+    const nextNotifications = notifications.filter((item) => item.id !== id);
 
-      if (target && !target.isRead) {
-        await readNotification(id);
+    setNotifications(nextNotifications);
 
-        setNotifications((prev) =>
-          prev.map((item) =>
-            item.id === id ? { ...item, isRead: true } : item
-          )
-        );
+if (selectedId === id) {
+  setSelectedId(nextNotifications[0]?.id ?? null);
 
-        await loadUnreadCount();
-        await loadNotifications();
-      }
-    } catch {
-      alert('알림 읽음 처리에 실패했습니다.');
     }
   };
 
@@ -251,8 +286,15 @@ const loadNotifications = useCallback(async () => {
 
                     <div className="notification-list">
                       {notifications.length === 0 ? (
-                        <div className="notification-empty">
-                          새로운 알림이 없습니다.
+                        <div className="notification-empty-state">
+                          <div className="notification-empty-icon">🔔</div>
+
+                          <strong>새로운 알림이 없습니다</strong>
+
+                          <p>
+                            위험 URL 탐지, 신고 처리, 메일 연동 알림이
+                            생기면 이곳에 표시됩니다.
+                          </p>
                         </div>
                       ) : (
                         notifications.map((item) => (
@@ -311,10 +353,29 @@ const loadNotifications = useCallback(async () => {
                         <div className="notification-detail-body">
                           <p>{selectedNotification.content}</p>
                         </div>
+
+                        <div style={{ marginTop: '20px' }}>
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={() =>
+                              handleDeleteNotification(selectedNotification.id)
+                            }
+                          >
+                            알림 삭제하기
+                          </button>
+                        </div>
                       </>
                     ) : (
-                      <div className="notification-empty">
-                        선택된 알림이 없습니다.
+                      <div className="notification-empty-state">
+                        <div className="notification-empty-icon">🔔</div>
+
+                        <strong>새로운 알림이 없습니다</strong>
+
+                        <p>
+                          위험 URL 탐지, 신고 처리, 메일 연동 알림이 생기면
+                          이곳에 표시됩니다.
+                        </p>
                       </div>
                     )}
                   </section>

@@ -10,6 +10,10 @@ export interface NotificationResponse {
   createdAt: string;
 }
 
+interface NotificationPageResponse {
+  content?: NotificationResponse[];
+}
+
 const getAuthHeaders = () => {
   const token = getAccessToken();
 
@@ -29,17 +33,27 @@ export const getNotifications = async (): Promise<NotificationResponse[]> => {
     throw new Error('알림 목록을 불러오지 못했습니다.');
   }
 
-  return response.json();
+  const data: NotificationResponse[] | NotificationPageResponse =
+    await response.json();
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  return data.content ?? [];
 };
 
 export const getUnreadCount = async (): Promise<number> => {
-  const response = await fetch(`${API_BASE_URL}/api/notifications/unread-count`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/notifications/unread-count`,
+    {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    }
+  );
 
   if (!response.ok) {
-    throw new Error('안 읽은 알림 개수를 불러오지 못했습니다.');
+    throw new Error('읽지 않은 알림 개수를 불러오지 못했습니다.');
   }
 
   const data = await response.json();
