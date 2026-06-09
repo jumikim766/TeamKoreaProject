@@ -7,6 +7,7 @@ type ThemeMode = "light" | "dark";
 type ReportViewMode = "report-guide" | "report";
 
 type PageViewTarget =
+  | "guide"
   | "my-mailbox"
   | "mail-connect"
   | "my-url"
@@ -51,6 +52,7 @@ function ReportPage({
 }: ReportPageProps) {
   const [reportUrl, setReportUrl] = useState("");
   const [reportReason, setReportReason] = useState("");
+  const [isCustomReason, setIsCustomReason] = useState(false);
 
   return (
     <div className="dashboard-shell">
@@ -66,7 +68,7 @@ function ReportPage({
         onGoMyPage={onGoMyPage}
         onToggleTheme={onToggleTheme}
       />
-      <Navbar onNavigate={onNavigate} />
+      <Navbar onNavigate={(view) => onNavigate(view as PageViewTarget)} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -99,7 +101,7 @@ function ReportPage({
                 onClick={() => onNavigate("report")}
                 type="button"
               >
-                신고하기
+                제보하기
               </button>
             </div>
           </aside>
@@ -112,82 +114,87 @@ function ReportPage({
                   <h1>신고 안내</h1>
                 </div>
 
+                <p className="report-description">
+                  ※ 기관명 클릭 시 해당 신고 사이트로 이동합니다.
+                </p>
+
                 <div className="report-content-grid">
                   <section className="report-list-card">
                     <div className="report-table report-table-header">
-                      <span>단계</span>
-                      <span>내용</span>
+                      <span>유형</span>
+                      <span>기관</span>
                       <span>설명</span>
-                      <span>상태</span>
                     </div>
 
                     <div className="report-table-body">
-                      <button
-                        className="report-table-row is-active"
-                        type="button"
-                      >
+                      <div className="report-table-row">
                         <span>
-                          <strong>1단계</strong>
-                          <small>URL 확인</small>
+                          <strong>🔐 개인정보 유출 및 침해</strong>
                         </span>
-                        <span>의심 URL 복사</span>
                         <span>
-                          메일, 문자, 웹사이트에서 의심되는 URL을 확인합니다.
+                          <a
+                            href="https://privacy.kisa.or.kr/"
+                            className="report-link"
+                          >
+                            KISA 개인정보침해 신고센터
+                          </a>
                         </span>
-                        <span>필수</span>
-                      </button>
+                        <span>개인정보 유출, 계정 도용, 사칭 사이트 신고</span>
+                      </div>
 
-                      <button className="report-table-row" type="button">
+                      <div className="report-table-row">
                         <span>
-                          <strong>2단계</strong>
-                          <small>내용 작성</small>
+                          <strong>🛡️ 해킹·랜섬웨어·DDoS</strong>
                         </span>
-                        <span>신고 정보 입력</span>
-                        <span>URL, 발견 위치, 의심 사유를 입력합니다.</span>
-                        <span>필수</span>
-                      </button>
+                        <span>
+                          <a
+                            href="https://www.krcert.or.kr/kr/subPage.do?menuNo=205033"
+                            className="report-link"
+                          >
+                            KISA 보호나라
+                          </a>
+                        </span>
+                        <span>해킹, 악성코드, 랜섬웨어 등 침해사고 신고</span>
+                      </div>
 
-                      <button className="report-table-row" type="button">
+                      <div className="report-table-row">
                         <span>
-                          <strong>3단계</strong>
-                          <small>검토 반영</small>
+                          <strong>📩 불법 스팸 문자·메일</strong>
                         </span>
-                        <span>위험도 분류</span>
                         <span>
-                          신고된 URL은 검토 후 분류 기준에 반영됩니다.
+                          <a
+                            href="https://spam.kisa.or.kr/spam/main.do"
+                            className="report-link"
+                          >
+                            KISA 불법스팸대응센터
+                          </a>
                         </span>
-                        <span>진행</span>
-                      </button>
+                        <span>스팸 문자, 피싱 메일, 광고성 메시지 신고</span>
+                      </div>
                     </div>
                   </section>
 
                   <section className="report-detail-card">
                     <div className="report-detail-head">
-                      <h2>신고 접수 안내</h2>
+                      <h2>상담 센터</h2>
                     </div>
 
                     <div className="report-meta">
                       <p>
-                        <strong>신고 대상 :</strong> 피싱, 악성코드, 계정 탈취
-                        의심 URL
+                        <strong>☎️ KISA 상담센터</strong> (국번없이 118)
                       </p>
                       <p>
-                        <strong>필수 정보 :</strong> URL 주소, 발견 위치, 신고
-                        사유
-                      </p>
-                      <p>
-                        <strong>처리 방식 :</strong> 접수 후 위험도 분석
+                        <a
+                          href="https://www.kisa.or.kr/118"
+                          className="report-link"
+                        >
+                          {" "}
+                          https://www.kisa.or.kr/118{" "}
+                        </a>
                       </p>
                     </div>
 
                     <div className="report-divider" />
-
-                    <div className="report-body">
-                      <p>
-                        신고된 URL은 내부 기준에 따라 검토되며, 위험도에 따라
-                        안전, 주의, 위험, 매우 위험으로 분류됩니다.
-                      </p>
-                    </div>
                   </section>
                 </div>
               </div>
@@ -195,51 +202,70 @@ function ReportPage({
               <div className="report-section">
                 <div className="page-head">
                   <p className="eyebrow"></p>
-                  <h1>신고하기</h1>
+                  <h1>제보하기</h1>
                 </div>
 
                 <div className="report-connect-box">
+                  <h2>URL 입력</h2>
                   <input
-                    className="report-connect-input"
-                    placeholder="신고할 URL을 입력하세요."
+                    className="url-report-input"
+                    placeholder="제보할 URL을 입력하세요."
                     type="text"
                     value={reportUrl}
                     onChange={(event) => setReportUrl(event.target.value)}
                   />
-
-                  <button
-                    className="primary-button"
-                    type="button"
-                    onClick={() => alert("신고가 접수되었습니다.")}
-                  >
-                    신고 접수
-                  </button>
                 </div>
-
-                <div className="report-connect-divider" />
-
                 <div className="connected-report-section">
-                  <h2>신고 사유</h2>
-
-                  <textarea
-                    className="report-connect-input"
-                    style={{ minHeight: "160px", resize: "vertical" }}
-                    placeholder="의심되는 이유를 입력해주세요."
-                    value={reportReason}
-                    onChange={(event) => setReportReason(event.target.value)}
-                  />
+                  <h2>이유 입력</h2>
 
                   <div className="connected-report-list">
-                    <div className="connected-report-row">
-                      <span>피싱 사이트로 의심됩니다.</span>
-                    </div>
-                    <div className="connected-report-row">
-                      <span>로그인 정보를 요구합니다.</span>
-                    </div>
-                    <div className="connected-report-row">
-                      <span>알 수 없는 파일 다운로드를 유도합니다.</span>
+                    <div className="report-reason-list">
+                      <label>
+                        <input type="checkbox" /> 피싱/스팸/광고 사이트로
+                        의심됩니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 로그인 정보 입력을 요구합니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 개인정보 입력을 요구합니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 금융정보 입력을 요구합니다.
+                      </label>
+                      <label>
+                        <input type="checkbox" /> 알 수 없는 파일 다운로드를
+                        유도합니다.
+                      </label>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={isCustomReason}
+                          onChange={(event) =>
+                            setIsCustomReason(event.target.checked)
+                          }
+                        />
+                        직접 입력
+                      </label>
                     </div>
                   </div>
+
+                  {isCustomReason && (
+                    <textarea
+                      className="reason-report-input"
+                      placeholder="의심되는 이유를 입력하세요."
+                      value={reportReason}
+                      onChange={(event) => setReportReason(event.target.value)}
+                    />
+                  )}
+
+                  <button
+                    className="report-button"
+                    type="button"
+                    onClick={() => alert("제보가 접수되었습니다.")}
+                  >
+                    제보하기
+                  </button>
                 </div>
               </div>
             )}
@@ -248,7 +274,7 @@ function ReportPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate("service-info")}>
+        <button type="button" onClick={() => onNavigate("guide")}>
           서비스 소개
         </button>
         <button type="button" onClick={() => onNavigate("terms")}>

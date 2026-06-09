@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import type { ViewMode } from "../App";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/MailPage.css";
 import { getRiskClassName, getRiskLabel } from "../utils/riskLevel";
 // 백엔드에서 내려준 에러 message를 화면에 보여주기 위한 공통 함수
 import { getErrorMessage } from "../api/errorMessage";
+import Pagination from "../components/Pagination";
 
 // API 함수
 import {
@@ -27,21 +29,7 @@ import type {
 type ThemeMode = "light" | "dark";
 type MailViewMode = "my-mailbox" | "mail-connect";
 
-type PageViewTarget =
-  | "my-mailbox"
-  | "mail-connect"
-  | "my-url"
-  | "url-library"
-  | "notifications"
-  | "notification-settings"
-  | "report-guide"
-  | "report"
-  | "classification-method"
-  | "classification-criteria"
-  | "service-info"
-  | "terms"
-  | "privacy"
-  | "security-contact";
+type PageViewTarget = ViewMode;
 
 interface MailPageProps {
   theme: ThemeMode;
@@ -54,6 +42,8 @@ interface MailPageProps {
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
+  onGoNotifications?: () => void;
+  unreadCount?: number;
   onNavigate: (view: PageViewTarget) => void;
 }
 
@@ -68,6 +58,8 @@ function MailPage({
   onGoLogin,
   onGoSignup,
   onGoMyPage,
+  onGoNotifications,
+  unreadCount = 0,
   onNavigate,
 }: MailPageProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
@@ -89,16 +81,21 @@ function MailPage({
   const [imapHost, setImapHost] = useState("");
   const [imapPort, setImapPort] = useState("");
   const [syncingAccountId, setSyncingAccountId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const [size] = useState(20);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [showMailGuide, setShowMailGuide] = useState(false);
 
   useEffect(() => {
     const fetchEmailAccounts = async () => {
       try {
         const accounts = await getEmailAccount();
 
-        // 이메일 계정 state 저장
         setEmailAccounts(accounts);
 
         const accountEmails = accounts.map((account) => account.email);
+
         setConnectedEmails(accountEmails);
 
         if (accounts.length > 0) {
@@ -108,6 +105,7 @@ function MailPage({
         console.error("이메일 계정 목록 조회 실패:", error);
       }
     };
+
     fetchEmailAccounts();
   }, []);
 
@@ -120,21 +118,25 @@ function MailPage({
       try {
         const data: EmailListResponse = await getEmail({
           accountId: selectedAccountId,
-          page: 0,
-          size: 100,
+          page,
+          size,
         });
 
         setEmails(data.emails ?? []);
+        setTotalPages(data.totalPages ?? 0);
+        setTotalElements(data.totalElements ?? 0);
         setSelectedMailId(null);
         setSelectedEmailDetail(null);
       } catch (error) {
         console.error("이메일 목록 조회 실패:", error);
         setEmails([]);
+        setTotalPages(0);
+        setTotalElements(0);
       }
     };
 
     fetchEmails();
-  }, [selectedAccountId]);
+  }, [selectedAccountId, page, size]);
 
   useEffect(() => {
     if (selectedMailId === null) return;
@@ -209,7 +211,7 @@ function MailPage({
         }),
       };
 
-            // 이메일 연동 요청
+      // 이메일 연동 요청
       await createEmailAccount(request);
 
       // 연동 성공 후 목록 다시 조회
@@ -217,6 +219,10 @@ function MailPage({
         const accounts = await getEmailAccount();
 
         setEmailAccounts(accounts);
+
+        if (accounts.length > 0) {
+          setSelectedAccountId(accounts[0].accountId);
+        }
 
         const accountEmails = accounts.map((account) => account.email);
         setConnectedEmails(accountEmails);
@@ -240,13 +246,10 @@ function MailPage({
       setImapPort("");
       setConnectEmailError("");
       alert("이메일이 연동되었습니다.");
-      } catch (error) {
+    } catch (error) {
       console.error("이메일 연동 실패:", error);
 
-      const message = getErrorMessage(
-        error,
-        "이메일 연동에 실패했습니다.",
-      );
+      const message = getErrorMessage(error, "이메일 연동에 실패했습니다.");
 
       setConnectEmailError(message);
       alert(message);
@@ -268,22 +271,24 @@ function MailPage({
 
       await syncEmailAccount(targetAccount.accountId);
 
+      setPage(0);
+
       const data: EmailListResponse = await getEmail({
         accountId: targetAccount.accountId,
         page: 0,
-        size: 100,
+        size,
       });
-      setEmails(data.emails);
+
+      setEmails(data.emails ?? []);
+      setTotalPages(data.totalPages ?? 0);
+      setTotalElements(data.totalElements ?? 0);
 
       alert("이메일 동기화 완료");
-        } catch (error) {
+    } catch (error) {
       console.error("이메일 동기화 실패:", error);
 
       // 백엔드에서 분기해서 내려준 에러 메시지를 alert로 표시
-      const message = getErrorMessage(
-        error,
-        "이메일 동기화에 실패했습니다.",
-      );
+      const message = getErrorMessage(error, "이메일 동기화에 실패했습니다.");
 
       alert(message);
     } finally {
@@ -332,6 +337,22 @@ function MailPage({
     }
   };
 
+
+  const renderMailPagination = () => {
+  return (
+    <>
+      <Pagination
+        currentPage={page + 1}
+        totalPages={totalPages}
+        onPageChange={(nextPage) => setPage(nextPage - 1)}
+      />
+      {totalElements > 0 && (
+        <p className="mail-total-count">총 {totalElements}개</p>
+      )}
+    </>
+  );
+};
+
   return (
     <div className="dashboard-shell">
       <Header
@@ -344,10 +365,12 @@ function MailPage({
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
         onGoMyPage={onGoMyPage}
+        onGoNotifications={onGoNotifications}
+        unreadCount={unreadCount}
         onToggleTheme={onToggleTheme}
       />
 
-      <Navbar onNavigate={onNavigate} />
+      <Navbar currentView={currentView} onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -443,6 +466,7 @@ function MailPage({
                           )}
                         </div>
                       </section>
+                      {renderMailPagination()}
                     </>
                   ) : (
                     <>
@@ -452,6 +476,7 @@ function MailPage({
                           value={selectedAccountId ?? ""}
                           onChange={(event) => {
                             setSelectedAccountId(Number(event.target.value));
+                            setPage(0);
                             setSelectedMailId(null);
                             setSelectedEmailDetail(null);
                           }}
@@ -505,17 +530,86 @@ function MailPage({
                           ))}
                         </div>
                       </section>
+                      {renderMailPagination()}
                     </>
                   )}
                 </div>
               </div>
             ) : (
               <div className="mail-section">
-                <div className="page-head">
-                  <p className="eyebrow"></p>
-                  <h1>이메일 연동하기</h1>
+                <div className="page-head mail-connect-head">
+                  <div className="mail-head-row">
+                    <h1>이메일 연동하기</h1>
+
+                    <button
+                      className="mail-guide-button"
+                      type="button"
+                      onClick={() => setShowMailGuide(true)}
+                      aria-label="메일 연동 방법 보기"
+                    >
+                      메일 연동 방법
+                    </button>
+                  </div>
                 </div>
 
+                {showMailGuide && (
+                  <div
+                    className="mail-guide-backdrop"
+                    onClick={() => setShowMailGuide(false)}
+                  >
+                    <div
+                      className="mail-guide-modal"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <p>
+                        * 메일을 연동하려면 메일 계정의 IMAP 사용 설정과 앱
+                        비밀번호가 필요합니다.
+                      </p>
+
+                      <h4>공통 입력값</h4>
+                      <p>
+                        - 이메일 : 실제 사용하는 메일 주소
+                        <br />
+                        - 로그인 ID : 보통 이메일 주소와 동일
+                        <br />- 비밀번호 : 앱 비밀번호 (OUTLOOK, CUSTOM은 일반
+                        비밀번호)
+                      </p>
+
+                      <h4>GMAIL / NAVER / DAUM</h4>
+                      <p>
+                        1. 2단계 인증 설정
+                        <br />
+                        2. 앱 비밀번호 발급
+                        <br />
+                        3. IMAP 사용 허용
+                      </p>
+
+                      <h4>OUTLOOK</h4>
+                      <p>
+                        1. 2단계 인증 설정
+                        <br />
+                        2. 앱 암호 발급
+                        <br />
+                        3. IMAP 사용 허용
+                      </p>
+
+                      <h4>CUSTOM (학교/회사 메일)</h4>
+                      <p>
+                        IMAP Host와 Port 입력
+                        <br />
+                        (보통 Port는 993)
+                      </p>
+
+                      <button
+                        className="mail-guide-close-button "
+                        type="button"
+                        onClick={() => setShowMailGuide(false)}
+                      >
+                        확인
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="mail-connect-box">
                   <div className="mail-connect-first-row">
                     <select
@@ -614,16 +708,36 @@ function MailPage({
                     {connectedEmails.length > 0 ? (
                       connectedEmails.map((email) => (
                         <div key={email} className="connected-mail-row">
-                          <span>{email}</span>
+                          <div>
+                            <span>{email}</span>
+
+                            {!emailAccounts.find(
+                              (account) => account.email === email,
+                            )?.active && (
+                              <div
+                                style={{
+                                  color: "red",
+                                  fontSize: "12px",
+                                  marginTop: "4px",
+                                }}
+                              >
+                                재연동 필요
+                              </div>
+                            )}
+                          </div>
+
                           <div className="mail-button-group">
                             <button
                               className="secondary-button small-button"
                               onClick={() => handleSyncEmail(email)}
                               disabled={
-                                syncingAccountId ===
-                                emailAccounts.find(
+                                !emailAccounts.find(
                                   (account) => account.email === email,
-                                )?.accountId
+                                )?.active ||
+                                syncingAccountId ===
+                                  emailAccounts.find(
+                                    (account) => account.email === email,
+                                  )?.accountId
                               }
                               type="button"
                             >
@@ -632,7 +746,11 @@ function MailPage({
                                 (account) => account.email === email,
                               )?.accountId
                                 ? "동기화 중..."
-                                : "동기화"}
+                                : !emailAccounts.find(
+                                      (account) => account.email === email,
+                                    )?.active
+                                  ? "재연동 필요"
+                                  : "동기화"}
                             </button>
                             <button
                               className="secondary-button small-button"
@@ -658,7 +776,7 @@ function MailPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate("service-info")}>
+        <button type="button" onClick={() => onNavigate("guide")}>
           서비스 소개
         </button>
         <button type="button" onClick={() => onNavigate("terms")}>

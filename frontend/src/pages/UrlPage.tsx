@@ -1,37 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import type { ViewMode } from "../App";
 import ChartBox from "../components/ChartBox";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import "../styles/UrlPage.css";
-import { getRiskClassName, getRiskLabel } from "../utils/riskLevel";
+import Pagination from "../components/Pagination";
+import {
+  getRiskClassName,
+  getRiskLabel,
+  type RiskLevelLabel,
+} from "../utils/riskLevel";
 import {
   getMyUrls,
-  getUrls,
-  getUrlStatistics,
+  analyzeUrlWithLlm,
   type MyUrlItem,
-  type UrlListItem,
-  type UrlStatistics,
+  type LlmAnalysisResponse,
 } from "../api/urlApi";
 
 type ThemeMode = "light" | "dark";
 type UrlViewMode = "url-statistics" | "my-url" | "url-library";
 
-type PageViewTarget =
-  | "my-mailbox"
-  | "mail-connect"
-  | "url-statistics"
-  | "my-url"
-  | "url-library"
-  | "notifications"
-  | "notification-settings"
-  | "report-guide"
-  | "report"
-  | "classification-method"
-  | "classification-criteria"
-  | "service-info"
-  | "terms"
-  | "privacy"
-  | "security-contact";
+type PageViewTarget = ViewMode;
 
 interface UrlPageProps {
   theme: ThemeMode;
@@ -44,62 +33,34 @@ interface UrlPageProps {
   onGoLogin: () => void;
   onGoSignup: () => void;
   onGoMyPage: () => void;
+  onGoNotifications?: () => void;
+  unreadCount?: number;
   onNavigate: (view: PageViewTarget) => void;
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 const pageInfo = {
   "url-statistics": {
     title: "URL 통계",
-    description:
-      "내 이메일에 포함된 링크의 위험도를 분석하고, 전체 회원의 통계와 비교해 내 이메일 환경이 얼마나 안전한지 한눈에 확인하세요.",
+    description: "이메일에서 탐지된 URL의 위험도 통계를 확인할 수 있습니다.",
   },
   "my-url": {
     title: "나의 URL",
-    description: "내 이메일 링크 분석",
+    description: "내 이메일에서 추출된 URL과 위험도 분석 결과를 확인합니다.",
   },
   "url-library": {
     title: "전체 URL 모음",
-    description: "전체 회원 링크 통계",
+    description: "전체 URL 분석 결과를 모아 확인합니다.",
   },
 };
 
 function PlusIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="M12 5v14" />
-    </svg>
-  );
+  return <span>+</span>;
 }
 
 function MinusIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-    </svg>
-  );
+  return <span>-</span>;
 }
 
 function UrlPage({
@@ -113,82 +74,37 @@ function UrlPage({
   onGoLogin,
   onGoSignup,
   onGoMyPage,
+  onGoNotifications,
+  unreadCount = 0,
   onNavigate,
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
+  const [urlItems, setUrlItems] = useState<MyUrlItem[]>([]);
+  const [llmResult, setLlmResult] = useState<LlmAnalysisResponse | null>(null);
+  const [analyzingUrlId, setAnalyzingUrlId] = useState<number | null>(null);
+  const [selectedLlmUrlId, setSelectedLlmUrlId] = useState<number | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState("1234@5678.com");
   const [currentPage, setCurrentPage] = useState(1);
-  const [myUrls, setMyUrls] = useState<MyUrlItem[]>([]);
-  const [allUrls, setAllUrls] = useState<UrlListItem[]>([]);
-  const [myStats, setMyStats] = useState<UrlStatistics | null>(null);
-  const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState("전체 계정");
+
+  const isMyUrl = currentView === "my-url";
+  const isStatistics = currentView === "url-statistics";
 
   useEffect(() => {
-    const fetchUrlData = async () => {
+    const fetchUrls = async () => {
       try {
-        if (currentView === "my-url") {
-          const data = await getMyUrls({
-            page: currentPage - 1,
-            size: PAGE_SIZE,
-          });
+        const response = await getMyUrls({
+          page: 0,
+          size: 100,
+        });
 
-          setMyUrls(data.urls ?? []);
-        }
-
-        if (currentView === "url-library") {
-          const data = await getUrls({
-            page: currentPage - 1,
-            size: PAGE_SIZE,
-          });
-
-          setAllUrls(data.urls ?? []);
-        }
-
-        if (currentView === "url-statistics") {
-          const [my, all] = await Promise.all([
-            getUrlStatistics({ scope: "MY", period: "ALL" }),
-            getUrlStatistics({ scope: "ALL", period: "ALL" }),
-          ]);
-
-          setMyStats(my);
-          setAllStats(all);
-        }
+        setUrlItems(response.urls);
       } catch (error) {
-        console.error("URL 분석 결과 조회 실패:", error);
+        console.error(error);
       }
     };
 
-    fetchUrlData();
-  }, [currentView, currentPage]);
-
-  const chartData = (stats: UrlStatistics | null) => [
-    { name: "CRITICAL", value: stats?.criticalCount ?? 0 },
-    { name: "DANGER", value: stats?.dangerCount ?? 0 },
-    { name: "WARNING", value: stats?.warningCount ?? 0 },
-    { name: "SUSPICIOUS", value: stats?.suspiciousCount ?? 0 },
-    { name: "SAFE", value: stats?.safeCount ?? 0 },
-  ];
-
-  const myHighRiskCount =
-    (myStats?.criticalCount ?? 0) + (myStats?.dangerCount ?? 0);
-
-  const allTotalCount = allStats?.totalCount ?? 0;
-  const myTotalCount = myStats?.totalCount ?? 0;
-
-  const isStatistics = currentView === 'url-statistics';
-  const isMyUrl = currentView === 'my-url';
-
-  const urlItems = useMemo(() => {
-    const items = isMyUrl ? myUrls : allUrls;
-    return [...items].sort((a, b) => b.urlId - a.urlId);
-  }, [isMyUrl, myUrls, allUrls]);
-
-  const totalPages = Math.max(1, Math.ceil(urlItems.length / PAGE_SIZE));
-
-  const pagedUrlItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    return urlItems.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [urlItems, currentPage]);
+    fetchUrls();
+  }, []);
 
   const handleChangeMenu = (view: UrlViewMode) => {
     setCurrentPage(1);
@@ -199,6 +115,56 @@ function UrlPage({
   const handleToggleReason = (id: number) => {
     setOpenedUrlId((prevId) => (prevId === id ? null : id));
   };
+
+  const handleLlmAnalyze = async (urlId: number) => {
+    try {
+      setAnalyzingUrlId(urlId);
+
+      const result = await analyzeUrlWithLlm(urlId);
+
+      setLlmResult(result);
+      setSelectedLlmUrlId(urlId);
+
+      alert("LLM 분석이 완료되었습니다.");
+    } catch (error) {
+      console.error(error);
+      alert("LLM 분석 중 오류가 발생했습니다.");
+    } finally {
+      setAnalyzingUrlId(null);
+    }
+  };
+
+  const myTotalCount = urlItems.length;
+  const myHighRiskCount = urlItems.filter(
+    (item) => item.riskLevel === "DANGER"
+  ).length;
+
+  const chartData = [
+    {
+      name: "안전",
+      value: urlItems.filter((item) => item.riskLevel === "SAFE").length,
+    },
+    {
+      name: "주의",
+      value: urlItems.filter((item) => item.riskLevel === "WARNING").length,
+    },
+    {
+      name: "위험",
+      value: urlItems.filter((item) => item.riskLevel === "DANGER").length,
+    },
+  ];
+
+  const totalPages = Math.max(1, Math.ceil(urlItems.length / PAGE_SIZE));
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const pagedUrlItems = urlItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
 
   return (
     <div className="dashboard-shell">
@@ -212,10 +178,12 @@ function UrlPage({
         onGoLogin={onGoLogin}
         onGoSignup={onGoSignup}
         onGoMyPage={onGoMyPage}
+        onGoNotifications={onGoNotifications}
+        unreadCount={unreadCount}
         onToggleTheme={onToggleTheme}
       />
 
-      <Navbar onNavigate={onNavigate} />
+      <Navbar currentView={currentView} onNavigate={onNavigate} />
 
       <main className="page-main">
         <div className="page-layout">
@@ -284,26 +252,17 @@ function UrlPage({
                   <div className="url-stat-card">
                     <span>고위험 링크</span>
                     <strong>{myHighRiskCount.toLocaleString()}개</strong>
-                    <p>위험 또는 심각으로 분류된 링크 수입니다.</p>
+                    <p>DANGER로 분류된 링크 수입니다.</p>
                   </div>
 
-                  <div className="url-stat-card">
-  <span>전체 회원 전체 링크</span>
-  <strong>{allTotalCount.toLocaleString()}개</strong>
-  <p>전체 회원의 이메일과 URL 분석에서 탐지된 전체 링크 수입니다.</p>
-</div>
-
                   <div className="url-stat-chart">
-                    <ChartBox title="내 URL 위험도 통계" caption="이메일 링크 분석 기준" total={`${myTotalCount.toLocaleString()}개`} data={chartData(myStats)} />
+                    <ChartBox
+                      title="내 URL 위험도 통계"
+                      caption="이메일 링크 분석 기준"
+                      total={`${myTotalCount.toLocaleString()}개`}
+                      data={chartData}
+                    />
                   </div>
-                  <div className="url-stat-chart">
-  <ChartBox
-    title="전체 URL 위험도 통계"
-    caption="전체 회원 링크 분석 기준"
-    total={`${allTotalCount.toLocaleString()}개`}
-    data={chartData(allStats)}
-  />
-</div>
                 </section>
               ) : (
                 <>
@@ -374,19 +333,13 @@ function UrlPage({
                               {isMyUrl && (
                                 <span>
                                   <strong>
-                                    {String(
-                                      "senderName" in item && item.senderName
-                                        ? item.senderName
-                                        : item.domain,
-                                    )}
+                                    {item.senderName ?? item.domain ?? "알 수 없음"}
                                   </strong>
                                 </span>
                               )}
 
                               <span className="url-link-text">
-                                {"normalizedUrl" in item
-                                  ? item.normalizedUrl
-                                  : ""}
+                                {item.normalizedUrl}
                               </span>
 
                               <span>
@@ -396,9 +349,13 @@ function UrlPage({
 
                               <span>
                                 <span
-                                  className={`risk-badge ${getRiskClassName(item.riskLevel)}`}
+                                  className={`risk-badge ${getRiskClassName(
+                                    item.riskLevel as RiskLevelLabel
+                                  )}`}
                                 >
-                                  {getRiskLabel(item.riskLevel)}
+                                  {getRiskLabel(
+                                    item.riskLevel as RiskLevelLabel
+                                  )}
                                 </span>
                               </span>
 
@@ -414,17 +371,31 @@ function UrlPage({
                               </button>
                             </div>
 
+                            <div className="url-row-actions">
+                              <button
+                                className="url-detail-toggle"
+                                onClick={() => handleLlmAnalyze(item.urlId)}
+                                type="button"
+                              >
+                                {analyzingUrlId === item.urlId
+                                  ? "분석 중..."
+                                  : "LLM 분석"}
+                              </button>
+                            </div>
+
                             {isOpened && (
                               <div className="url-risk-reason-box">
                                 <strong>위험 분석 결과</strong>
-
-                                <p>· 위험도: {getRiskLabel(item.riskLevel)}</p>
-
+                                <p>
+                                  · 위험도:{" "}
+                                  {getRiskLabel(
+                                    item.riskLevel as RiskLevelLabel
+                                  )}
+                                </p>
                                 <p>
                                   · 점수:{" "}
                                   {item.score != null ? item.score : "-"}
                                 </p>
-
                                 <p>
                                   · 설명:{" "}
                                   {item.reasonSummary
@@ -437,27 +408,29 @@ function UrlPage({
                                 ))}
                               </div>
                             )}
+
+                            {llmResult && selectedLlmUrlId === item.urlId && (
+                              <div className="url-risk-reason-box">
+                                <strong>LLM 분석 결과</strong>
+                                <p>· 위험도: {llmResult.risk}</p>
+                                <p>· 점수: {llmResult.score}</p>
+                                <p>· 설명: {llmResult.reasonSummary}</p>
+
+                                {llmResult.detectedRules.map((rule) => (
+                                  <p key={rule}>· {rule}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
 
-                    {totalPages > 1 && (
-                      <div className="url-pagination">
-                        {Array.from({ length: totalPages }, (_, index) => (
-                          <button
-                            key={index + 1}
-                            className={
-                              currentPage === index + 1 ? "is-active" : ""
-                            }
-                            onClick={() => setCurrentPage(index + 1)}
-                            type="button"
-                          >
-                            {index + 1}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <Pagination
+  currentPage={currentPage}
+  totalPages={totalPages}
+  onPageChange={setCurrentPage}
+/>
                   </section>
                 </>
               )}
@@ -467,7 +440,7 @@ function UrlPage({
       </main>
 
       <footer className="footer">
-        <button type="button" onClick={() => onNavigate("service-info")}>
+        <button type="button" onClick={() => onNavigate("guide")}>
           서비스 소개
         </button>
         <button type="button" onClick={() => onNavigate("terms")}>

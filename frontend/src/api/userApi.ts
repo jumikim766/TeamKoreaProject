@@ -20,8 +20,6 @@ export const getMe = () =>
   apiClient.get<BaseResponse<UserMe>>("/api/users/me");
 
 export interface UserUpdatePayload {
-  name?: string;
-  username?: string;
   phone?: string;   // 01012345678 (하이픈 제거 후)
   email?: string;
   gender?: "MALE" | "FEMALE" | "OTHER";
@@ -41,3 +39,28 @@ export const deleteMe = (password?: string | null) =>
   apiClient.delete<BaseResponse<null>>("/api/users/me", {
     data: password ? { password } : {},
   });
+
+// ===== 이메일 변경 인증 =====
+
+export interface EmailChangeSendCodeRequest {
+  email: string;
+}
+
+export interface EmailChangeVerifyCodeRequest {
+  email: string;
+  code: string;
+}
+
+// 이메일 변경 인증번호 발송
+export const sendEmailChangeCode = (data: EmailChangeSendCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/users/me/email/send-code",
+    data
+  );
+
+// 이메일 변경 인증번호 검증
+export const verifyEmailChangeCode = (data: EmailChangeVerifyCodeRequest) =>
+  apiClient.post<BaseResponse<null>>(
+    "/api/users/me/email/verify-code",
+    data
+  );

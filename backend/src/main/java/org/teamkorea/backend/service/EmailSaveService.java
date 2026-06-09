@@ -3,15 +3,21 @@ package org.teamkorea.backend.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
 import org.teamkorea.backend.domain.Email;
 import org.teamkorea.backend.domain.EmailAccount;
 import org.teamkorea.backend.domain.EmailUrl;
+import org.teamkorea.backend.domain.RiskLevel;
 import org.teamkorea.backend.domain.Url;
+import org.teamkorea.backend.domain.UrlAnalysis;
 import org.teamkorea.backend.repository.EmailRepository;
 import org.teamkorea.backend.repository.EmailUrlRepository;
 import org.teamkorea.backend.repository.UrlRepository;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.math.BigDecimal;
 import java.net.IDN;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -32,6 +38,7 @@ public class EmailSaveService {
     private final EmailRepository emailRepository;
     private final UrlRepository urlRepository;
     private final EmailUrlRepository emailUrlRepository;
+    private final UrlAnalysisAsyncService urlAnalysisAsyncService;
 
     // URL 정규화 시 제거할 광고/추적 파라미터 목록
     private static final Set<String> TRACKING_PARAMS = Set.of(
@@ -143,15 +150,20 @@ public class EmailSaveService {
                             .linkText(null)
                             .build());
 
-            // // 6. URL 분석 결과 저장
-            // // 분석 실패해도 이메일/URL 저장과 sync 자체는 실패하지 않도록 처리
-            // try {
-            // analysisService.analyzeAndSave(userId, savedUrl.getUrlId());
-            // } catch (Exception e) {
-            // // TODO: 추후 log.warn으로 변경
-            // System.out.println("[ANALYSIS ERROR] urlId = " + savedUrl.getUrlId());
-            // }
+            Long savedUrlId = savedUrl.getUrlId();
 
+            // 이메일/URL 저장 트랜잭션이 정상 commit된 후 URL 분석 실행
+            // 분석 실패해도 이미 저장된 이메일과 URL은 롤백되지 않음
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    urlAnalysisAsyncService.analyzeUrlAsync(
+                            userId,
+                            savedUrlId,
+                            subject,
+                            bodyText);
+                }
+            });
             // 실제 저장/연결 처리된 URL 개수 증가
             extractedUrlCount++;
         }
@@ -160,7 +172,6 @@ public class EmailSaveService {
         return extractedUrlCount;
     }
 
-    // URL에서 도메인 추출
     private String extractDomain(String url) {
         try {
             URI uri = new URI(url);

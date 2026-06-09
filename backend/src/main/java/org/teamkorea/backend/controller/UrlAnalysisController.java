@@ -15,6 +15,7 @@ import org.teamkorea.backend.service.AnalysisService;
 import org.teamkorea.backend.service.NotificationService;
 
 import org.teamkorea.backend.ai.LlmAnalysisService;
+import org.teamkorea.backend.ai.OpenPhishService;
 import org.teamkorea.backend.ai.dto.LlmAnalysisResponse;
 import org.teamkorea.backend.domain.RiskLevel;
 import org.teamkorea.backend.domain.Url;
@@ -27,7 +28,6 @@ import java.math.BigDecimal;
 @RequestMapping("/api/url-analysis")
 @RequiredArgsConstructor
 public class UrlAnalysisController {
-
     private final AnalysisService analysisService;
     private final NotificationService notificationService; // 알림 서비스 주입
     private final UrlRepository urlRepository;

@@ -17,5 +17,5 @@ public class EmailUrlResponseDto {
     private String domain;
     private String riskLevel;
     private String reasonSummary;
-private BigDecimal score;
+    private BigDecimal score;
 }

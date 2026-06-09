@@ -130,32 +130,12 @@ public class AuthService {
     }
 
     // ===== 회원가입 인증번호 검증 =====
+    @Transactional
     public void verifySignupCode(VerifyCodeRequestDto request) {
-        EmailVerificationCode verificationCode = emailVerificationCodeRepository
-                .findTopByEmailAndPurposeOrderByCreatedAtDesc(request.getEmail(), "SIGNUP")
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.INVALID_INPUT,
-                        "회원가입 인증번호가 일치하지 않습니다."));
-
-        if (verificationCode.isVerified()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT,
-                    "이미 인증이 완료된 인증번호입니다.");
-        }
-
-        if (verificationCode.isExpired()) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT,
-                    "회원가입 인증번호가 만료되었습니다.");
-        }
-
-        if (!verificationCode.getCode().equals(request.getCode())) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_INPUT,
-                    "회원가입 인증번호가 일치하지 않습니다.");
-        }
-
-        verificationCode.markVerified();
+        emailVerificationService.verifyCode(
+                request.getEmail(),
+                request.getCode(),
+                "SIGNUP");
     }
 
     public LoginResponseDto login(String username, String password) {
@@ -276,7 +256,8 @@ public class AuthService {
     // ===== 아이디 찾기 인증번호 발송 =====
     public void sendFindUsernameCode(FindUsernameSendCodeRequestDto request) {
         User user = userRepository.findByNameAndEmail(request.getName(), request.getEmail())
-                .orElseThrow(() -> new RuntimeException("일치하는 사용자 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.USER_NOT_FOUND));
 
         String code = emailVerificationService.createVerificationCode();
 
@@ -294,23 +275,17 @@ public class AuthService {
     }
 
     // ===== 아이디 찾기 인증번호 확인 =====
+    @Transactional
     public FindUsernameResponseDto verifyFindUsernameCode(VerifyCodeRequestDto request) {
-        EmailVerificationCode verificationCode = emailVerificationCodeRepository
-                .findTopByEmailAndPurposeOrderByCreatedAtDesc(request.getEmail(), "FIND_USERNAME")
-                .orElseThrow(() -> new RuntimeException("인증번호 정보를 찾을 수 없습니다."));
 
-        if (verificationCode.isExpired()) {
-            throw new RuntimeException("인증번호가 만료되었습니다.");
-        }
-
-        if (!verificationCode.getCode().equals(request.getCode())) {
-            throw new RuntimeException("인증번호가 일치하지 않습니다.");
-        }
-
-        verificationCode.markVerified();
+        emailVerificationService.verifyCode(
+                request.getEmail(),
+                request.getCode(),
+                "FIND_USERNAME");
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("사용자 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.USER_NOT_FOUND));
 
         return new FindUsernameResponseDto(maskUsername(user.getUsername()));
     }
@@ -318,14 +293,15 @@ public class AuthService {
     // ===== 비밀번호 찾기 인증번호 발송 =====
     public void sendPasswordResetCode(PasswordResetSendCodeRequestDto request) {
         User user = userRepository.findByUsernameAndEmail(request.getUsername(), request.getEmail())
-                .orElseThrow(() -> new RuntimeException("일치하는 사용자 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.USER_NOT_FOUND));
 
         String code = emailVerificationService.createVerificationCode();
 
         EmailVerificationCode verificationCode = EmailVerificationCode.builder()
                 .email(user.getEmail())
                 .code(code)
-                .purpose("RESET_PASSWORD")
+                .purpose("PASSWORD_RESET")
                 .verified(false)
                 .expiresAt(LocalDateTime.now().plusMinutes(5))
                 .build();
@@ -336,27 +312,23 @@ public class AuthService {
     }
 
     // ===== 비밀번호 재설정 =====
+    @Transactional
     public void resetPassword(PasswordResetRequestDto request) {
-        EmailVerificationCode verificationCode = emailVerificationCodeRepository
-                .findTopByEmailAndPurposeOrderByCreatedAtDesc(request.getEmail(), "RESET_PASSWORD")
-                .orElseThrow(() -> new RuntimeException("인증번호 정보를 찾을 수 없습니다."));
 
-        if (verificationCode.isExpired()) {
-            throw new RuntimeException("인증번호가 만료되었습니다.");
-        }
+        emailVerificationService.verifyCode(
+                request.getEmail(),
+                request.getCode(),
+                "PASSWORD_RESET");
 
-        if (!verificationCode.getCode().equals(request.getCode())) {
-            throw new RuntimeException("인증번호가 일치하지 않습니다.");
-        }
-
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("사용자 정보를 찾을 수 없습니다."));
+        User user = userRepository.findByUsernameAndEmail(
+                request.getUsername(),
+                request.getEmail()).orElseThrow(
+                        () -> new BusinessException(
+                                ErrorCode.USER_NOT_FOUND));
 
         String encodedPassword = passwordEncoder.encode(request.getNewPassword());
 
         user.changePassword(encodedPassword);
-
-        verificationCode.markVerified();
     }
 
     // ===== private 검증 메서드 =====

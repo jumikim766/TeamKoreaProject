@@ -9,13 +9,28 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "FORBIDDEN", "접근 권한이 없습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."),
     CONFLICT(HttpStatus.CONFLICT, "CONFLICT", "이미 존재하는 데이터입니다."),
-    
+
     // 인증 / 회원 관련 상세 예외
     TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "TOKEN_EXPIRED", "토큰이 만료되었습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "DUPLICATE_EMAIL", "이미 사용 중인 이메일입니다."),
     DUPLICATE_USERNAME(HttpStatus.CONFLICT, "DUPLICATE_USERNAME", "이미 사용 중인 아이디입니다."),
     OAUTH_FAIL(HttpStatus.UNAUTHORIZED, "OAUTH_FAIL", "소셜 로그인 처리에 실패했습니다."),
-    
+
+    // 이메일 관련 예외
+    EMAIL_AUTH_FAILED(HttpStatus.BAD_REQUEST, "EMAIL_AUTH_FAILED", "이메일 로그인 정보가 올바르지 않습니다."),
+    EMAIL_CONNECT_FAILED(HttpStatus.BAD_REQUEST, "EMAIL_CONNECT_FAILED", "IMAP 서버 연결에 실패했습니다."),
+    EMAIL_SYNC_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "EMAIL_SYNC_FAILED", "이메일 동기화 중 오류가 발생했습니다."),
+    EMAIL_ACCOUNT_INACTIVE(HttpStatus.BAD_REQUEST, "EMAIL_ACCOUNT_INACTIVE", "비활성화된 이메일 계정입니다."),
+    INVALID_PERIOD(HttpStatus.BAD_REQUEST, "INVALID_PERIOD", "유효하지 않은 기간 조건입니다."),
+    INVALID_RISK_LEVEL(HttpStatus.BAD_REQUEST, "INVALID_RISK_LEVEL", "유효하지 않은 위험도 값입니다."),
+    URL_NOT_FOUND(HttpStatus.NOT_FOUND, "URL_NOT_FOUND", "URL 정보를 찾을 수 없습니다."),
+
+    // 사용자 / 인증번호 관련 예외
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자 정보를 찾을 수 없습니다."),
+    INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "INVALID_VERIFICATION_CODE", "인증번호가 올바르지 않습니다."),
+    VERIFICATION_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "VERIFICATION_CODE_EXPIRED", "인증번호가 만료되었습니다."),
+    ALREADY_VERIFIED_CODE(HttpStatus.BAD_REQUEST, "ALREADY_VERIFIED_CODE", "이미 인증 완료된 코드입니다."),
+
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "서버 내부 오류가 발생했습니다.");
 
     private final HttpStatus status;
@@ -28,7 +43,15 @@ public enum ErrorCode {
         this.defaultMessage = defaultMessage;
     }
 
-    public HttpStatus getStatus()         { return status; }
-    public String getCode()               { return code; }
-    public String getDefaultMessage()     { return defaultMessage; }
+    public HttpStatus getStatus() {
+        return status;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getDefaultMessage() {
+        return defaultMessage;
+    }
 }

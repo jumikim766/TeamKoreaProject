@@ -1,11 +1,13 @@
 package org.teamkorea.backend.dto;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Builder // ✨ 이거 하나만 추가하시면 됩니다!
 @AllArgsConstructor
 public class UrlDetailResponseDto {
 

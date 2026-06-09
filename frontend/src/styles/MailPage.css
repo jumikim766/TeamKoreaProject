@@ -443,3 +443,63 @@
   transform: translateY(-1px);
   text-decoration: underline;
 }
+
+.mail-guide-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.mail-guide-modal {
+  width: 560px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px 32px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.mail-guide-modal h4 {
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.mail-guide-modal p {
+  margin-bottom: 14px;
+}
+
+.mail-guide-button,
+.mail-guide-close-button {
+  margin-top: 16px;
+  padding: 10px 30px;
+  border-radius: 16px;
+  border: none;
+  background: #eef4ff;
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+  height: 44px;
+}
+
+.mail-guide-button:hover,
+.mail-guide-close-button:hover {
+  transform: translateY(-1px);
+  text-decoration: underline;
+}
+
+.mail-head-row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 28px;
+}
+
+.mail-guide-button {
+  margin-top: 10px;
+}

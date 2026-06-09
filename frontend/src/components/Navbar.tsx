@@ -1,8 +1,10 @@
+import type { ViewMode } from "../App";
+
 type NavTarget =
   | "my-mailbox"
   | "mail-connect"
-  | "my-url"
   | "url-statistics"
+  | "my-url"
   | "url-library"
   | "notifications"
   | "notification-settings"
@@ -12,7 +14,8 @@ type NavTarget =
   | "classification-criteria";
 
 interface NavbarProps {
-  onNavigate: (view: NavTarget) => void;
+  currentView?: ViewMode;
+  onNavigate: (view: ViewMode) => void;
 }
 
 const navItems: {
@@ -45,7 +48,7 @@ const navItems: {
     title: "신고하기",
     links: [
       { label: "신고 안내", view: "report-guide" },
-      { label: "신고하기", view: "report" },
+      { label: "제보하기", view: "report" },
     ],
   },
   {
@@ -54,15 +57,24 @@ const navItems: {
   },
 ];
 
-function Navbar({ onNavigate }: NavbarProps) {
+function Navbar({ currentView, onNavigate }: NavbarProps) {
   return (
     <nav className="nav-shell" aria-label="주요 메뉴">
       <div className="nav">
-        {navItems.map((item) => (
-          <button key={item.title} className="nav-item" type="button">
-            <span>{item.title}</span>
-          </button>
-        ))}
+        {navItems.map((item) => {
+          const isActiveGroup = item.links.some((link) => link.view === currentView);
+
+          return (
+            <button
+              key={item.title}
+              className={isActiveGroup ? "nav-item is-active" : "nav-item"}
+              type="button"
+              onClick={() => onNavigate(item.links[0].view)}
+            >
+              <span>{item.title}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="mega-menu">
@@ -73,6 +85,7 @@ function Navbar({ onNavigate }: NavbarProps) {
                 <button
                   key={link.label}
                   type="button"
+                  className={currentView === link.view ? "is-active" : ""}
                   onClick={() => onNavigate(link.view)}
                 >
                   {link.label}

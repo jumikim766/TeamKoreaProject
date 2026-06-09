@@ -34,7 +34,14 @@ public ResponseEntity<BaseResponse<LlmAnalysisResponse>> testLlm(
 
 private String extractDomain(String url) {
     try {
-        return java.net.URI.create(url).getHost();
+        String host = java.net.URI.create(url).getHost();
+
+        if (host == null || host.isBlank()) {
+            return "unknown";
+        }
+
+        return host.toLowerCase().trim();
+
     } catch (Exception e) {
         return "unknown";
     }

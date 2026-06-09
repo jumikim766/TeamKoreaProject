@@ -1,8 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ViewMode } from '../App';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
-import { readNotification } from '../api/notificationApi';
+import {
+  getNotifications,
+  getUnreadCount,
+  readNotification,
+  type NotificationResponse,
+} from '../api/notificationApi';
 import '../styles/NotificationPage.css';
 
 type ThemeMode = 'light' | 'dark';
@@ -17,6 +22,20 @@ interface NotificationItem {
   content: string;
   isRead: boolean;
 }
+
+const toNotificationItem = (
+  notification: NotificationResponse
+): NotificationItem => {
+  return {
+    id: notification.notificationId,
+    title: notification.title,
+    summary: notification.message,
+    date: new Date(notification.createdAt).toLocaleString(),
+    type: 'URL 알림',
+    content: notification.message,
+    isRead: notification.isRead,
+  };
+};
 
 interface NotificationPageProps {
   theme: ThemeMode;
@@ -86,20 +105,73 @@ function NotificationPage({
     initialNotifications[0]?.id ?? null
   );
 
-  const [pushEnabled, setPushEnabled] = useState(true);
+const [pushEnabled, setPushEnabled] = useState(true);
+const [serverUnreadCount, setServerUnreadCount] = useState<number | null>(null);
+const hasShownErrorRef = useRef(false);
 
-  const unreadCount = useMemo(() => {
-    return notifications.filter((item) => !item.isRead).length;
-  }, [notifications]);
+const localUnreadCount = useMemo(() => {
+  return notifications.filter((item) => !item.isRead).length;
+}, [notifications]);
 
-  const selectedNotification = useMemo(() => {
-    return notifications.find((item) => item.id === selectedId) ?? null;
-  }, [notifications, selectedId]);
+const unreadCount = serverUnreadCount ?? localUnreadCount;
 
-  const handleSelectNotification = async (id: number) => {
-    setSelectedId(id);
+const selectedNotification = useMemo(() => {
+  return notifications.find((item) => item.id === selectedId) ?? null;
+}, [notifications, selectedId]);
 
-    const target = notifications.find((item) => item.id === id);
+const showErrorOnce = useCallback((message: string) => {
+  if (!hasShownErrorRef.current) {
+    alert(message);
+    hasShownErrorRef.current = true;
+  }
+}, []);
+
+const loadNotifications = useCallback(async () => {
+  try {
+    const response = await getNotifications();
+    const items = response.map(toNotificationItem);
+
+    setNotifications(items);
+
+    if (items.length > 0) {
+      setSelectedId((prevSelectedId) => {
+        const exists = items.some((item) => item.id === prevSelectedId);
+
+        return exists ? prevSelectedId : items[0].id;
+      });
+    } else {
+      setSelectedId(null);
+    }
+  } catch {
+    showErrorOnce('알림 목록을 불러오지 못했습니다.');
+  }
+}, [showErrorOnce]);
+
+const loadUnreadCount = useCallback(async () => {
+  try {
+    const count = await getUnreadCount();
+
+    setServerUnreadCount(count);
+
+    window.dispatchEvent(new Event('notification-updated'));
+  } catch {
+    showErrorOnce('알림 정보를 불러오지 못했습니다.');
+  }
+}, [showErrorOnce]);
+
+useEffect(() => {
+  if (!isLoggedIn) {
+    return;
+  }
+
+  loadNotifications();
+  loadUnreadCount();
+}, [isLoggedIn, currentView, loadNotifications, loadUnreadCount]);
+
+const handleSelectNotification = async (id: number) => {
+  setSelectedId(id);
+
+  const target = notifications.find((item) => item.id === id);
 
     if (!target || target.isRead) {
       return;
@@ -112,10 +184,12 @@ function NotificationPage({
     );
 
     try {
-      await readNotification(id);
-    } catch {
-      console.warn('백엔드 읽음 처리 API 호출 실패');
-    }
+  await readNotification(id);
+  await loadUnreadCount();
+  await loadNotifications();
+} catch {
+  console.warn('백엔드 읽음 처리 API 호출 실패');
+}
   };
 
   const handleDeleteNotification = (id: number) => {
@@ -123,8 +197,9 @@ function NotificationPage({
 
     setNotifications(nextNotifications);
 
-    if (selectedId === id) {
-      setSelectedId(nextNotifications[0]?.id ?? null);
+if (selectedId === id) {
+  setSelectedId(nextNotifications[0]?.id ?? null);
+
     }
   };
 
