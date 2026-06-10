@@ -1,12 +1,17 @@
-import { useMemo, useState } from 'react';
-import type { ViewMode } from '../App';
-import Header from '../components/Header';
-import Navbar from '../components/Navbar';
-import { readNotification } from '../api/notificationApi';
-import '../styles/NotificationPage.css';
+import { useEffect, useMemo, useState } from "react";
+import type { ViewMode } from "../App";
+import Header from "../components/Header";
+import Navbar from "../components/Navbar";
+import {
+  getNotifications,
+  readNotification,
+  deleteNotification,
+  type NotificationResponse,
+} from "../api/notificationApi";
+import "../styles/NotificationPage.css";
 
-type ThemeMode = 'light' | 'dark';
-type NotificationViewMode = 'notifications' | 'notification-settings';
+type ThemeMode = "light" | "dark";
+type NotificationViewMode = "notifications" | "notification-settings";
 
 interface NotificationItem {
   id: number;
@@ -32,45 +37,33 @@ interface NotificationPageProps {
   onNavigate: (view: ViewMode) => void;
 }
 
-const initialNotifications: NotificationItem[] = [
-  {
-    id: 1,
-    title: '고위험 URL이 탐지되었습니다.',
-    summary:
-      '메일 기반 수집 데이터에서 매우 위험 URL 3건이 추가 탐지되었습니다.',
-    content:
-      '메일 기반 수집 데이터에서 매우 위험 URL 3건이 추가 탐지되었습니다. URL 관리 페이지에서 상세 링크와 위험도를 확인해 주세요.',
-    date: '2026. 06. 10. 오후 2:14',
-    type: '위험 URL',
-    isRead: false,
-  },
-  {
-    id: 2,
-    title: '이메일 연동 상태가 정상입니다.',
-    summary: '연동된 메일 계정의 동기화가 정상적으로 완료되었습니다.',
-    content:
-      '연동된 메일 계정의 동기화가 정상적으로 완료되었습니다. 마지막 점검 시간은 오후 1:42이며 현재 오류는 없습니다.',
-    date: '2026. 06. 10. 오후 1:42',
-    type: '메일 연동',
-    isRead: true,
-  },
-  {
-    id: 3,
-    title: '신고 접수 건 처리 상태가 변경되었습니다.',
-    summary: '사용자가 신고한 URL 1건이 검토 완료 상태로 변경되었습니다.',
-    content:
-      '사용자가 신고한 URL 1건이 검토 완료 상태로 변경되었습니다. 신고 내역 페이지에서 조치 결과를 확인할 수 있습니다.',
-    date: '2026. 06. 09. 오후 7:18',
-    type: '신고 처리',
-    isRead: false,
-  },
-];
+const formatNotificationDate = (date: string) => {
+  return new Date(date).toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const mapNotification = (
+  notification: NotificationResponse,
+): NotificationItem => ({
+  id: notification.notificationId,
+  title: notification.title,
+  summary: notification.message,
+  content: notification.message,
+  date: formatNotificationDate(notification.createdAt),
+  type: "위험 URL",
+  isRead: notification.isRead,
+});
 
 function NotificationPage({
   theme,
   currentView,
   isLoggedIn = false,
-  userName = '팀코',
+  userName = "팀코",
   onLogout,
   onToggleTheme,
   onGoHome,
@@ -79,14 +72,29 @@ function NotificationPage({
   onGoMyPage,
   onNavigate,
 }: NotificationPageProps) {
-  const [notifications, setNotifications] =
-    useState<NotificationItem[]>(initialNotifications);
-
-  const [selectedId, setSelectedId] = useState<number | null>(
-    initialNotifications[0]?.id ?? null
-  );
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const [pushEnabled, setPushEnabled] = useState(true);
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const data = await getNotifications();
+        const mappedNotifications = data.map(mapNotification);
+
+        setNotifications(mappedNotifications);
+        setSelectedId(mappedNotifications[0]?.id ?? null);
+      } catch {
+        console.warn("알림 목록 조회 API 호출 실패");
+        setNotifications([]);
+        setSelectedId(null);
+      }
+    };
+
+    if (currentView === "notifications") {
+      fetchNotifications();
+    }
+  }, [currentView]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((item) => !item.isRead).length;
@@ -106,33 +114,43 @@ function NotificationPage({
     }
 
     setNotifications((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, isRead: true } : item
-      )
+      prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)),
     );
 
     try {
       await readNotification(id);
     } catch {
-      console.warn('백엔드 읽음 처리 API 호출 실패');
+      console.warn("백엔드 읽음 처리 API 호출 실패");
     }
   };
 
-  const handleDeleteNotification = (id: number) => {
-    const nextNotifications = notifications.filter((item) => item.id !== id);
+  const handleDeleteNotification = async (id: number) => {
+    const confirmed = window.confirm("알림을 삭제하시겠습니까?");
 
-    setNotifications(nextNotifications);
+    if (!confirmed) {
+      return;
+    }
 
-    if (selectedId === id) {
-      setSelectedId(nextNotifications[0]?.id ?? null);
+    try {
+      await deleteNotification(id);
+
+      const nextNotifications = notifications.filter((item) => item.id !== id);
+
+      setNotifications(nextNotifications);
+
+      if (selectedId === id) {
+        setSelectedId(nextNotifications[0]?.id ?? null);
+      }
+    } catch {
+      alert("알림 삭제에 실패했습니다.");
     }
   };
 
   const handleSaveNotificationSettings = () => {
-    const confirmed = window.confirm('저장하시겠습니까?');
+    const confirmed = window.confirm("저장하시겠습니까?");
 
     if (confirmed) {
-      alert('저장 완료했습니다.');
+      alert("저장 완료했습니다.");
     }
   };
 
@@ -165,11 +183,11 @@ function NotificationPage({
 
               <button
                 className={
-                  currentView === 'notifications'
-                    ? 'side-menu-button is-active'
-                    : 'side-menu-button'
+                  currentView === "notifications"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
                 }
-                onClick={() => onNavigate('notifications')}
+                onClick={() => onNavigate("notifications")}
                 type="button"
               >
                 알림함
@@ -177,11 +195,11 @@ function NotificationPage({
 
               <button
                 className={
-                  currentView === 'notification-settings'
-                    ? 'side-menu-button is-active'
-                    : 'side-menu-button'
+                  currentView === "notification-settings"
+                    ? "side-menu-button is-active"
+                    : "side-menu-button"
                 }
-                onClick={() => onNavigate('notification-settings')}
+                onClick={() => onNavigate("notification-settings")}
                 type="button"
               >
                 알림 설정
@@ -190,7 +208,7 @@ function NotificationPage({
           </aside>
 
           <section className="page-content">
-            {currentView === 'notifications' ? (
+            {currentView === "notifications" ? (
               <div className="notification-section">
                 <div className="page-head">
                   <div>
@@ -216,10 +234,7 @@ function NotificationPage({
 
                           <strong>새로운 알림이 없습니다</strong>
 
-                          <p>
-                            위험 URL 탐지, 신고 처리, 메일 연동 알림이
-                            생기면 이곳에 표시됩니다.
-                          </p>
+                          <p>고위험 URL이 탐지되면 이곳에 알림이 표시됩니다.</p>
                         </div>
                       ) : (
                         notifications.map((item) => (
@@ -227,8 +242,8 @@ function NotificationPage({
                             key={item.id}
                             className={
                               selectedNotification?.id === item.id
-                                ? 'notification-item is-active'
-                                : 'notification-item'
+                                ? "notification-item is-active"
+                                : "notification-item"
                             }
                             onClick={() => handleSelectNotification(item.id)}
                             type="button"
@@ -237,11 +252,11 @@ function NotificationPage({
                               <span
                                 className={
                                   item.isRead
-                                    ? 'notification-read-state is-read'
-                                    : 'notification-read-state'
+                                    ? "notification-read-state is-read"
+                                    : "notification-read-state"
                                 }
                               >
-                                {item.isRead ? '읽음' : '새 알림'}
+                                {item.isRead ? "읽음" : "새 알림"}
                               </span>
 
                               <small>{item.date}</small>
@@ -278,7 +293,7 @@ function NotificationPage({
                           <p>{selectedNotification.content}</p>
                         </div>
 
-                        <div style={{ marginTop: '20px' }}>
+                        <div style={{ marginTop: "20px" }}>
                           <button
                             className="secondary-button"
                             type="button"
@@ -296,10 +311,7 @@ function NotificationPage({
 
                         <strong>새로운 알림이 없습니다</strong>
 
-                        <p>
-                          위험 URL 탐지, 신고 처리, 메일 연동 알림이 생기면
-                          이곳에 표시됩니다.
-                        </p>
+                        <p>고위험 URL이 탐지되면 이곳에 알림이 표시됩니다.</p>
                       </div>
                     )}
                   </section>
