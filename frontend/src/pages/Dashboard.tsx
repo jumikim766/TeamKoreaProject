@@ -8,8 +8,6 @@ import { useEffect, useState } from 'react';
 
 type ThemeMode = 'light' | 'dark';
 
-
-
 interface DashboardProps {
   theme: ThemeMode;
   isLoggedIn: boolean;
@@ -35,7 +33,6 @@ function Dashboard({
   onGoMyPage,
   onNavigate,
 }: DashboardProps) {
-  
   const [allStats, setAllStats] = useState<UrlStatistics | null>(null);
   const [todayStats, setTodayStats] = useState<UrlStatistics | null>(null);
 
@@ -64,19 +61,15 @@ function Dashboard({
   }, [isLoggedIn]);
 
   const totalCollection = [
-    { name: '심각', value: allStats?.criticalCount ?? 0 },
     { name: '위험', value: allStats?.dangerCount ?? 0 },
     { name: '주의', value: allStats?.warningCount ?? 0 },
-    { name: '의심', value: allStats?.suspiciousCount ?? 0 },
     { name: '안전', value: allStats?.safeCount ?? 0 },
   ];
 
   const todayCollection = [
-    { name: '심각', value: todayStats?.criticalCount ?? 0 },
-    { name: '위험', value: todayStats?.dangerCount ?? 0 },
-    { name: '주의', value: todayStats?.warningCount ?? 0 },
-    { name: '의심', value: todayStats?.suspiciousCount ?? 0 },
-    { name: '안전', value: todayStats?.safeCount ?? 0 },
+{ name: '위험', value: allStats?.dangerCount ?? 0 },
+    { name: '주의', value: allStats?.warningCount ?? 0 },
+    { name: '안전', value: allStats?.safeCount ?? 0 },
   ];
 
   const totalUrlCount = allStats?.totalCount ?? 0;
@@ -103,13 +96,40 @@ function Dashboard({
         <section className="simple-main-board">
           <section className="simple-hero-panel">
             <div className="simple-hero-copy">
-              <p className="eyebrow"></p>
-              <h1>메일 기반 악성 URL을 빠르게 식별하고 즉시 대응하는 운영 대시보드</h1>
+              <p className="eyebrow">URL GUARD SERVICE</p>
+
+              <h1>메일 속 위험 링크를 한눈에 확인하는 URL 보안 서비스</h1>
+
               <p className="hero-text">
-                수집된 URL을 한눈에 확인할 수 있도록 핵심 정보만 단순하게 정리했습니다.
-                운영자는 메일 기반 위협 흐름을 빠르게 파악하고 필요한 메뉴로 바로 이동할 수
-                있습니다.
+                URL GUARD는 사용자의 메일에서 URL을 수집하고, 위험도를 분석해
+                안전한 링크 사용을 도와주는 보안 플랫폼입니다.
               </p>
+
+              <div className="service-card-grid">
+                <article className="service-card">
+                  <span className="service-icon">✉️</span>
+                  <h3>메일 URL 수집</h3>
+                  <p>연동된 메일함에서 URL을 자동으로 수집합니다.</p>
+                </article>
+
+                <article className="service-card">
+                  <span className="service-icon">🔍</span>
+                  <h3>위험도 분석</h3>
+                  <p>수집된 URL을 안전, 주의, 위험, 3단계로 분류합니다.</p>
+                </article>
+
+                <article className="service-card">
+                  <span className="service-icon">🔔</span>
+                  <h3>위험 알림</h3>
+                  <p>위험한 URL이 발견되면 알림함에서 바로 확인할 수 있습니다.</p>
+                </article>
+
+                <article className="service-card">
+                  <span className="service-icon">📊</span>
+                  <h3>통계 확인</h3>
+                  <p>내 URL과 전체 URL 통계를 한눈에 확인할 수 있습니다.</p>
+                </article>
+              </div>
             </div>
           </section>
 

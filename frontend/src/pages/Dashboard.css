@@ -888,3 +888,60 @@ body.dark .login-submit-button.active {
     grid-template-columns: 1fr;
   }
 }
+
+.header-bell-button {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+
+  padding: 0 !important;
+  margin: 0;
+
+  cursor: pointer;
+  color: var(--text-strong);
+}
+
+.header-bell-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.header-bell-button:hover {
+  color: #0066c9;
+}
+
+.header-bell-button {
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+
+  padding: 0 !important;
+  margin: 0 10px 0 0 !important;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--text-strong);
+  cursor: pointer;
+}
+
+.header-bell-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.header-bell-button:hover {
+  color: #0066c9;
+}
