@@ -47,10 +47,10 @@ public class EmailAccountService {
     private final EmailSyncStatusService emailSyncStatusService;
 
     // 최초 동기화 시 100개씩 끊어서 처리
-    private static final int FIRST_SYNC_BATCH_SIZE = 100;
+    private static final int FIRST_SYNC_BATCH_SIZE = 200;
 
     // 일반 동기화 시 최신 30개만 확인
-    private static final int NORMAL_SYNC_LIMIT = 30;
+    private static final int NORMAL_SYNC_LIMIT = 200;
 
     // 이메일 계정 등록
     @Transactional
@@ -343,12 +343,18 @@ public class EmailAccountService {
                     "IMAP 서버 연결 또는 메일함 접근에 실패했습니다. IMAP 설정을 확인해주세요.");
 
         } catch (Exception e) {
-            emailSyncStatusService.markFailed(account.getAccountId());
 
-            throw new BusinessException(
-                    ErrorCode.EMAIL_SYNC_FAILED,
-                    "이메일 동기화 중 오류가 발생했습니다.");
-        } finally {
+    emailSyncStatusService.markFailed(account.getAccountId());
+
+    e.printStackTrace();
+
+    log.error("이메일 동기화 실제 오류", e);
+
+    throw new BusinessException(
+            ErrorCode.EMAIL_SYNC_FAILED,
+            "이메일 동기화 중 오류가 발생했습니다. "
+                    + e.getMessage());
+} finally {
             try {
                 if (inbox != null && inbox.isOpen()) {
                     inbox.close(false);

@@ -12,21 +12,46 @@ public class UrlAnalysisAsyncService {
 
     private final AnalysisService analysisService;
 
-    @Async
-    public void analyzeUrlAsync(Long userId, Long urlId, String emailSubject, String emailBody) {
-        try {
-            // 현재 AnalysisService에 존재하는 규칙 기반 URL 분석 메서드 호출
-           analysisService.analyzeWithLlmAndSave(
-        userId,
-        urlId,
-        emailSubject,
-        emailBody
-);
+   @Async
+public void analyzeUrlAsync(
+        Long userId,
+        Long urlId,
+        String emailSubject,
+        String emailBody
+) {
 
-        } catch (Exception e) {
-            // URL 분석 실패가 이메일 저장 실패로 이어지면 안 됨
-            log.warn("[URL ANALYSIS ASYNC] URL 분석 실패 - userId={}, urlId={}, reason={}",
-                    userId, urlId, e.getMessage());
-        }
+    System.out.println(
+            "===== URL 분석 시작 ===== urlId=" + urlId
+    );
+
+    try {
+
+        analysisService.analyzeWithLlmAndSave(
+                userId,
+                urlId,
+                emailSubject,
+                emailBody
+        );
+
+        System.out.println(
+                "===== URL 분석 성공 ===== urlId=" + urlId
+        );
+
+    } catch (Exception e) {
+
+        e.printStackTrace();
+
+        System.out.println(
+                "===== URL 분석 실패 ===== "
+                        + e.getMessage()
+        );
+
+        log.warn(
+                "[URL ANALYSIS ASYNC] URL 분석 실패 - userId={}, urlId={}, reason={}",
+                userId,
+                urlId,
+                e.getMessage()
+        );
     }
+}
 }

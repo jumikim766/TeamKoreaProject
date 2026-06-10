@@ -183,10 +183,10 @@ public class AnalysisService {
                 .analyzedAt(LocalDateTime.now())
                 .build();
 
-        UrlAnalysis savedAnalysis = urlAnalysisRepository.save(analysis);
+        UrlAnalysis savedAnalysis = urlAnalysisRepository.saveAndFlush(analysis);
         
         // 3. 히스토리 저장
-        analysisHistoryRepository.save(AnalysisHistory.createHistory(user, savedAnalysis, "MAIL"));
+        //analysisHistoryRepository.save(AnalysisHistory.createHistory(user, savedAnalysis, "MAIL"));
 
         // 4. DANGER(70점) 이상일 경우 실시간 알림 트리거 활성화
         if (riskLevel == RiskLevel.DANGER || riskLevel == RiskLevel.CRITICAL) {
@@ -363,7 +363,11 @@ public class AnalysisService {
             .analyzedAt(LocalDateTime.now())
             .build();
 
-    UrlAnalysis savedAnalysis = urlAnalysisRepository.save(analysis);
+    System.out.println("=== URL_ANALYSIS 저장 직전 ===");
+
+UrlAnalysis savedAnalysis = urlAnalysisRepository.saveAndFlush(analysis);
+
+System.out.println("=== URL_ANALYSIS 저장 완료 ===");
 
     analysisHistoryRepository.save(
             AnalysisHistory.createHistory(user, savedAnalysis, "MAIL_LLM")
