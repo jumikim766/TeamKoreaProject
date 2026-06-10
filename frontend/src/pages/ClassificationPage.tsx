@@ -56,37 +56,121 @@ const classificationCriteria: ClassificationItem[] = [
   {
     id: 1,
     title: "안전",
-    description: "정상 서비스 URL",
-    detail: "공식 서비스 도메인 또는 신뢰 가능한 URL입니다.",
+    description: "특별한 위험 요소가 발견되지 않은 정상 URL",
+    detail: "0~29점",
     status: "안전",
   },
   {
     id: 2,
-    title: "의심",
-    description: "의심 요소 존재",
-    detail: "출처나 패턴이 명확하지 않아 추가 확인이 필요한 URL입니다.",
-    status: "의심",
-  },
-  {
-    id: 3,
     title: "주의",
-    description: "추가 확인 필요",
-    detail: "신규 도메인 또는 단축 URL 등 추가 분석이 필요합니다.",
+    description: "일부 의심 요소가 탐지되어 확인이 필요한 URL",
+    detail: "30~69점",
     status: "주의",
   },
   {
-    id: 4,
+    id: 3,
     title: "위험",
-    description: "피싱 가능성 높음",
-    detail: "로그인 유도 및 개인정보 입력을 요구하는 URL입니다.",
+    description: "피싱 또는 악성 사이트일 가능성이 높은 URL",
+    detail: "70~100점",
     status: "위험",
   },
+];
+
+const detectionCriteriaGroups = [
   {
-    id: 5,
-    title: "심각",
-    description: "즉시 차단 대상",
-    detail: "악성코드 배포 또는 계정 탈취 시도가 확인되었습니다.",
-    status: "심각",
+    title: "URL 구조 기반",
+    items: [
+      {
+        criteria: "IP 주소 직접 사용",
+        score: "+50",
+        description: "도메인 대신 IP 주소 사용",
+      },
+      {
+        criteria: "HTTPS 미사용 (http://)",
+        score: "+20",
+        description: "암호화되지 않은 연결 사용",
+      },
+      {
+        criteria: "URL 길이 과다",
+        score: "+20",
+        description: "비정상적으로 긴 URL",
+      },
+      {
+        criteria: "하이픈(-) 과다 사용",
+        score: "+15",
+        description: "브랜드 사칭 및 혼동 유도 가능성",
+      },
+      {
+        criteria: "서브도메인 과다 사용",
+        score: "+15",
+        description: "정상 사이트처럼 위장 가능성",
+      },
+      {
+        criteria: "단축 URL 사용",
+        score: "+30",
+        description: "실제 목적지 숨김 가능성",
+      },
+      {
+        criteria: "의심 TLD 사용",
+        score: "+25",
+        description: ".xyz, .top, .club, .biz, .tk 등",
+      },
+    ],
+  },
+  {
+    title: "피싱 키워드 기반",
+    items: [
+      {
+        criteria: "login 포함",
+        score: "+20",
+        description: "로그인 유도 가능성",
+      },
+      {
+        criteria: "verify 포함",
+        score: "+15",
+        description: "인증/검증 사칭 가능성",
+      },
+      {
+        criteria: "password 포함",
+        score: "+20",
+        description: "비밀번호 입력 유도 가능성",
+      },
+      {
+        criteria: "account 포함",
+        score: "+15",
+        description: "계정 탈취 가능성",
+      },
+      {
+        criteria: "secure 포함",
+        score: "+15",
+        description: "안전한 사이트처럼 위장 가능성",
+      },
+      {
+        criteria: "bank, pay, billing, confirm, update 포함",
+        score: "+20",
+        description: "금융/결제/인증 사칭 가능성",
+      },
+    ],
+  },
+  {
+    title: "도메인 신뢰도 기반",
+    items: [
+      {
+        criteria: "블랙리스트 도메인",
+        score: "+100",
+        description: "기존 악성 도메인",
+      },
+      {
+        criteria: "화이트리스트 도메인",
+        score: "0",
+        description: "신뢰 가능한 도메인",
+      },
+      {
+        criteria: "낮은 도메인 평판",
+        score: "+15",
+        description: "신뢰도 낮은 도메인",
+      },
+    ],
   },
 ];
 
@@ -103,10 +187,8 @@ function ClassificationPage({
   onGoMyPage,
   onNavigate,
 }: ClassificationPageProps) {
+  const [isDetectionOpen, setIsDetectionOpen] = useState(false);
   const items = classificationCriteria;
-  const [selectedItem, setSelectedItem] = useState<ClassificationItem | null>(
-    null,
-  );
 
   return (
     <div className="dashboard-shell">
@@ -162,17 +244,12 @@ function ClassificationPage({
                   <div className="classification-table-header">
                     <span>항목</span>
                     <span>설명</span>
-                    <span>상세 내용</span>
+                    <span>점수 기준</span>
                   </div>
 
                   <div className="classification-table-body">
                     {items.map((item) => (
-                      <button
-                        key={item.id}
-                        className="classification-table-row"
-                        onClick={() => setSelectedItem(item)}
-                        type="button"
-                      >
+                      <div key={item.id} className="classification-table-row">
                         <span className="classification-status-cell">
                           <strong>{item.title}</strong>
                           <span
@@ -185,36 +262,65 @@ function ClassificationPage({
                         <span>{item.description}</span>
 
                         <span>{item.detail}</span>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </section>
-                {selectedItem && (
-                  <section className="classification-detail-card">
-                    <div className="classification-detail-box">
-                      <div className="classification-detail-head">
-                        <h2>{selectedItem.title}</h2>
-                        <span
-                          className={`risk-badge ${getRiskClassName(selectedItem.status)}`}
-                        >
-                          {getRiskLabel(selectedItem.status)}
-                        </span>
-                      </div>
-
-                      <div className="classification-meta">
-                        <p>
-                          <strong>분류 설명 :</strong>{" "}
-                          {selectedItem.description}
-                        </p>
-
-                        <p>
-                          <strong>상세 기준 :</strong> {selectedItem.detail}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-                )}
               </div>
+
+              <div className="classification-divider" />
+
+              <section className="detection-criteria-section">
+                <div className="classification-sub-head detection-toggle-head">
+                  <h1>탐지 기준표</h1>
+
+                  <button
+                    className="detection-toggle-button"
+                    type="button"
+                    onClick={() => setIsDetectionOpen((prev) => !prev)}
+                    aria-label={
+                      isDetectionOpen
+                        ? "탐지 기준표 접기"
+                        : "탐지 기준표 펼치기"
+                    }
+                  >
+                    {isDetectionOpen ? "-" : "+"}
+                  </button>
+                </div>
+
+                {isDetectionOpen && (
+                  <div className="detection-group-list">
+                    {detectionCriteriaGroups.map((group) => (
+                      <section className="detection-group" key={group.title}>
+                        <h3 className="detection-group-title">
+                          • {group.title}
+                        </h3>
+
+                        <div className="detection-group-card">
+                          <div className="detection-table-header">
+                            <span>탐지 기준</span>
+                            <span>점수</span>
+                            <span>설명</span>
+                          </div>
+
+                          <div className="detection-table-body">
+                            {group.items.map((item) => (
+                              <div
+                                className="detection-table-row"
+                                key={item.criteria}
+                              >
+                                <strong>{item.criteria}</strong>
+                                <span>{item.score}</span>
+                                <span>{item.description}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
           </section>
         </div>
