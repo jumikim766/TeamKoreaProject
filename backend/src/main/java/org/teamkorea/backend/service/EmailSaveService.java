@@ -20,7 +20,6 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -77,9 +76,7 @@ public class EmailSaveService {
 
         int extractedUrlCount = 0;
 
-        List<String> distinctUrls = extractedUrls.stream()
-                .distinct()
-                .toList();
+        List<String> distinctUrls = extractedUrls;
 
         for (String rawUrl : distinctUrls) {
 
@@ -91,25 +88,19 @@ public class EmailSaveService {
 
             String urlHash = sha256(normalizedUrl);
 
-            Url url;
+String uniqueTestUrlHash = sha256(
+        normalizedUrl + "|" + messageUid + "|" + extractedUrlCount
+);
 
-            Optional<Url> existingUrlOpt = urlRepository.findByUrlHash(urlHash);
-
-            if (existingUrlOpt.isPresent()) {
-                url = existingUrlOpt.get();
-                url.setLastSeenAt(LocalDateTime.now());
-                url.setSeenCount(url.getSeenCount() + 1);
-            } else {
-                url = Url.builder()
-                        .normalizedUrl(normalizedUrl)
-                        .urlHash(urlHash)
-                        .domain(extractDomain(normalizedUrl))
-                        .scheme(extractScheme(normalizedUrl))
-                        .firstSeenAt(LocalDateTime.now())
-                        .lastSeenAt(LocalDateTime.now())
-                        .seenCount(1)
-                        .build();
-            }
+Url url = Url.builder()
+        .normalizedUrl(normalizedUrl)
+        .urlHash(uniqueTestUrlHash)
+        .domain(extractDomain(normalizedUrl))
+        .scheme(extractScheme(normalizedUrl))
+        .firstSeenAt(LocalDateTime.now())
+        .lastSeenAt(LocalDateTime.now())
+        .seenCount(1)
+        .build();
 
             Url savedUrl;
 
