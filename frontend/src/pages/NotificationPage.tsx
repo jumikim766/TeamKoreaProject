@@ -75,7 +75,11 @@ function NotificationPage({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
-  const [pushEnabled, setPushEnabled] = useState(true);
+ const [dangerNotification, setDangerNotification] = useState(true);
+const [warningNotification, setWarningNotification] = useState(true);
+const [emailNotification, setEmailNotification] = useState(false);
+const [autoReadNotification, setAutoReadNotification] = useState(true);
+const [unreadOnlyNotification, setUnreadOnlyNotification] = useState(false);
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -324,25 +328,98 @@ function NotificationPage({
                 </div>
 
                 <div className="notification-settings-card">
-                  <div className="notification-setting-row">
-                    <div>
-                      <strong>위험 URL 탐지 알림</strong>
-                      <p>고위험 URL이 새로 탐지되면 알림을 받습니다.</p>
-                    </div>
 
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={pushEnabled}
-                        onChange={(event) =>
-                          setPushEnabled(event.target.checked)
-                        }
-                      />
+  <div className="notification-setting-row">
+    <div>
+      <strong>위험 URL 탐지 알림</strong>
+      <p>고위험 URL이 새로 탐지되면 알림을 받습니다.</p>
+    </div>
 
-                      <span className="toggle-slider" />
-                    </label>
-                  </div>
-                </div>
+    <label className="toggle-switch">
+      <input
+        type="checkbox"
+        checked={dangerNotification}
+        onChange={() =>
+          setDangerNotification(!dangerNotification)
+        }
+      />
+      <span className="toggle-slider" />
+    </label>
+  </div>
+
+  <div className="notification-setting-row">
+    <div>
+      <strong>주의 URL 탐지 알림</strong>
+      <p>주의가 필요한 URL이 탐지되면 알림을 받습니다.</p>
+    </div>
+
+    <label className="toggle-switch">
+      <input
+        type="checkbox"
+        checked={warningNotification}
+        onChange={() =>
+          setWarningNotification(!warningNotification)
+        }
+      />
+      <span className="toggle-slider" />
+    </label>
+  </div>
+
+  <div className="notification-setting-row">
+    <div>
+      <strong>이메일 알림</strong>
+      <p>중요 알림을 이메일로도 받습니다.</p>
+    </div>
+
+    <label className="toggle-switch">
+      <input
+        type="checkbox"
+        checked={emailNotification}
+        onChange={() =>
+          setEmailNotification(!emailNotification)
+        }
+      />
+      <span className="toggle-slider" />
+    </label>
+  </div>
+
+  <div className="notification-setting-row">
+    <div>
+      <strong>알림 클릭 시 자동 읽음 처리</strong>
+      <p>알림 상세 내용을 확인하면 자동으로 읽음 처리됩니다.</p>
+    </div>
+
+    <label className="toggle-switch">
+      <input
+        type="checkbox"
+        checked={autoReadNotification}
+        onChange={() =>
+          setAutoReadNotification(!autoReadNotification)
+        }
+      />
+      <span className="toggle-slider" />
+    </label>
+  </div>
+
+  <div className="notification-setting-row">
+    <div>
+      <strong>읽지 않은 알림만 표시</strong>
+      <p>알림함에서 읽지 않은 알림만 보여줍니다.</p>
+    </div>
+
+    <label className="toggle-switch">
+      <input
+        type="checkbox"
+        checked={unreadOnlyNotification}
+        onChange={() =>
+          setUnreadOnlyNotification(!unreadOnlyNotification)
+        }
+      />
+      <span className="toggle-slider" />
+    </label>
+  </div>
+
+</div>
 
                 <div className="notification-actions">
                   <button

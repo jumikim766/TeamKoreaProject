@@ -341,6 +341,41 @@ font-size: 15px;
 line-height: 1.75;
 }
 
+.service-card-grid {
+width: 100%;
+margin-top: 34px;
+display: grid;
+grid-template-columns: repeat(2, minmax(0, 1fr));
+gap: 16px;
+}
+
+.service-card {
+padding: 20px;
+border-radius: 20px;
+background: rgba(255, 255, 255, 0.14);
+border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.service-icon {
+display: inline-flex;
+margin-bottom: 14px;
+font-size: 26px;
+}
+
+.service-card h3 {
+margin: 0 0 8px;
+color: #ffffff;
+font-size: 18px;
+font-weight: 900;
+}
+
+.service-card p {
+margin: 0;
+color: rgba(255, 255, 255, 0.88);
+font-size: 14px;
+line-height: 1.6;
+}
+
 .simple-chart-panel {
 padding: 20px;
 display: flex;
@@ -518,6 +553,10 @@ padding: 28px 24px;
 
 .simple-hero-copy h1 {
 font-size: 28px;
+}
+
+.service-card-grid {
+grid-template-columns: 1fr;
 }
 
 .chart-content {
