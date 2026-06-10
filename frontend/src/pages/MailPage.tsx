@@ -427,11 +427,22 @@ function MailPage({
                       <section className="mail-detail-card">
                         <div className="mail-detail-head">
                           <h2>{selectedMail.subject}</h2>
-                          <span
-                            className={`risk-badge ${getRiskClassName(selectedEmailDetail?.riskLevel)}`}
-                          >
-                            {getRiskLabel(selectedEmailDetail?.riskLevel)}
-                          </span>
+                         <button
+  className={`risk-badge ${getRiskClassName(selectedEmailDetail?.riskLevel)} mail-risk-button`}
+  type="button"
+  onClick={() => {
+    if (!selectedEmailDetail) return;
+
+    sessionStorage.setItem(
+      "targetEmailIdForUrlPage",
+      String(selectedEmailDetail.emailId)
+    );
+
+    onNavigate("my-url");
+  }}
+>
+  {getRiskLabel(selectedEmailDetail?.riskLevel)}
+</button>
                         </div>
 
                         <div className="mail-meta">

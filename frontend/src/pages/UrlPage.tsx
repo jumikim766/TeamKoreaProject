@@ -10,14 +10,15 @@ import {
   getRiskLabel,
   type RiskLevelLabel,
 } from "../utils/riskLevel";
+import { getMyUrls, type MyUrlItem } from "../api/urlApi";
 import {
-  getMyUrls,
-  type MyUrlItem,
-} from "../api/urlApi";
+  getEmailAccounts,
+  getEmailUrls,
+  type EmailAccount,
+} from "../api/mailApi";
 
 type ThemeMode = "light" | "dark";
 type UrlViewMode = "url-statistics" | "my-url" | "url-library";
-
 type PageViewTarget = ViewMode;
 
 interface UrlPageProps {
@@ -78,40 +79,111 @@ function UrlPage({
 }: UrlPageProps) {
   const [openedUrlId, setOpenedUrlId] = useState<number | null>(null);
   const [urlItems, setUrlItems] = useState<MyUrlItem[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState("1234@5678.com");
+  const [emailAccounts, setEmailAccounts] = useState<EmailAccount[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<
+    number | undefined
+  >();
+  const [targetEmailId, setTargetEmailId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   const isMyUrl = currentView === "my-url";
   const isStatistics = currentView === "url-statistics";
 
   useEffect(() => {
+    const savedEmailId = sessionStorage.getItem("targetEmailIdForUrlPage");
+
+    if (savedEmailId) {
+      setTargetEmailId(Number(savedEmailId));
+      sessionStorage.removeItem("targetEmailIdForUrlPage");
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const accounts = await getEmailAccounts();
+        setEmailAccounts(accounts);
+
+        if (accounts.length > 0) {
+          setSelectedAccountId(accounts[0].accountId);
+        }
+      } catch (error) {
+        console.error("메일 계정 조회 실패:", error);
+      }
+    };
+
+    fetchAccounts();
+  }, []);
+
+  useEffect(() => {
+    if (targetEmailId === null) return;
+
+    const fetchEmailUrls = async () => {
+      try {
+        const response = await getEmailUrls(targetEmailId);
+
+        const mappedUrls: MyUrlItem[] = response.urls.map((url) => ({
+          urlId: url.urlId,
+          emailId: targetEmailId,
+          accountId: selectedAccountId ?? 0,
+          senderName: null,
+          senderEmail: null,
+          emailSubject: null,
+          originalUrl: url.originalUrl,
+          normalizedUrl: url.normalizedUrl,
+          domain: url.domain,
+          riskLevel: url.riskLevel,
+          score: url.score,
+          reasonSummary: url.reasonSummary,
+          detectedRules: url.detectedRules ?? [],
+          isAnalyzed: true,
+          receivedAt: null,
+          createdAt: "",
+        }));
+
+        setUrlItems(mappedUrls);
+        setCurrentPage(1);
+      } catch (error) {
+        console.error("선택한 메일의 URL 조회 실패:", error);
+      }
+    };
+
+    fetchEmailUrls();
+  }, [targetEmailId, selectedAccountId]);
+
+  useEffect(() => {
+    if (targetEmailId !== null) return;
+    if (!selectedAccountId) return;
+
     const fetchUrls = async () => {
       try {
         const response = await getMyUrls({
+          accountId: selectedAccountId,
           page: 0,
           size: 100,
         });
 
         setUrlItems(response.urls);
+        setCurrentPage(1);
       } catch (error) {
-        console.error(error);
+        console.error("나의 URL 조회 실패:", error);
       }
     };
 
     fetchUrls();
-  }, []);
+  }, [selectedAccountId, targetEmailId]);
 
   const handleChangeMenu = (view: UrlViewMode) => {
     setCurrentPage(1);
     setOpenedUrlId(null);
+    setTargetEmailId(null);
     onNavigate(view);
   };
 
- const handleToggleReason = (urlId: number) => {
-  setOpenedUrlId((prevId) => (prevId === urlId ? null : urlId));
-};
+  const handleToggleReason = (urlId: number) => {
+    setOpenedUrlId((prevId) => (prevId === urlId ? null : urlId));
+  };
 
- 
   const myTotalCount = urlItems.length;
   const myHighRiskCount = urlItems.filter(
     (item) => item.riskLevel === "DANGER"
@@ -133,15 +205,11 @@ function UrlPage({
   ];
 
   const totalPages = Math.max(1, Math.ceil(urlItems.length / PAGE_SIZE));
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const pagedUrlItems = urlItems.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    (safeCurrentPage - 1) * PAGE_SIZE,
+    safeCurrentPage * PAGE_SIZE
   );
 
   return (
@@ -248,14 +316,20 @@ function UrlPage({
                     <div className="url-top-bar">
                       <select
                         className="url-filter-select"
-                        value={selectedAccount}
-                        onChange={(event) =>
-                          setSelectedAccount(event.target.value)
-                        }
+                        value={selectedAccountId ?? ""}
+                        onChange={(event) => {
+                          setTargetEmailId(null);
+                          setSelectedAccountId(Number(event.target.value));
+                        }}
                       >
-                        <option value="1234@5678.com">1234@5678.com</option>
-                        <option value="8765@4321.com">8765@4321.com</option>
-                        <option value="abcd@efgh.com">abcd@efgh.com</option>
+                        {emailAccounts.map((account) => (
+                          <option
+                            key={account.accountId}
+                            value={account.accountId}
+                          >
+                            {account.email}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   )}
@@ -264,7 +338,9 @@ function UrlPage({
                     <div className="url-list-head">
                       <div>
                         <h2 className="url-list-title">
-                          {pageInfo[currentView].title}
+                          {targetEmailId !== null
+                            ? "선택한 메일의 URL"
+                            : pageInfo[currentView].title}
                         </h2>
                         <p className="url-list-count">
                           총 <strong>{urlItems.length}</strong>건 · 최신 링크가
@@ -293,7 +369,7 @@ function UrlPage({
                         const isOpened = openedUrlId === item.urlId;
                         const displayNumber =
                           urlItems.length -
-                          ((currentPage - 1) * PAGE_SIZE + index);
+                          ((safeCurrentPage - 1) * PAGE_SIZE + index);
 
                         return (
                           <div className="url-row-block" key={item.urlId}>
@@ -311,7 +387,9 @@ function UrlPage({
                               {isMyUrl && (
                                 <span>
                                   <strong>
-                                    {item.senderName ?? item.domain ?? "알 수 없음"}
+                                    {item.senderName ??
+                                      item.domain ??
+                                      "알 수 없음"}
                                   </strong>
                                 </span>
                               )}
@@ -321,8 +399,12 @@ function UrlPage({
                               </span>
 
                               <span>
-                                {item.createdAt?.slice(0, 10)}{" "}
-                                {item.createdAt?.slice(11, 16)}
+                                {item.createdAt
+                                  ? `${item.createdAt.slice(
+                                      0,
+                                      10
+                                    )} ${item.createdAt.slice(11, 16)}`
+                                  : "-"}
                               </span>
 
                               <span>
@@ -349,29 +431,32 @@ function UrlPage({
                               </button>
                             </div>
 
-
                             {isOpened && (
-  <div className="url-risk-reason-box">
-    <strong>LLM 분석 결과</strong>
-    <p>· 위험도: {item.riskLevel}</p>
-    <p>· 점수: {item.score ?? "-"}</p>
-    <p>· 설명: {item.reasonSummary ?? "분석 설명이 없습니다."}</p>
+                              <div className="url-risk-reason-box">
+                                <strong>LLM 분석 결과</strong>
+                                <p>· 위험도: {item.riskLevel}</p>
+                                <p>· 점수: {item.score ?? "-"}</p>
+                                <p>
+                                  · 설명:{" "}
+                                  {item.reasonSummary ??
+                                    "분석 설명이 없습니다."}
+                                </p>
 
-    {item.detectedRules?.map((rule) => (
-      <p key={rule}>· {rule}</p>
-    ))}
-  </div>
-)}
+                                {item.detectedRules?.map((rule) => (
+                                  <p key={rule}>· {rule}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
                     </div>
 
                     <Pagination
-  currentPage={currentPage}
-  totalPages={totalPages}
-  onPageChange={setCurrentPage}
-/>
+                      currentPage={safeCurrentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                    />
                   </section>
                 </>
               )}

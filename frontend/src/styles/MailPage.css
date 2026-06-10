@@ -503,3 +503,8 @@
 .mail-guide-button {
   margin-top: 10px;
 }
+
+.mail-risk-button {
+  border: none;
+  cursor: pointer;
+}
