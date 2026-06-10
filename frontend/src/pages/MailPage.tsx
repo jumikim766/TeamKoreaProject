@@ -337,21 +337,20 @@ function MailPage({
     }
   };
 
-
   const renderMailPagination = () => {
-  return (
-    <>
-      <Pagination
-        currentPage={page + 1}
-        totalPages={totalPages}
-        onPageChange={(nextPage) => setPage(nextPage - 1)}
-      />
-      {totalElements > 0 && (
-        <p className="mail-total-count">총 {totalElements}개</p>
-      )}
-    </>
-  );
-};
+    return (
+      <>
+        <Pagination
+          currentPage={page + 1}
+          totalPages={totalPages}
+          onPageChange={(nextPage) => setPage(nextPage - 1)}
+        />
+        {totalElements > 0 && (
+          <p className="mail-total-count">총 {totalElements}개</p>
+        )}
+      </>
+    );
+  };
 
   return (
     <div className="dashboard-shell">
@@ -509,8 +508,11 @@ function MailPage({
                               className="mail-table-row"
                             >
                               <span>
-                                <strong>{message.senderName}</strong>
-                                <small>{message.senderEmail}</small>
+                                <strong>
+                                  {message.senderName ||
+                                    message.senderEmail ||
+                                    "알 수 없음"}
+                                </strong>
                               </span>
 
                               <span>

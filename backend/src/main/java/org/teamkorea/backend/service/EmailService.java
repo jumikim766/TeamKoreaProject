@@ -70,16 +70,12 @@ public class EmailService {
         return EmailDetailResponseDto.builder()
                 .emailId(email.getEmailId())
                 .accountId(email.getAccount() != null ? email.getAccount().getAccountId() : null)
+                .senderName(getDisplaySender(email))
                 .senderEmail(email.getSenderEmail())
-                // 발신자 이름 없으면 이메일 주소라도 표시
-                .senderName(
-                        email.getSenderName() != null && !email.getSenderName().isBlank()
-                                ? email.getSenderName()
-                                : email.getSenderEmail())
                 .receiverEmail(email.getReceiverEmail())
                 .subject(email.getSubject() != null ? email.getSubject() : "")
                 .bodyText(email.getBodyText() != null ? email.getBodyText() : "")
-                .bodyHtml(email.getBodyHtml()) // HTML 본문 응답 추가
+                .bodyHtml(email.getBodyHtml())
                 .receivedAt(email.getReceivedAt())
                 .createdAt(email.getCreatedAt())
                 .urlCount(urlCount)
@@ -105,14 +101,29 @@ public class EmailService {
 
     // 이메일 목록 DTO 변환
     private EmailListResponseDto toEmailListResponse(Email email) {
+        String displaySender = getDisplaySender(email);
 
         return EmailListResponseDto.builder()
                 .emailId(email.getEmailId())
-                .senderName(email.getSenderName() != null ? email.getSenderName() : "")
+                .senderName(displaySender)
+                .senderEmail(email.getSenderEmail())
                 .subject(email.getSubject() != null ? email.getSubject() : "")
                 .previewText(makePreviewText(email.getBodyText()))
                 .receivedAt(email.getReceivedAt())
                 .build();
+    }
+
+    // 발신자 표시명 생성
+    private String getDisplaySender(Email email) {
+        if (email.getSenderName() != null && !email.getSenderName().isBlank()) {
+            return email.getSenderName();
+        }
+
+        if (email.getSenderEmail() != null && !email.getSenderEmail().isBlank()) {
+            return email.getSenderEmail();
+        }
+
+        return "알 수 없음";
     }
 
     // 이메일 URL DTO 변환
